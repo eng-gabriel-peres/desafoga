@@ -11,12 +11,12 @@ const LancamentoLido = z.object({
   natureza: z
     .enum(NATUREZAS)
     .describe(
-      "compra = gasto; juros = juros e encargos do rotativo ou de parcelamento de fatura; iof; tarifa_ou_multa = anuidade, tarifas, multa, mora; pagamento_ou_credito = pagamento da fatura, estorno, depósito; saldo_anterior = saldo de fatura anterior trazido para esta",
+      "compra = qualquer gasto: compra no cartão ou no débito, Pix ou transferência enviada a outra pessoa ou empresa, boleto, conta paga, saque; juros = juros e encargos do rotativo, do cheque especial ou de parcelamento de fatura; iof; tarifa_ou_multa = anuidade, tarifas, multa, mora; entrada = dinheiro que entrou na conta vindo de fora: salário, Pix ou transferência recebida de outra pessoa ou empresa, depósito, rendimento, reembolso; pagamento_de_fatura = em extrato de conta, o débito que paga a fatura do cartão; transferencia_propria = movimentação entre contas da mesma pessoa (mesma titularidade, ou o nome do outro lado é o do titular), aplicação e resgate de investimento ou caixinha; pagamento_ou_credito = em fatura de cartão, o pagamento recebido ou um estorno; saldo_anterior = saldo de fatura anterior ou saldo inicial do extrato",
     ),
   categoria: z
     .enum(CATEGORIAS)
     .describe(
-      "mercado = supermercado, feira, açougue; alimentacao = restaurante, lanchonete, delivery; transporte = combustível, app de corrida, ônibus, estacionamento; moradia_e_contas = aluguel, luz, água, internet, celular; saude = farmácia, consulta, plano; educacao = escola, curso, livro; lazer = cinema, viagem, bar, jogos; compras = roupas, eletrônicos, casa e outros bens; assinaturas = streaming, apps, academia; outros = o que não couber",
+      "mercado = supermercado, feira, açougue; alimentacao = restaurante, lanchonete, delivery; transporte = combustível, app de corrida, ônibus, estacionamento; moradia_e_contas = aluguel, luz, água, internet, celular; saude = farmácia, consulta, plano; educacao = escola, curso, livro; lazer = cinema, viagem, bar, jogos; compras = roupas, eletrônicos, casa e outros bens; assinaturas = streaming, apps, academia; transferencias = Pix ou transferência enviada a uma pessoa sem indicação do motivo; outros = o que não couber (use também em entradas)",
     ),
   parcela: z.string().nullable().describe('Ex.: "03/06" quando for compra parcelada'),
 });
@@ -38,7 +38,7 @@ export const MensagemLida = z.object({
   intencao: z
     .enum(["registrar_gasto", "informar_renda_ou_saldo", "pergunta", "saudacao", "outro"])
     .describe(
-      "registrar_gasto = a pessoa conta algo que gastou; informar_renda_ou_saldo = diz quanto ganha ou quanto tem na conta; pergunta = quer saber algo sobre os gastos ou pede dica",
+      "registrar_gasto = a pessoa conta algo que gastou ou um valor avulso que recebeu (natureza entrada); informar_renda_ou_saldo = diz quanto ganha ou quanto tem na conta; pergunta = quer saber algo sobre os gastos ou pede dica",
     ),
   lancamentos: z.array(LancamentoLido).describe("Só quando a intenção é registrar_gasto"),
   rendaMensal: z.string().nullable().describe("Renda mensal informada, como escrita"),
@@ -55,7 +55,7 @@ const REGRAS_DE_LEITURA = `Regras:
 export async function lerDocumento(bytes: Uint8Array, mime: string, hoje: string): Promise<DocumentoLido> {
   return gerarJson(
     DocumentoLido,
-    `Você lê documentos financeiros brasileiros: faturas de cartão, extratos, prints de compras do app do banco, notificações de compra e comprovantes. Transcreva cada lançamento e classifique a natureza e a categoria.\n\n${REGRAS_DE_LEITURA.replace("{HOJE}", hoje)}`,
+    `Você lê documentos financeiros brasileiros: faturas de cartão, extratos, prints de compras do app do banco, notificações de compra e comprovantes. Transcreva cada lançamento e classifique a natureza e a categoria. Em extrato de conta, cada linha de movimentação é um lançamento: crédito na conta é entrada, débito é compra, salvo os casos de pagamento_de_fatura e transferencia_propria. Não transcreva linhas de saldo do dia. O valor vai sempre sem sinal.\n\n${REGRAS_DE_LEITURA.replace("{HOJE}", hoje)}`,
     [parteDeArquivo(bytes, mime), { text: "Leia este documento." }],
   );
 }

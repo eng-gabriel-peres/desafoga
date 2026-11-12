@@ -8,9 +8,9 @@ Projeto do Hack Brasil 2026, trilha Pagamentos & finanças.
 
 ## O que faz
 
-- **Lê** fatura em PDF, foto ou print de compras do app do banco, e gastos escritos em texto ("almoço 35 e uber 18,50").
+- **Lê** fatura de cartão e extrato de conta em PDF, foto ou print de compras do app do banco, e gastos escritos em texto ("almoço 35 e uber 18,50").
 - **Classifica** cada lançamento: mercado, restaurantes, transporte, casa e contas, saúde, educação, lazer, compras, assinaturas.
-- **Soma** o dia, o mês e o mês anterior, por categoria, e separa juros, IOF e tarifas dos gastos.
+- **Soma** o dia, o mês e o mês anterior, por categoria; mostra quanto entrou, quanto saiu e quanto sobrou; separa juros, IOF e tarifas dos gastos.
 - **Orienta**: quanto custa pagar só o mínimo, qual categoria cortar, quanto guardar por mês a partir da renda.
 - **Lembra** do que já anotou e não duplica uma fatura enviada duas vezes.
 

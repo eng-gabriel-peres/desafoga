@@ -9,8 +9,11 @@ interface Mensagem {
   texto: string;
 }
 
-const ATALHOS = ["Quanto gastei hoje?", "Onde posso economizar?", "Quanto devo guardar por mês?"];
-const FATURA_DE_EXEMPLO = "/exemplos/fatura-ana.pdf";
+const ATALHOS = ["Quanto entrou e quanto saiu?", "Qual foi meu maior gasto?", "Quanto consigo guardar?"];
+const EXEMPLOS = [
+  { rotulo: "Ler fatura de exemplo", arquivo: "/exemplos/fatura-ana.pdf", nome: "fatura-de-exemplo.pdf" },
+  { rotulo: "Ler extrato de exemplo", arquivo: "/exemplos/extrato-ana.pdf", nome: "extrato-de-exemplo.pdf" },
+];
 const TIPOS_ACEITOS = "application/pdf,image/jpeg,image/png,image/webp";
 const CHAVE_DO_USUARIO = "luana-usuario";
 
@@ -89,9 +92,9 @@ export function Chat() {
     if (seletor.current) seletor.current.value = "";
   }
 
-  async function enviarExemplo() {
-    const r = await fetch(FATURA_DE_EXEMPLO);
-    await enviarArquivo(await r.blob(), "fatura-de-exemplo.pdf");
+  async function enviarExemplo(exemplo: (typeof EXEMPLOS)[number]) {
+    const r = await fetch(exemplo.arquivo);
+    await enviarArquivo(await r.blob(), exemplo.nome);
   }
 
   function aoEnviar(evento: FormEvent) {
@@ -139,9 +142,17 @@ export function Chat() {
       </ol>
 
       <div className="flex flex-wrap gap-2 px-4 pb-2">
-        <button type="button" disabled={!!ocupada} onClick={() => void enviarExemplo()} className={chip}>
-          Ler fatura de exemplo
-        </button>
+        {EXEMPLOS.map((e) => (
+          <button
+            key={e.arquivo}
+            type="button"
+            disabled={!!ocupada}
+            onClick={() => void enviarExemplo(e)}
+            className={chip}
+          >
+            {e.rotulo}
+          </button>
+        ))}
         {ATALHOS.map((a) => (
           <button key={a} type="button" disabled={!!ocupada} onClick={() => void enviar(a)} className={chip}>
             {a}
@@ -163,7 +174,7 @@ export function Chat() {
         />
         <label
           htmlFor="arquivo"
-          title="Enviar fatura ou print das compras"
+          title="Enviar fatura, extrato ou print das compras"
           className="flex shrink-0 cursor-pointer items-center rounded-full border border-line px-4 py-2 text-sm hover:border-accent hover:text-accent"
         >
           📎 Anexar
