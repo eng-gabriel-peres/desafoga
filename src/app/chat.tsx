@@ -13,12 +13,16 @@ import {
   IconePaleta,
   IconeSol,
 } from "./icones";
+import { Anexo, type AnexoDaMensagem } from "./anexo";
+import { guardarArquivo } from "./arquivos-locais";
 import { Painel } from "./painel";
 
 interface Mensagem {
   id: number;
   autor: "luana" | "voce";
   texto: string;
+  /** Arquivo enviado nesta mensagem, guardado no navegador. */
+  anexo?: AnexoDaMensagem;
 }
 
 interface Anexo {
@@ -141,6 +145,19 @@ export function Chat() {
     setMensagens((atuais) => [...atuais, ...novas]);
   }
 
+  /** Mostra o arquivo na conversa e o guarda neste navegador para abrir depois. */
+  async function acrescentarArquivo(arquivo: Blob, nome: string) {
+    const chave = crypto.randomUUID();
+    const guardado = await guardarArquivo(chave, arquivo);
+    const nova: Mensagem = {
+      id: proximoId.current++,
+      autor: "voce",
+      texto: `📎 ${nome}`,
+      ...(guardado ? { anexo: { chave, nome, tipo: arquivo.type } } : {}),
+    };
+    setMensagens((atuais) => [...atuais, nova]);
+  }
+
   async function pedir(estado: "lendo" | "pensando", requisicao: () => Promise<Response>) {
     setOcupada(estado);
     try {
@@ -173,7 +190,7 @@ export function Chat() {
    */
   async function enviarArquivos(arquivos: Anexo[], comTexto: boolean) {
     for (const [i, { arquivo, nome }] of arquivos.entries()) {
-      acrescentar("voce", [`📎 ${nome}`]);
+      await acrescentarArquivo(arquivo, nome);
       if (arquivo.size > TAMANHO_MAXIMO) {
         acrescentar("luana", [`${nome} passa de 4 MB. Mande uma versão menor ou um print da tela.`]);
         continue;
@@ -350,7 +367,7 @@ export function Chat() {
                 : "max-w-[85%] self-start whitespace-pre-wrap break-words rounded-2xl rounded-bl-sm bg-surface px-4 py-2"
             }
           >
-            {m.autor === "luana" ? <Formatado texto={m.texto} /> : m.texto}
+            {m.anexo ? <Anexo anexo={m.anexo} /> : m.autor === "luana" ? <Formatado texto={m.texto} /> : m.texto}
           </li>
         ))}
         {ocupada && (
@@ -463,8 +480,8 @@ export function Chat() {
         )}
       </form>
       <p className="px-4 pb-3 text-xs text-muted">
-        Arquivos e áudios são lidos por um modelo de IA do Google e não ficam guardados; os gastos lidos
-        ficam. Escreva <em>apagar tudo</em> para remover.
+        Arquivos e áudios são lidos por um modelo de IA do Google e não ficam guardados no servidor; os
+        arquivos da conversa ficam só neste navegador, e os gastos lidos ficam. Escreva <em>apagar tudo</em> para remover.
       </p>
     </div>
   );

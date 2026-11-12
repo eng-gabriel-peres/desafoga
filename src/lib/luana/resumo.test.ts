@@ -49,6 +49,30 @@ describe("converter e acrescentar", () => {
     expect(existentes).toHaveLength(gastos.length);
   });
 
+  it("não duplica quando o mesmo arquivo é lido com descrições diferentes", () => {
+    const primeira = converter([lido({ descricao: "PIX ENVIADO JOAO", valor: "100,00" })], HOJE, "Nubank");
+    const segunda = converter([lido({ descricao: "Pix enviado - João S.", valor: "100,00" })], HOJE, "Nu Pagamentos S.A.");
+    const existentes: Lancamento[] = [];
+    expect(acrescentar(existentes, primeira)).toHaveLength(1);
+    expect(acrescentar(existentes, segunda)).toHaveLength(0);
+    expect(existentes).toHaveLength(1);
+  });
+
+  it("mantém dois lançamentos iguais do mesmo documento e não os soma de novo no reenvio", () => {
+    const doisCafes = () => converter([lido({ descricao: "CAFE", valor: "8,00" }), lido({ descricao: "CAFE", valor: "8,00" })], HOJE);
+    const existentes: Lancamento[] = [];
+    expect(acrescentar(existentes, doisCafes())).toHaveLength(2);
+    expect(acrescentar(existentes, doisCafes())).toHaveLength(0);
+    const tres = [...doisCafes(), ...converter([lido({ descricao: "CAFE", valor: "8,00" })], HOJE)];
+    expect(acrescentar(existentes, tres)).toHaveLength(1);
+    expect(existentes).toHaveLength(3);
+  });
+
+  it("não confunde entrada com saída de mesmo valor no mesmo dia", () => {
+    const existentes = converter([lido({ descricao: "PIX RECEBIDO", valor: "50,00", natureza: "entrada" })], HOJE);
+    expect(acrescentar(existentes, converter([lido({ descricao: "PIX ENVIADO", valor: "50,00" })], HOJE))).toHaveLength(1);
+  });
+
   it("anota o mesmo gasto escrito duas vezes no mesmo dia", () => {
     const cafe: Lancamento = {
       data: "2026-11-12",
