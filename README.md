@@ -14,6 +14,7 @@ Projeto do Hack Brasil 2026, trilha Pagamentos & finanças.
 - **Orienta**: quanto custa pagar só o mínimo, qual categoria cortar, quanto guardar por mês a partir da renda.
 - **Ouve** mensagem de voz: você conta o que gastou ou pergunta por áudio.
 - **Responde "posso comprar?"**: compara a parcela com a sua renda e as suas contas e mostra a conta feita.
+- **Mostra um painel**: toque no nome da Luana para ver entradas, saídas e categorias de cada mês e os documentos enviados.
 - **Lembra** do que já anotou e não duplica uma fatura enviada duas vezes.
 
 As respostas são orientação educativa, não recomendação de investimento ou crédito.

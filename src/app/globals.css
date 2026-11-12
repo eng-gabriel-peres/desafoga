@@ -1,28 +1,40 @@
 @import "tailwindcss";
 
+/* Tema escuro é o padrão; o claro entra com data-tema="claro" em <html>. */
 :root {
+  color-scheme: dark;
+  --background: #0f171d;
+  --foreground: #e6edf2;
+  --surface: #172129;
+  --muted: #94a5b2;
+  --line: #2a3944;
+  --accent: #62bce3;
+  --on-accent: #0f171d;
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, var(--surface));
+}
+
+:root[data-tema="claro"] {
+  color-scheme: light;
   --background: #f2f5f8;
   --foreground: #14212b;
   --surface: #ffffff;
   --muted: #586a78;
   --line: #d5dee5;
   --accent: #0b6790;
-  --accent-soft: #e1eef5;
   --on-accent: #ffffff;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f171d;
-    --foreground: #e6edf2;
-    --surface: #172129;
-    --muted: #94a5b2;
-    --line: #2a3944;
-    --accent: #62bce3;
-    --accent-soft: #12303f;
-    --on-accent: #0f171d;
-  }
-}
+/* Cor do chat escolhida pela pessoa: tom claro no tema escuro, tom forte no claro. */
+:root[data-cor="roxo"] { --accent: #b79cf5; }
+:root[data-cor="verde"] { --accent: #6fd3a0; }
+:root[data-cor="amarelo"] { --accent: #f0c84a; }
+:root[data-cor="rosa"] { --accent: #f291bd; }
+:root[data-cor="laranja"] { --accent: #f5a25f; }
+:root[data-tema="claro"][data-cor="roxo"] { --accent: #6d3fc4; }
+:root[data-tema="claro"][data-cor="verde"] { --accent: #1a7a4c; }
+:root[data-tema="claro"][data-cor="amarelo"] { --accent: #8a6500; }
+:root[data-tema="claro"][data-cor="rosa"] { --accent: #b3306e; }
+:root[data-tema="claro"][data-cor="laranja"] { --accent: #b4530c; }
 
 @theme inline {
   --color-background: var(--background);
