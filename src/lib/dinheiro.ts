@@ -8,14 +8,21 @@ export function formatarReais(centavos: number): string {
 
 /**
  * Lê o primeiro valor em reais de um texto e devolve em centavos.
- * Aceita "900", "R$ 1.200", "1.200,50" e "350,5". Devolve null se não houver número.
+ * Aceita "900", "R$ 1.200", "1.200,50", "350,5" e também "8 mil", "1,5 mil",
+ * "2k" e "8 mil e 500". Devolve null se não houver número.
  */
 export function lerValorEmReais(texto: string): number | null {
   const m = texto.match(/(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?/);
   if (!m) return null;
   const reais = Number(m[1].replace(/\./g, ""));
   const centavos = m[2] ? Number(m[2].padEnd(2, "0")) : 0;
-  return reais * 100 + centavos;
+  const valor = reais * 100 + centavos;
+
+  // "8 mil", "1,5 mil", "2k", com um complemento opcional: "8 mil e 500".
+  const depois = texto.slice((m.index ?? 0) + m[0].length);
+  const mil = /^\s*(?:mil|k)\b(?:\s+e\s+(\d{1,3})\b)?/i.exec(depois);
+  if (!mil) return valor;
+  return valor * 1000 + (mil[1] ? Number(mil[1]) * 100 : 0);
 }
 
 /** "13,80" ou "13.8%" -> 0.138. Devolve null se não for um percentual plausível. */

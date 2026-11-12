@@ -12,6 +12,8 @@ Projeto do Hack Brasil 2026, trilha Pagamentos & finanças.
 - **Classifica** cada lançamento: mercado, restaurantes, transporte, casa e contas, saúde, educação, lazer, compras, assinaturas.
 - **Soma** o dia, o mês e o mês anterior, por categoria; mostra quanto entrou, quanto saiu e quanto sobrou; separa juros, IOF e tarifas dos gastos.
 - **Orienta**: quanto custa pagar só o mínimo, qual categoria cortar, quanto guardar por mês a partir da renda.
+- **Ouve** mensagem de voz: você conta o que gastou ou pergunta por áudio.
+- **Responde "posso comprar?"**: compara a parcela com a sua renda e as suas contas e mostra a conta feita.
 - **Lembra** do que já anotou e não duplica uma fatura enviada duas vezes.
 
 As respostas são orientação educativa, não recomendação de investimento ou crédito.

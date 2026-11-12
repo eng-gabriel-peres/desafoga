@@ -19,6 +19,8 @@ export interface Conta {
   rendaMensal: number | null;
   saldoEmConta: number | null;
   fatura: FaturaInfo | null;
+  /** Soma das contas mensais que a pessoa contou ter (cartão, aluguel...), em centavos. */
+  contasInformadas?: number | null;
 }
 
 export interface TotalPorCategoria {
