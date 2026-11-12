@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Desafoga",
-  description: "Descubra quanto de juros você paga por mês e monte um plano para sair da dívida.",
+  title: "Luana",
+  description: "Mande a fatura ou o print das compras e veja seus gastos por categoria, juros, IOF e onde economizar.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

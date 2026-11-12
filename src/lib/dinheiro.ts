@@ -17,3 +17,11 @@ export function lerValorEmReais(texto: string): number | null {
   const centavos = m[2] ? Number(m[2].padEnd(2, "0")) : 0;
   return reais * 100 + centavos;
 }
+
+/** "13,80" ou "13.8%" -> 0.138. Devolve null se não for um percentual plausível. */
+export function lerPercentual(texto: string): number | null {
+  const m = texto.match(/(\d+)(?:[.,](\d+))?/);
+  if (!m) return null;
+  const valor = Number(`${m[1]}.${m[2] ?? "0"}`);
+  return valor > 0 && valor < 100 ? valor / 100 : null;
+}

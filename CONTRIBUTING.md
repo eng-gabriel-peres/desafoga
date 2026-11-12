@@ -30,10 +30,10 @@ Ninguém faz push direto em `develop` ou `main`.
 ## Regras do Hack Brasil que valem para cada commit
 
 - Não copie código de repositório privado ou escrito antes de 4/11/2026 às 21h. Código aberto que já era público pode entrar, com a origem citada na mensagem do commit.
-- Nada de dados pessoais reais. Use as personas de `fixtures/personas`.
+- Nada de dados pessoais reais. Use as faturas fictícias de `public/exemplos`.
 - O repositório fica público pelo menos até 15/12/2026.
 - Depois de 30/11 às 23h59 não fazemos commits até a final (12/12).
 
 ## Regra de arquitetura
 
-A IA lê e conversa; o código calcula. Qualquer número mostrado ao usuário vem de `src/lib/motor`, que tem testes.
+A IA lê e conversa; o código calcula. Qualquer número mostrado ao usuário vem de `src/lib/luana/resumo.ts`, que tem testes. O modelo só lê documentos, classifica e redige.
