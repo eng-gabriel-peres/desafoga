@@ -119,3 +119,16 @@ export function simularQuitacao(
     cronograma,
   };
 }
+
+/**
+ * Juros acumulados em N meses se os saldos ficarem do tamanho de hoje, isto é,
+ * se a pessoa pagar só os juros de cada mês. Serve para dar a ordem de grandeza.
+ */
+export function jurosEmMeses(dividas: Divida[], meses: number): number {
+  return jurosMensaisTotais(dividas) * meses;
+}
+
+/** Soma dos pagamentos mínimos, em centavos. */
+export function somaDosMinimos(dividas: Divida[]): number {
+  return dividas.reduce((soma, d) => soma + d.pagamentoMinimo, 0);
+}
