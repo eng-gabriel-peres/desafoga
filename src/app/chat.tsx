@@ -1,18 +1,18 @@
 "use client";
 
 import { type FormEvent, Fragment, useEffect, useRef, useState } from "react";
-import { BOAS_VINDAS } from "@/lib/sofia/textos";
+import { BOAS_VINDAS } from "@/lib/luana/textos";
 
 interface Mensagem {
   id: number;
-  autor: "sofia" | "voce";
+  autor: "luana" | "voce";
   texto: string;
 }
 
 const ATALHOS = ["Quanto gastei hoje?", "Onde posso economizar?", "Quanto devo guardar por mês?"];
 const FATURA_DE_EXEMPLO = "/exemplos/fatura-ana.pdf";
 const TIPOS_ACEITOS = "application/pdf,image/jpeg,image/png,image/webp";
-const CHAVE_DO_USUARIO = "sofia-usuario";
+const CHAVE_DO_USUARIO = "luana-usuario";
 
 let sessaoSemArmazenamento: string | undefined;
 
@@ -33,7 +33,7 @@ function usuario(): string {
 
 export function Chat() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([
-    { id: 0, autor: "sofia", texto: BOAS_VINDAS },
+    { id: 0, autor: "luana", texto: BOAS_VINDAS },
   ]);
   const [rascunho, setRascunho] = useState("");
   const [ocupada, setOcupada] = useState<false | "lendo" | "pensando">(false);
@@ -56,10 +56,10 @@ export function Chat() {
       const r = await requisicao();
       const dados: { mensagens?: string[]; erro?: string } = await r.json();
       if (!r.ok || !dados.mensagens) throw new Error(dados.erro ?? String(r.status));
-      acrescentar("sofia", dados.mensagens);
+      acrescentar("luana", dados.mensagens);
     } catch (erro) {
       const motivo = erro instanceof Error && erro.message ? ` (${erro.message})` : "";
-      acrescentar("sofia", [`Não consegui responder agora${motivo}. Tente de novo.`]);
+      acrescentar("luana", [`Não consegui responder agora${motivo}. Tente de novo.`]);
     } finally {
       setOcupada(false);
     }
@@ -112,7 +112,7 @@ export function Chat() {
           S
         </div>
         <div className="min-w-0">
-          <h1 className="text-lg font-semibold leading-tight">Sofia</h1>
+          <h1 className="text-lg font-semibold leading-tight">Luana</h1>
           <p className="text-sm text-muted">Seus gastos organizados na conversa.</p>
         </div>
       </header>
@@ -127,12 +127,12 @@ export function Chat() {
                 : "max-w-[85%] self-start whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-surface px-4 py-2"
             }
           >
-            <Formatado texto={m.texto} />
+            {m.autor === "luana" ? <Formatado texto={m.texto} /> : m.texto}
           </li>
         ))}
         {ocupada && (
           <li className="self-start px-1 text-sm text-muted">
-            {ocupada === "lendo" ? "Sofia está lendo o arquivo…" : "Sofia está escrevendo…"}
+            {ocupada === "lendo" ? "Luana está lendo o arquivo…" : "Luana está escrevendo…"}
           </li>
         )}
         <div ref={fim} />

@@ -3,10 +3,10 @@ import type { Conta } from "./resumo";
 
 /**
  * Guarda os gastos de cada pessoa. Provisório até o banco (Neon) entrar:
- * - em desenvolvimento, grava em .data/sofia.json para sobreviver a reinícios;
+ * - em desenvolvimento, grava em .data/luana.json para sobreviver a reinícios;
  * - na Vercel fica só em memória e se perde entre instâncias.
  */
-const ARQUIVO = ".data/sofia.json";
+const ARQUIVO = ".data/luana.json";
 const EM_DISCO = !process.env.VERCEL && process.env.NODE_ENV !== "test";
 
 let contas: Map<string, Conta> | null = null;

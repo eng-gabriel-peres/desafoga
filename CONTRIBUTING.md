@@ -36,4 +36,4 @@ Ninguém faz push direto em `develop` ou `main`.
 
 ## Regra de arquitetura
 
-A IA lê e conversa; o código calcula. Qualquer número mostrado ao usuário vem de `src/lib/sofia/resumo.ts`, que tem testes. O modelo só lê documentos, classifica e redige.
+A IA lê e conversa; o código calcula. Qualquer número mostrado ao usuário vem de `src/lib/luana/resumo.ts`, que tem testes. O modelo só lê documentos, classifica e redige.

@@ -1,5 +1,5 @@
 import { formatarReais, lerPercentual, lerValorEmReais } from "@/lib/dinheiro";
-import { IaIndisponivel } from "@/lib/ia/gemini";
+import { IaIndisponivel, IaSobrecarregada } from "@/lib/ia/gemini";
 import { acrescentar, converter, hojeEmBrasilia } from "./lancamentos";
 import { type DocumentoLido, lerDocumento, lerMensagem, redigir } from "./ler";
 import { apagarConta, buscarConta, salvar } from "./repositorio";
@@ -22,6 +22,8 @@ const TIPOS_ACEITOS = ["application/pdf", "image/jpeg", "image/png", "image/webp
 
 const SEM_IA =
   "Estou sem acesso ao meu leitor agora, então não consegui entender. Tente de novo em instantes.";
+const IA_LENTA =
+  "O serviço de IA que eu uso para ler está sobrecarregado neste momento e não respondeu a tempo. Não é problema no seu arquivo: mande de novo daqui a um minuto.";
 
 /** Fatura, extrato ou print recebido. Igual no WhatsApp e no chat web. */
 export async function receberArquivo(usuario: string, bytes: Uint8Array, mime: string): Promise<string[]> {
@@ -139,11 +141,12 @@ function guardarDadosDaFatura(conta: Conta, doc: DocumentoLido): void {
 
 function falha(erro: unknown): string {
   registrar(erro);
+  if (erro instanceof IaSobrecarregada) return IA_LENTA;
   return erro instanceof IaIndisponivel ? SEM_IA : "Não consegui ler agora. Tente de novo em instantes.";
 }
 
 function registrar(erro: unknown): void {
   // Só a mensagem: o erro pode carregar o conteúdo enviado pela pessoa.
-  console.error("Sofia:", erro instanceof Error ? erro.message.slice(0, 300) : "erro desconhecido");
+  console.error("Luana:", erro instanceof Error ? erro.message.slice(0, 300) : "erro desconhecido");
 }
 

@@ -1,4 +1,4 @@
-# Sofia
+# Luana
 
 Uma assistente no WhatsApp que organiza seus gastos. Você manda a fatura do cartão, um print das compras ou escreve o que gastou; ela separa por categoria, soma o dia e o mês, mostra quanto foi de juros e IOF e onde dá para economizar.
 
@@ -45,10 +45,10 @@ A regra do projeto: **a IA lê e redige, o código calcula.** O modelo transcrev
 | Camada | Onde | Função |
 |---|---|---|
 | Canais | `src/app/api` | WhatsApp (API Cloud da Meta) e chat web |
-| Leitura | `src/lib/sofia/ler.ts` | Gemini transcreve documentos e interpreta mensagens em formato fixo |
-| Contas | `src/lib/sofia/resumo.ts` | Totais por dia, mês e categoria, encargos, poupança |
-| Conversa | `src/lib/sofia/sofia.ts` | Orquestra leitura, memória e resposta |
-| Memória | `src/lib/sofia/repositorio.ts` | Gastos por pessoa (provisório, sem banco) |
+| Leitura | `src/lib/luana/ler.ts` | Gemini transcreve documentos e interpreta mensagens em formato fixo |
+| Contas | `src/lib/luana/resumo.ts` | Totais por dia, mês e categoria, encargos, poupança |
+| Conversa | `src/lib/luana/luana.ts` | Orquestra leitura, memória e resposta |
+| Memória | `src/lib/luana/repositorio.ts` | Gastos por pessoa (provisório, sem banco) |
 
 Stack: Next.js 16, TypeScript, Tailwind, Vitest, Gemini, Vercel.
 

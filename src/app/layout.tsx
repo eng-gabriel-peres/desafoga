@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sofia",
+  title: "Luana",
   description: "Mande a fatura ou o print das compras e veja seus gastos por categoria, juros, IOF e onde economizar.",
 };
 

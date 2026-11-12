@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { receberTexto } from "@/lib/sofia/sofia";
-import { usuarioValido } from "@/lib/sofia/usuario";
+import { receberTexto } from "@/lib/luana/luana";
+import { usuarioValido } from "@/lib/luana/usuario";
 
 export const maxDuration = 60;
 const TAMANHO_MAXIMO = 1000;

@@ -1,7 +1,7 @@
 import { AJUSTAVEIS, type Categoria, type Lancamento } from "./lancamentos";
 
 /**
- * Todas as contas da Sofia ficam aqui. O modelo de IA só lê documentos e
+ * Todas as contas da Luana ficam aqui. O modelo de IA só lê documentos e
  * redige; nenhum número mostrado ao usuário é calculado por ele.
  */
 

@@ -5,7 +5,7 @@ import { CORTE_SUGERIDO, META_DE_POUPANCA, type Periodo, type Resumo } from "./r
 /** Mensagens montadas pelo código. Negrito no padrão do WhatsApp: *assim*. */
 
 export const BOAS_VINDAS = [
-  "Oi! Eu sou a *Sofia*. Organizo seus gastos aqui na conversa.",
+  "Oi! Eu sou a *Luana*. Organizo seus gastos aqui na conversa.",
   "Me mande a *fatura do cartão* (PDF ou foto), um *print das compras* do app do banco, ou escreva o que gastou, tipo _almoço 35_.",
   "Eu separo por categoria, somo o dia e o mês, mostro quanto foi de juros e IOF e onde dá para economizar.",
 ].join("\n\n");

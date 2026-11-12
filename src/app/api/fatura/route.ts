@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { receberArquivo, TAMANHO_MAXIMO } from "@/lib/sofia/sofia";
-import { usuarioValido } from "@/lib/sofia/usuario";
+import { receberArquivo, TAMANHO_MAXIMO } from "@/lib/luana/luana";
+import { usuarioValido } from "@/lib/luana/usuario";
 
 /** A leitura por IA pode levar algumas dezenas de segundos. */
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 /** Recebe fatura ou print enviado pelo chat web. O arquivo não é guardado. */
 export async function POST(request: NextRequest) {

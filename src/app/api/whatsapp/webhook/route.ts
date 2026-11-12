@@ -1,11 +1,11 @@
 import { after, type NextRequest } from "next/server";
-import { receberArquivo, receberTexto } from "@/lib/sofia/sofia";
+import { receberArquivo, receberTexto } from "@/lib/luana/luana";
 import { enviarTexto } from "@/lib/whatsapp/enviar";
 import { baixarMidia } from "@/lib/whatsapp/midia";
 import { assinaturaValida, extrairMensagens, type MensagemRecebida } from "@/lib/whatsapp/webhook";
 
 /** A leitura de fatura por IA pode levar algumas dezenas de segundos. */
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 /**
  * Controle de reentregas da Meta, em memória. Em servidor sem estado (Vercel)

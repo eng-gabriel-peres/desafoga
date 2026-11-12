@@ -41,5 +41,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# dados locais da Sofia em desenvolvimento
+# dados locais da Luana em desenvolvimento
 /.data/
