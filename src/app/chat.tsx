@@ -18,6 +18,9 @@ const TIPOS_ACEITOS = "application/pdf,image/jpeg,image/png,image/webp";
 const CHAVE_DO_USUARIO = "luana-usuario";
 const MAXIMO_DE_ARQUIVOS = 15;
 const TAMANHO_MAXIMO = 4 * 1024 * 1024;
+/** Duração máxima de uma mensagem de voz, em segundos. */
+const MAXIMO_DE_AUDIO = 120;
+const FORMATOS_DE_AUDIO = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
 
 let sessaoSemArmazenamento: string | undefined;
 
@@ -43,6 +46,10 @@ export function Chat() {
   const [rascunho, setRascunho] = useState("");
   const [ocupada, setOcupada] = useState<false | "lendo" | "pensando">(false);
   const [progresso, setProgresso] = useState("");
+  /** Segundos de gravação em andamento; null quando não está gravando. */
+  const [gravando, setGravando] = useState<number | null>(null);
+  const gravador = useRef<MediaRecorder | null>(null);
+  const relogio = useRef<ReturnType<typeof setInterval> | null>(null);
   const fim = useRef<HTMLDivElement>(null);
   const seletor = useRef<HTMLInputElement>(null);
   const proximoId = useRef(1);
@@ -110,6 +117,66 @@ export function Chat() {
     }
     setProgresso("");
     if (seletor.current) seletor.current.value = "";
+  }
+
+  async function enviarAudio(audio: Blob) {
+    setOcupada("lendo");
+    try {
+      const corpo = new FormData();
+      corpo.append("audio", audio, "mensagem-de-voz");
+      corpo.append("usuario", usuario());
+      const r = await fetch("/api/audio", { method: "POST", body: corpo });
+      const dados: { transcricao?: string; mensagens?: string[]; erro?: string } = await r.json();
+      if (!r.ok || !dados.mensagens) throw new Error(dados.erro ?? String(r.status));
+      acrescentar("voce", [dados.transcricao ? `🎤 ${dados.transcricao}` : "🎤 Mensagem de voz"]);
+      acrescentar("luana", dados.mensagens);
+    } catch (erro) {
+      const motivo = erro instanceof Error && erro.message ? ` (${erro.message})` : "";
+      acrescentar("voce", ["🎤 Mensagem de voz"]);
+      acrescentar("luana", [`Não consegui ouvir agora${motivo}. Tente de novo.`]);
+    } finally {
+      setOcupada(false);
+    }
+  }
+
+  function pararGravacao() {
+    if (relogio.current) clearInterval(relogio.current);
+    relogio.current = null;
+    if (gravador.current?.state === "recording") gravador.current.stop();
+  }
+
+  async function alternarGravacao() {
+    if (gravando !== null) return pararGravacao();
+    if (ocupada) return;
+    let microfone: MediaStream;
+    try {
+      microfone = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      acrescentar("luana", ["Não consegui usar o microfone. Libere o acesso no navegador ou escreva a mensagem."]);
+      return;
+    }
+    const formato = FORMATOS_DE_AUDIO.find((f) => MediaRecorder.isTypeSupported(f));
+    const novo = new MediaRecorder(microfone, formato ? { mimeType: formato, audioBitsPerSecond: 32000 } : undefined);
+    const pedacos: Blob[] = [];
+    novo.ondataavailable = (e) => {
+      if (e.data.size > 0) pedacos.push(e.data);
+    };
+    novo.onstop = () => {
+      microfone.getTracks().forEach((t) => t.stop());
+      gravador.current = null;
+      setGravando(null);
+      const audio = new Blob(pedacos, { type: (novo.mimeType || "audio/webm").split(";")[0] });
+      if (audio.size > 0) void enviarAudio(audio);
+    };
+    gravador.current = novo;
+    novo.start();
+    setGravando(0);
+    let segundos = 0;
+    relogio.current = setInterval(() => {
+      segundos += 1;
+      setGravando(segundos);
+      if (segundos >= MAXIMO_DE_AUDIO) pararGravacao();
+    }, 1000);
   }
 
   async function enviarExemplo(exemplo: (typeof EXEMPLOS)[number]) {
@@ -200,6 +267,22 @@ export function Chat() {
         >
           📎 Anexar
         </label>
+        <button
+          type="button"
+          onClick={() => void alternarGravacao()}
+          disabled={!!ocupada && gravando === null}
+          aria-pressed={gravando !== null}
+          title={gravando === null ? "Gravar mensagem de voz" : "Parar e enviar"}
+          className={
+            gravando === null
+              ? "flex shrink-0 items-center rounded-full border border-line px-4 py-2 text-sm hover:border-accent hover:text-accent disabled:opacity-50"
+              : "flex shrink-0 items-center rounded-full bg-accent px-4 py-2 text-sm font-medium text-on-accent"
+          }
+        >
+          {gravando === null
+            ? "🎤 Áudio"
+            : `⏹ Enviar ${Math.floor(gravando / 60)}:${String(gravando % 60).padStart(2, "0")}`}
+        </button>
         <label htmlFor="mensagem" className="sr-only">
           Mensagem
         </label>
@@ -209,7 +292,7 @@ export function Chat() {
           onChange={(e) => setRascunho(e.target.value)}
           maxLength={1000}
           autoComplete="off"
-          placeholder="Ex.: almoço 35, ou uma pergunta"
+          placeholder="Ex.: almoço 35, ou posso comprar uma moto?"
           className="min-w-0 flex-1 rounded-full border border-line bg-surface px-4 py-2 outline-none focus:border-accent"
         />
         <button
@@ -221,8 +304,8 @@ export function Chat() {
         </button>
       </form>
       <p className="px-4 pb-3 text-xs text-muted">
-        O arquivo enviado é lido por um modelo de IA do Google e não fica guardado; os gastos lidos
-        ficam. Escreva <em>apagar tudo</em> para remover.
+        Arquivos e áudios enviados são lidos por um modelo de IA do Google e não ficam guardados; os
+        gastos lidos ficam. Escreva <em>apagar tudo</em> para remover.
       </p>
     </div>
   );
