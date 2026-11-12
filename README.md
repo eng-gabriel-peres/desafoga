@@ -28,7 +28,7 @@ As respostas são orientação educativa, não recomendação de investimento ou
 - [x] Banco de dados (Postgres no Neon; sem `DATABASE_URL`, arquivo local para desenvolver)
 - [x] Vercel e Neon conectados ao repositório
 - [ ] WhatsApp validado com número real da Meta
-- [ ] Limite de uso por visitante
+- [x] Limite de uso por visitante, por rede e total do site
 
 ## Rodando localmente
 

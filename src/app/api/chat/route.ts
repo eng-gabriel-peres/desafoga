@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { receberTexto } from "@/lib/luana/luana";
 import { usuarioValido } from "@/lib/luana/usuario";
+import { consumir, redeDe } from "@/lib/limite";
 
 export const maxDuration = 60;
 const TAMANHO_MAXIMO = 1000;
@@ -24,6 +25,9 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
+
+  const uso = await consumir("texto", `web:${usuario}`, redeDe(request.headers));
+  if (!uso.permitido) return NextResponse.json({ mensagens: [uso.mensagem] });
 
   return NextResponse.json({ mensagens: await receberTexto(`web:${usuario}`, texto) });
 }
