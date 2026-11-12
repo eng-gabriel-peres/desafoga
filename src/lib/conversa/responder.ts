@@ -7,53 +7,64 @@ import {
   simularQuitacao,
   somaDosMinimos,
 } from "@/lib/motor/juros";
-import { buscarPersona, PERSONAS, type Persona } from "@/lib/personas";
+import { PERSONAS, type Persona } from "@/lib/personas";
 import { AVISO, BOAS_VINDAS } from "./textos";
 
 export interface Resposta {
   /** Mensagens a enviar, na ordem. */
   mensagens: string[];
-  /** Persona ativa depois desta mensagem; o canal guarda e devolve na próxima. */
-  persona: string | null;
+  /**
+   * Quem está sendo analisado depois desta mensagem: uma persona fictícia ou
+   * a fatura enviada. O canal guarda e devolve na próxima mensagem.
+   */
+  atual: Persona | null;
 }
 
 /**
  * Decide a resposta para uma mensagem de texto. É o mesmo código para o
- * WhatsApp e para o chat web, e não guarda estado: quem chama informa a
- * persona ativa.
+ * WhatsApp e para o chat web, e não guarda estado: quem chama informa o
+ * contexto atual.
  *
  * Versão por regras, sem modelo de linguagem. O agente com IA entra aqui
  * depois, mantendo os números vindos do motor.
  */
-export function responder(texto: string, personaAtual: string | null): Resposta {
+export function responder(texto: string, atual: Persona | null): Resposta {
   const t = normalizar(texto);
 
   const escolhida = PERSONAS.find((p) => new RegExp(`\\b${p.id}\\b`).test(t));
   if (escolhida) {
-    return { mensagens: [raioX(escolhida)], persona: escolhida.id };
+    return { mensagens: [apresentar(escolhida)], atual: escolhida };
   }
 
-  const persona = buscarPersona(personaAtual);
-  if (!persona || /\b(trocar|menu|inicio|comecar|oi|ola|ajuda)\b/.test(t)) {
-    return { mensagens: [BOAS_VINDAS], persona: null };
+  if (!atual || /\b(trocar|menu|inicio|comecar|oi|ola|ajuda)\b/.test(t)) {
+    return { mensagens: [BOAS_VINDAS], atual: null };
+  }
+
+  if (atual.dividas.length === 0) {
+    return {
+      mensagens: [
+        "Com o que li desse arquivo não dá para simular um plano. Envie a fatura do cartão ou escreva *trocar* para ver um exemplo.",
+      ],
+      atual,
+    };
   }
 
   const valor = lerValorEmReais(t);
   if (valor !== null) {
     const aMais = /\ba mais\b|\bextra\b/.test(t);
-    const orcamento = aMais ? somaDosMinimos(persona.dividas) + valor : valor;
-    return { mensagens: [plano(persona, orcamento)], persona: persona.id };
+    const orcamento = aMais ? somaDosMinimos(atual.dividas) + valor : valor;
+    return { mensagens: [plano(atual, orcamento)], atual };
   }
 
   if (/\b(plano|pagar|quitar|sair|zerar)\b/.test(t)) {
-    return { mensagens: [perguntarOrcamento(persona)], persona: persona.id };
+    return { mensagens: [perguntarOrcamento(atual)], atual };
   }
 
   return {
     mensagens: [
-      `Não entendi. Você pode:\n• dizer quanto consegue pagar por mês (ex.: *900*)\n• perguntar *e se eu pagar 200 a mais?*\n• escrever *trocar* para ver outra pessoa`,
+      `Não entendi. Você pode:\n• dizer quanto consegue pagar por mês (ex.: *900*)\n• perguntar *e se eu pagar 200 a mais?*\n• escrever *trocar* para recomeçar`,
     ],
-    persona: persona.id,
+    atual,
   };
 }
 
@@ -64,22 +75,30 @@ function normalizar(texto: string): string {
     .replace(/[̀-ͯ]/g, "");
 }
 
-function raioX(p: Persona): string {
-  const jurosMes = jurosMensaisTotais(p.dividas);
-  const linhas = ordenarPorCusto(p.dividas).map((d) => {
-    const taxa = (d.taxaMensal * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
-    return `• ${d.nome}: deve ${formatarReais(d.saldo)} a ${taxa}% ao mês → *${formatarReais(jurosDoMes(d))}* de juros por mês`;
-  });
+/** Raio-x dos juros de uma persona ou de uma fatura lida. */
+export function apresentar(p: Persona, avisos: string[] = []): string {
+  const partes = [`*${p.nome}*\n${p.perfil}`];
 
-  const partes = [
-    `*${p.nome}*\n${p.perfil}`,
-    linhas.join("\n"),
-    `Total: *${formatarReais(jurosMes)} de juros por mês*. Se as dívidas ficarem desse tamanho, são ${formatarReais(jurosEmMeses(p.dividas, 12))} em um ano.`,
-  ];
-  if (p.encargosDaFatura > 0) {
-    partes.push(`Na última fatura do cartão, ${formatarReais(p.encargosDaFatura)} foram só encargos.`);
+  if (p.dividas.length > 0) {
+    const jurosMes = jurosMensaisTotais(p.dividas);
+    const linhas = ordenarPorCusto(p.dividas).map((d) => {
+      const taxa = (d.taxaMensal * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+      return `• ${d.nome}: deve ${formatarReais(d.saldo)} a ${taxa}% ao mês → *${formatarReais(jurosDoMes(d))}* de juros por mês`;
+    });
+    partes.push(
+      linhas.join("\n"),
+      `Total: *${formatarReais(jurosMes)} de juros por mês*. Se as dívidas ficarem desse tamanho, são ${formatarReais(jurosEmMeses(p.dividas, 12))} em um ano.`,
+    );
   }
-  partes.push(perguntarOrcamento(p), AVISO);
+
+  partes.push(
+    p.encargosDaFatura > 0
+      ? `Nesta fatura, ${formatarReais(p.encargosDaFatura)} foram só encargos (juros, IOF e tarifas).`
+      : "Não encontrei encargos cobrados nesta fatura.",
+  );
+  partes.push(...avisos);
+  if (p.dividas.length > 0) partes.push(perguntarOrcamento(p));
+  partes.push(AVISO);
   return partes.join("\n\n");
 }
 
@@ -104,8 +123,12 @@ function plano(p: Persona, orcamento: number): string {
 
   const partes = [
     `Pagando *${formatarReais(orcamento)} por mês*, você quita tudo em *${prazo(sim.meses)}* e paga ${formatarReais(sim.jurosTotal)} de juros no caminho.`,
-    `Ordem de ataque, da mais cara para a mais barata:\n${ordem}\nPague o mínimo de todas e jogue o que sobrar na primeira.`,
   ];
+  if (p.dividas.length > 1) {
+    partes.push(
+      `Ordem de ataque, da mais cara para a mais barata:\n${ordem}\nPague o mínimo de todas e jogue o que sobrar na primeira.`,
+    );
+  }
 
   if (orcamento > minimos) {
     const soMinimo = simularQuitacao(p.dividas, minimos);

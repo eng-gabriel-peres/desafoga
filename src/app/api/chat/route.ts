@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { contextoDoCliente, contextoParaCliente } from "@/lib/conversa/contexto";
 import { responder } from "@/lib/conversa/responder";
 
 const TAMANHO_MAXIMO = 1000;
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ erro: "JSON inválido." }, { status: 400 });
   }
 
-  const { texto, persona } = (corpo ?? {}) as { texto?: unknown; persona?: unknown };
+  const { texto, persona, analise } = (corpo ?? {}) as Record<string, unknown>;
   if (typeof texto !== "string" || texto.trim() === "" || texto.length > TAMANHO_MAXIMO) {
     return NextResponse.json(
       { erro: `Envie "texto" com até ${TAMANHO_MAXIMO} caracteres.` },
@@ -20,5 +21,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json(responder(texto, typeof persona === "string" ? persona : null));
+  const { mensagens, atual } = responder(texto, contextoDoCliente(persona, analise));
+  return NextResponse.json({ mensagens, ...contextoParaCliente(atual) });
 }

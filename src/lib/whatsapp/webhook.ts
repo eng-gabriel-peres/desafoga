@@ -7,6 +7,8 @@ export interface MensagemRecebida {
   tipo: string;
   /** Presente só quando tipo === "text". */
   texto?: string;
+  /** Id do arquivo na Meta, presente quando tipo é "image" ou "document". */
+  midiaId?: string;
 }
 
 /**
@@ -35,7 +37,14 @@ export function extrairMensagens(corpo: unknown): MensagemRecebida[] {
         const tipo = campo(m, "type");
         if (typeof id !== "string" || typeof de !== "string" || typeof tipo !== "string") continue;
         const texto = campo(campo(m, "text"), "body");
-        saida.push({ id, de, tipo, texto: typeof texto === "string" ? texto : undefined });
+        const midiaId = campo(campo(m, tipo), "id");
+        saida.push({
+          id,
+          de,
+          tipo,
+          texto: typeof texto === "string" ? texto : undefined,
+          midiaId: tipo !== "text" && typeof midiaId === "string" ? midiaId : undefined,
+        });
       }
     }
   }

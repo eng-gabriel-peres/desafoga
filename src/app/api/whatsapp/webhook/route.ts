@@ -1,15 +1,21 @@
 import { after, type NextRequest } from "next/server";
 import { responder } from "@/lib/conversa/responder";
-import { AINDA_NAO_LEIO_ARQUIVOS } from "@/lib/conversa/textos";
+import { lerArquivo } from "@/lib/ingestao/ler";
+import type { Persona } from "@/lib/personas";
 import { enviarTexto } from "@/lib/whatsapp/enviar";
+import { baixarMidia } from "@/lib/whatsapp/midia";
 import { assinaturaValida, extrairMensagens, type MensagemRecebida } from "@/lib/whatsapp/webhook";
+
+/** A leitura de fatura por IA pode levar algumas dezenas de segundos. */
+export const maxDuration = 60;
 
 /**
  * Estado provisório em memória, até o banco entrar. Em servidor sem estado
  * (Vercel) ele se perde entre instâncias: a pessoa pode ter de escolher a
- * persona de novo e uma reentrega da Meta pode ser respondida duas vezes.
+ * persona ou enviar a fatura de novo, e uma reentrega da Meta pode ser
+ * respondida duas vezes.
  */
-const personaPorTelefone = new Map<string, string>();
+const contextoPorTelefone = new Map<string, Persona>();
 const jaProcessadas = new Set<string>();
 
 /** Verificação do webhook, feita pela Meta ao cadastrar a URL. */
@@ -62,12 +68,26 @@ export async function POST(request: NextRequest) {
 }
 
 async function atender(m: MensagemRecebida): Promise<void> {
-  if (m.tipo !== "text" || !m.texto) {
-    await enviarTexto(m.de, AINDA_NAO_LEIO_ARQUIVOS);
+  if (m.tipo === "text" && m.texto) {
+    const { mensagens, atual } = responder(m.texto, contextoPorTelefone.get(m.de) ?? null);
+    guardar(m.de, atual);
+    for (const texto of mensagens) await enviarTexto(m.de, texto);
     return;
   }
-  const { mensagens, persona } = responder(m.texto, personaPorTelefone.get(m.de) ?? null);
-  if (persona) personaPorTelefone.set(m.de, persona);
-  else personaPorTelefone.delete(m.de);
-  for (const texto of mensagens) await enviarTexto(m.de, texto);
+
+  if ((m.tipo === "image" || m.tipo === "document") && m.midiaId) {
+    await enviarTexto(m.de, "Recebi. Lendo sua fatura, leva alguns segundos…");
+    const { bytes, mime } = await baixarMidia(m.midiaId);
+    const leitura = await lerArquivo(bytes, mime);
+    if (leitura.analise) guardar(m.de, leitura.analise);
+    for (const texto of leitura.mensagens) await enviarTexto(m.de, texto);
+    return;
+  }
+
+  await enviarTexto(m.de, "Só entendo texto, foto ou PDF. Envie sua fatura ou escreva *oi*.");
+}
+
+function guardar(telefone: string, atual: Persona | null): void {
+  if (atual) contextoPorTelefone.set(telefone, atual);
+  else contextoPorTelefone.delete(telefone);
 }
