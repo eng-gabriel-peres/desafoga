@@ -92,9 +92,19 @@ export function converter(
   return saida;
 }
 
-/** Identifica o mesmo lançamento enviado duas vezes (fatura reenviada, print repetido). */
+/**
+ * Identifica o mesmo lançamento em dois documentos. Usa só data, valor e
+ * sentido (entrou ou saiu): a descrição e o nome do banco mudam de uma leitura
+ * para outra do mesmo arquivo, e não servem para comparar.
+ */
 export function chave(l: Lancamento): string {
-  return [l.data, l.descricao.toLowerCase(), l.valor, l.parcela ?? "", l.natureza === "entrada" ? "e" : ""].join("|");
+  const sentido =
+    l.natureza === "entrada"
+      ? "entrou"
+      : l.natureza === "compra" || l.natureza === "juros" || l.natureza === "iof" || l.natureza === "tarifa_ou_multa"
+        ? "saiu"
+        : l.natureza;
+  return [l.data, l.valor, sentido].join("|");
 }
 
 /**
@@ -107,18 +117,26 @@ export function anotar(existentes: Lancamento[], novos: Lancamento[]): Lancament
 }
 
 /**
- * Junta os lançamentos de um documento sem duplicar, para a mesma fatura
- * enviada duas vezes não contar em dobro. Devolve só os que entraram.
+ * Junta os lançamentos de um documento sem duplicar, para o mesmo arquivo
+ * enviado duas vezes (ou dois arquivos que cobrem o mesmo período) não contar
+ * em dobro. Compara por quantidade: se já existem dois lançamentos iguais e o
+ * documento traz três, só o terceiro entra. Devolve só os que entraram.
  */
 export function acrescentar(existentes: Lancamento[], novos: Lancamento[]): Lancamento[] {
-  const vistos = new Set(existentes.map(chave));
+  const jaExistem = new Map<string, number>();
+  for (const l of existentes) jaExistem.set(chave(l), (jaExistem.get(chave(l)) ?? 0) + 1);
+
   const entraram: Lancamento[] = [];
   for (const n of novos) {
-    if (vistos.has(chave(n))) continue;
-    vistos.add(chave(n));
-    existentes.push(n);
+    const sobra = jaExistem.get(chave(n)) ?? 0;
+    if (sobra > 0) {
+      // Corresponde a um que já estava anotado.
+      jaExistem.set(chave(n), sobra - 1);
+      continue;
+    }
     entraram.push(n);
   }
+  existentes.push(...entraram);
   return entraram;
 }
 
