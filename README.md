@@ -4,6 +4,8 @@ Uma assistente no WhatsApp que organiza seus gastos. Você manda a fatura do car
 
 Projeto do Hack Brasil 2026, trilha Pagamentos & finanças.
 
+**Demo:** https://desafoga-nine.vercel.app
+
 ## O que faz
 
 - **Lê** fatura em PDF, foto ou print de compras do app do banco, e gastos escritos em texto ("almoço 35 e uber 18,50").
@@ -21,7 +23,7 @@ As respostas são orientação educativa, não recomendação de investimento ou
 - [x] Leitura de documentos e mensagens com o Gemini
 - [x] Categorias, somas e sugestões calculadas pelo código, com testes
 - [x] Banco de dados (Postgres no Neon; sem `DATABASE_URL`, arquivo local para desenvolver)
-- [ ] Vercel e Neon conectados ao repositório
+- [x] Vercel e Neon conectados ao repositório
 - [ ] WhatsApp validado com número real da Meta
 - [ ] Limite de uso por visitante
 
