@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import { formatarReais } from "@/lib/dinheiro";
 import { NOME_DA_CATEGORIA } from "@/lib/luana/lancamentos";
-import type { MesDoPainel, Painel as Dados } from "@/lib/luana/painel";
+import type { UsoDeHoje } from "@/lib/limite";
+import type { MesDoPainel, Painel as DadosDoPainel } from "@/lib/luana/painel";
 import { dataCurta, nomeDoMes } from "@/lib/luana/textos";
 import { IconeVoltar } from "./icones";
+
+type Dados = DadosDoPainel & { uso?: UsoDeHoje | null };
 
 const NOME_DO_TIPO: Record<string, string> = {
   fatura_cartao: "Fatura de cartão",
@@ -66,6 +69,8 @@ export function Painel({ usuario, aoFechar }: { usuario: string; aoFechar: () =>
           </p>
         )}
 
+        {dados?.uso && <Uso uso={dados.uso} />}
+
         {dados && !vazio && (
           <div className="flex flex-col gap-6">
             {(dados.rendaMensal || dados.contasInformadas || dados.saldoEmConta !== null) && (
@@ -107,6 +112,62 @@ export function Painel({ usuario, aoFechar }: { usuario: string; aoFechar: () =>
         )}
       </div>
     </div>
+  );
+}
+
+/** Uso do dia: o da pessoa, o do site e como a cota gratuita da IA está respondendo. */
+function Uso({ uso }: { uso: UsoDeHoje }) {
+  const linhas = [
+    { rotulo: "Mensagens", ...uso.voce.texto },
+    { rotulo: "Arquivos", ...uso.voce.arquivo },
+    { rotulo: "Áudios", ...uso.voce.audio },
+    { rotulo: "Site inteiro", ...uso.site },
+  ];
+  return (
+    <section className="mb-6 rounded-xl bg-surface px-4 py-3">
+      <h2 className="text-base font-semibold">Uso de hoje</h2>
+      <p className="mb-3 text-xs text-muted">Nível gratuito. Os limites zeram à meia-noite.</p>
+      <ul className="flex flex-col gap-2">
+        {linhas.map((l) => (
+          <li key={l.rotulo}>
+            <span className="flex justify-between text-sm">
+              <span>{l.rotulo}</span>
+              <span className="tabular-nums text-muted">
+                {l.usados} de {l.limite}
+              </span>
+            </span>
+            <span className="mt-1 block h-1.5 rounded-full bg-line" aria-hidden>
+              <span
+                className="block h-1.5 rounded-full bg-accent"
+                style={{ width: `${Math.min(100, Math.round((l.usados / l.limite) * 100))}%` }}
+              />
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <h3 className="mt-4 text-sm font-semibold">Cota gratuita da IA (Gemini)</h3>
+      {uso.ia.length === 0 ? (
+        <p className="text-sm text-muted">Nenhuma leitura feita hoje.</p>
+      ) : (
+        <ul className="mt-1 flex flex-col gap-1 text-sm">
+          {uso.ia.map((m) => (
+            <li key={m.modelo} className="flex flex-wrap justify-between gap-x-3">
+              <span>{m.modelo}</span>
+              <span className="tabular-nums text-muted">
+                {m.ok} {m.ok === 1 ? "resposta" : "respostas"}
+                {m.semCota > 0 && ` · ${m.semCota} sem cota`}
+                {m.falha > 0 && ` · ${m.falha} ${m.falha === 1 ? "falha" : "falhas"}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-xs text-muted">
+        O Google não informa quanto resta da cota gratuita. Aqui aparece o que aconteceu hoje: quando um
+        modelo responde &quot;sem cota&quot;, a Luana passa para o seguinte.
+      </p>
+    </section>
   );
 }
 
