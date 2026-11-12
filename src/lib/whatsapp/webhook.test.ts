@@ -25,8 +25,8 @@ const corpo = {
 describe("extrairMensagens", () => {
   it("lê texto e outros tipos, ignorando status", () => {
     expect(extrairMensagens(corpo)).toEqual([
-      { id: "wamid.1", de: "5500000000000", tipo: "text", texto: "oi" },
-      { id: "wamid.2", de: "5500000000000", tipo: "image", texto: undefined },
+      { id: "wamid.1", de: "5500000000000", tipo: "text", texto: "oi", midiaId: undefined },
+      { id: "wamid.2", de: "5500000000000", tipo: "image", texto: undefined, midiaId: "x" },
     ]);
   });
 

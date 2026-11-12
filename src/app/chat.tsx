@@ -11,12 +11,23 @@ interface Mensagem {
 
 const ATALHOS_INICIO = ["Ana", "Carlos", "Marina"];
 const ATALHOS_PERSONA = ["E se eu pagar 200 a mais?", "Trocar"];
+const FATURA_DE_EXEMPLO = "/exemplos/fatura-ana.pdf";
+const TIPOS_ACEITOS = "application/pdf,image/jpeg,image/png,image/webp";
+
+interface RespostaDoServidor {
+  mensagens: string[];
+  persona: string | null;
+  analise: unknown;
+}
 
 export function Chat() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([
     { id: 0, autor: "bot", texto: BOAS_VINDAS },
   ]);
   const [persona, setPersona] = useState<string | null>(null);
+  // Resultado da fatura lida; fica só no navegador e volta ao servidor a cada mensagem.
+  const [analise, setAnalise] = useState<unknown>(null);
+  const seletor = useRef<HTMLInputElement>(null);
   const [rascunho, setRascunho] = useState("");
   const [enviando, setEnviando] = useState(false);
   const fim = useRef<HTMLDivElement>(null);
@@ -41,12 +52,10 @@ export function Chat() {
       const r = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto: limpo, persona }),
+        body: JSON.stringify({ texto: limpo, persona, analise }),
       });
       if (!r.ok) throw new Error(String(r.status));
-      const dados: { mensagens: string[]; persona: string | null } = await r.json();
-      setPersona(dados.persona);
-      acrescentar("bot", dados.mensagens);
+      receber(await r.json());
     } catch {
       acrescentar("bot", ["Não consegui responder agora. Envie a mensagem de novo."]);
     } finally {
@@ -54,12 +63,45 @@ export function Chat() {
     }
   }
 
+  function receber(dados: RespostaDoServidor) {
+    setPersona(dados.persona);
+    setAnalise(dados.analise);
+    acrescentar("bot", dados.mensagens);
+  }
+
+  async function enviarFatura(arquivo: Blob, nome: string) {
+    if (enviando) return;
+    acrescentar("voce", [`📎 ${nome}`]);
+    setEnviando(true);
+    try {
+      const corpo = new FormData();
+      corpo.append("arquivo", arquivo, nome);
+      const r = await fetch("/api/fatura", { method: "POST", body: corpo });
+      const dados = await r.json();
+      if (!r.ok) throw new Error(dados.erro ?? String(r.status));
+      // Se a leitura falhou, mantém o contexto que já existia.
+      if (dados.analise) receber(dados);
+      else acrescentar("bot", dados.mensagens);
+    } catch (erro) {
+      const motivo = erro instanceof Error && erro.message ? ` (${erro.message})` : "";
+      acrescentar("bot", [`Não consegui receber o arquivo${motivo}. Tente de novo.`]);
+    } finally {
+      setEnviando(false);
+      if (seletor.current) seletor.current.value = "";
+    }
+  }
+
+  async function enviarExemplo() {
+    const r = await fetch(FATURA_DE_EXEMPLO);
+    await enviarFatura(await r.blob(), "fatura-ficticia-ana.pdf");
+  }
+
   function aoEnviar(evento: FormEvent) {
     evento.preventDefault();
     void enviar(rascunho);
   }
 
-  const atalhos = persona ? ATALHOS_PERSONA : ATALHOS_INICIO;
+  const atalhos = persona || analise ? ATALHOS_PERSONA : ATALHOS_INICIO;
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-2xl flex-col">
@@ -69,7 +111,7 @@ export function Chat() {
           <p className="text-sm text-muted">Quanto de juros você paga, e como parar.</p>
         </div>
         <span className="shrink-0 rounded-full bg-accent-soft px-3 py-1 text-xs font-medium text-accent">
-          Dados fictícios
+          Demonstração
         </span>
       </header>
 
@@ -86,7 +128,7 @@ export function Chat() {
             <Formatado texto={m.texto} />
           </li>
         ))}
-        {enviando && <li className="self-start px-1 text-sm text-muted">Calculando…</li>}
+        {enviando && <li className="self-start px-1 text-sm text-muted">Um instante…</li>}
         <div ref={fim} />
       </ol>
 
@@ -102,9 +144,37 @@ export function Chat() {
             {a}
           </button>
         ))}
+        {!persona && !analise && (
+          <button
+            type="button"
+            disabled={enviando}
+            onClick={() => void enviarExemplo()}
+            className="rounded-full border border-line px-3 py-1 text-sm hover:border-accent hover:text-accent disabled:opacity-50"
+          >
+            Ler fatura de exemplo
+          </button>
+        )}
       </div>
 
       <form onSubmit={aoEnviar} className="flex gap-2 border-t border-line px-4 py-3">
+        <input
+          ref={seletor}
+          id="arquivo"
+          type="file"
+          accept={TIPOS_ACEITOS}
+          className="sr-only"
+          onChange={(e) => {
+            const arquivo = e.target.files?.[0];
+            if (arquivo) void enviarFatura(arquivo, arquivo.name);
+          }}
+        />
+        <label
+          htmlFor="arquivo"
+          title="Enviar fatura em PDF ou foto"
+          className="flex shrink-0 cursor-pointer items-center rounded-full border border-line px-4 py-2 text-sm hover:border-accent hover:text-accent has-[:focus-visible]:border-accent"
+        >
+          Fatura
+        </label>
         <label htmlFor="mensagem" className="sr-only">
           Mensagem
         </label>
@@ -114,7 +184,7 @@ export function Chat() {
           onChange={(e) => setRascunho(e.target.value)}
           maxLength={1000}
           autoComplete="off"
-          placeholder={persona ? "Quanto dá para pagar por mês?" : "Escreva Ana, Carlos ou Marina"}
+          placeholder={persona || analise ? "Quanto dá para pagar por mês?" : "Escreva Ana, Carlos ou Marina"}
           className="min-w-0 flex-1 rounded-full border border-line bg-surface px-4 py-2 outline-none focus:border-accent"
         />
         <button
@@ -125,6 +195,10 @@ export function Chat() {
           Enviar
         </button>
       </form>
+      <p className="px-4 pb-3 text-xs text-muted">
+        A fatura enviada é lida por um modelo de IA e não fica guardada. Para testar, prefira a
+        fatura de exemplo ou cubra seus dados pessoais.
+      </p>
     </div>
   );
 }

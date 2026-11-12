@@ -6,7 +6,7 @@ Projeto do Hack Brasil 2026, trilha Pagamentos & finanças. Nome provisório.
 
 ## O que faz
 
-- Lê fatura e extrato enviados no chat (PDF ou foto).
+- Lê a fatura do cartão enviada no chat (PDF ou foto).
 - Mostra quanto foi pago de juros e encargos no mês e a projeção em 12 meses.
 - Monta um plano de quitação, da dívida mais cara para a mais barata.
 - Responde simulações como "e se eu pagar R$ 200 a mais por mês?".
@@ -19,7 +19,7 @@ As respostas são simulações educativas, não recomendação de crédito ou in
 - [x] Motor de juros e simulação de quitação (`src/lib/motor`)
 - [x] Três personas fictícias (`fixtures/personas`)
 - [x] Webhook do WhatsApp e chat web (respostas por regras, sem IA ainda)
-- [ ] Leitura de fatura
+- [x] Leitura de fatura por IA em PDF ou foto (falta validar com chave real)
 - [ ] Agente de conversa
 
 ## Rodando localmente
@@ -44,7 +44,7 @@ Outros comandos: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm build`.
 | Agente | Entende a pergunta, chama o motor e redige a resposta |
 | Dados | Postgres (Neon) |
 
-Stack: Next.js 16, TypeScript, Tailwind, Vitest, Vercel.
+Stack: Next.js 16, TypeScript, Tailwind, Vitest, API da Anthropic, Vercel.
 
 ## Contribuindo
 
