@@ -85,7 +85,19 @@ export function chave(l: Lancamento): string {
   return [l.data, l.descricao.toLowerCase(), l.valor, l.parcela ?? ""].join("|");
 }
 
-/** Junta os novos aos existentes sem duplicar. Devolve só os que entraram. */
+/**
+ * Junta gastos que a pessoa escreveu. Não descarta repetidos: dois cafés do
+ * mesmo valor no mesmo dia são dois gastos.
+ */
+export function anotar(existentes: Lancamento[], novos: Lancamento[]): Lancamento[] {
+  existentes.push(...novos);
+  return novos;
+}
+
+/**
+ * Junta os lançamentos de um documento sem duplicar, para a mesma fatura
+ * enviada duas vezes não contar em dobro. Devolve só os que entraram.
+ */
 export function acrescentar(existentes: Lancamento[], novos: Lancamento[]): Lancamento[] {
   const vistos = new Set(existentes.map(chave));
   const entraram: Lancamento[] = [];

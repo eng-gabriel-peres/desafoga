@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { lerPercentual } from "@/lib/dinheiro";
-import { acrescentar, converter, hojeEmBrasilia, type Lancamento, type LancamentoLido } from "./lancamentos";
+import { acrescentar, anotar, converter, hojeEmBrasilia, type Lancamento, type LancamentoLido } from "./lancamentos";
 import { type Conta, resumir } from "./resumo";
 import { blocoDeEncargos, blocoDeHoje, blocoDoMes, dicas } from "./textos";
 
@@ -47,6 +47,21 @@ describe("converter e acrescentar", () => {
     expect(acrescentar(existentes, gastos)).toHaveLength(gastos.length);
     expect(acrescentar(existentes, gastos)).toHaveLength(0);
     expect(existentes).toHaveLength(gastos.length);
+  });
+
+  it("anota o mesmo gasto escrito duas vezes no mesmo dia", () => {
+    const cafe: Lancamento = {
+      data: "2026-11-12",
+      descricao: "Café",
+      valor: 800,
+      natureza: "compra",
+      categoria: "alimentacao",
+      parcela: null,
+    };
+    const existentes: Lancamento[] = [];
+    expect(anotar(existentes, [cafe])).toHaveLength(1);
+    expect(anotar(existentes, [{ ...cafe }])).toHaveLength(1);
+    expect(existentes).toHaveLength(2);
   });
 
   it("calcula a data de hoje no fuso de Brasília", () => {
