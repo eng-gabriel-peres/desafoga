@@ -2,7 +2,7 @@ import { formatarReais, lerPercentual, lerValorEmReais } from "@/lib/dinheiro";
 import { IaIndisponivel, IaSobrecarregada } from "@/lib/ia/gemini";
 import { acrescentar, converter, hojeEmBrasilia } from "./lancamentos";
 import { type DocumentoLido, lerDocumento, lerMensagem, redigir } from "./ler";
-import { apagarConta, buscarConta, salvar } from "./repositorio";
+import { apagarConta, buscarConta, salvarConta } from "./repositorio";
 import { type Conta, resumir } from "./resumo";
 import {
   AVISO,
@@ -45,14 +45,14 @@ export async function receberArquivo(usuario: string, bytes: Uint8Array, mime: s
     return ["Não achei gastos nesse arquivo. Mande a fatura do cartão em PDF ou um print nítido das compras."];
   }
 
-  const conta = buscarConta(usuario);
+  const conta = await buscarConta(usuario);
   // Encargos costumam vir sem data: entram na data do lançamento mais recente
   // do próprio documento, para caírem no mesmo mês das compras.
   const datas = doc.lancamentos.map((l) => l.data).filter((d) => d && /^\d{4}-\d{2}-\d{2}$/.test(d));
   const lidos = converter(doc.lancamentos, datas.sort().at(-1) ?? hoje);
   const novos = acrescentar(conta.lancamentos, lidos);
   guardarDadosDaFatura(conta, doc);
-  salvar();
+  await salvarConta(usuario, conta);
 
   const r = resumir(conta, hoje);
   const origem = doc.emissor ? ` (${doc.emissor})` : "";
@@ -73,7 +73,7 @@ export async function receberArquivo(usuario: string, bytes: Uint8Array, mime: s
 /** Mensagem de texto recebida. */
 export async function receberTexto(usuario: string, texto: string): Promise<string[]> {
   if (/^\s*(apagar|limpar|zerar)\s+(tudo|meus dados|dados)\s*$/i.test(texto)) {
-    apagarConta(usuario);
+    await apagarConta(usuario);
     return ["Pronto, apaguei tudo o que eu tinha anotado seu."];
   }
 
@@ -85,14 +85,14 @@ export async function receberTexto(usuario: string, texto: string): Promise<stri
     return [falha(erro)];
   }
 
-  const conta = buscarConta(usuario);
+  const conta = await buscarConta(usuario);
 
   if (lida.intencao === "registrar_gasto") {
     const novos = acrescentar(conta.lancamentos, converter(lida.lancamentos, hoje));
     if (novos.length === 0) {
       return ["Não peguei o valor. Escreva o gasto com o valor, tipo _mercado 120_."];
     }
-    salvar();
+    await salvarConta(usuario, conta);
     const r = resumir(conta, hoje);
     const doDia = novos.every((l) => l.data === hoje);
     return [`Anotado:\n${listar(novos)}\n\n${doDia ? blocoDeHoje(r) : blocoDoMes(r)}`];
@@ -104,7 +104,7 @@ export async function receberTexto(usuario: string, texto: string): Promise<stri
     if (renda) conta.rendaMensal = renda;
     if (saldo !== null) conta.saldoEmConta = saldo;
     if (!renda && saldo === null) return ["Não peguei o valor. Escreva, por exemplo, _ganho 4000_."];
-    salvar();
+    await salvarConta(usuario, conta);
     const r = resumir(conta, hoje);
     const partes: string[] = [];
     if (renda) partes.push(`Anotei sua renda: ${formatarReais(renda)} por mês.`, blocoDePoupanca(r));

@@ -20,7 +20,8 @@ As respostas são orientação educativa, não recomendação de investimento ou
 - [x] Chat web e webhook do WhatsApp com a mesma conversa
 - [x] Leitura de documentos e mensagens com o Gemini
 - [x] Categorias, somas e sugestões calculadas pelo código, com testes
-- [ ] Banco de dados (hoje os gastos ficam em arquivo local; na Vercel, só em memória)
+- [x] Banco de dados (Postgres no Neon; sem `DATABASE_URL`, arquivo local para desenvolver)
+- [ ] Vercel e Neon conectados ao repositório
 - [ ] WhatsApp validado com número real da Meta
 - [ ] Limite de uso por visitante
 
@@ -30,7 +31,7 @@ Requisitos: Node 24 e pnpm 11.
 
 ```bash
 pnpm install
-cp .env.example .env.local   # preencha GEMINI_API_KEY
+cp .env.example .env.local   # preencha GEMINI_API_KEY; DATABASE_URL é opcional
 pnpm dev
 ```
 
@@ -48,9 +49,9 @@ A regra do projeto: **a IA lê e redige, o código calcula.** O modelo transcrev
 | Leitura | `src/lib/luana/ler.ts` | Gemini transcreve documentos e interpreta mensagens em formato fixo |
 | Contas | `src/lib/luana/resumo.ts` | Totais por dia, mês e categoria, encargos, poupança |
 | Conversa | `src/lib/luana/luana.ts` | Orquestra leitura, memória e resposta |
-| Memória | `src/lib/luana/repositorio.ts` | Gastos por pessoa (provisório, sem banco) |
+| Memória | `src/lib/luana/repositorio.ts` | Gastos por pessoa no Postgres (tabela `contas`, criada sozinha) |
 
-Stack: Next.js 16, TypeScript, Tailwind, Vitest, Gemini, Vercel.
+Stack: Next.js 16, TypeScript, Tailwind, Vitest, Gemini, Postgres (Neon), Vercel.
 
 ## Contribuindo
 
