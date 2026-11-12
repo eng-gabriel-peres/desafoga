@@ -22,6 +22,8 @@ import {
 
 /** Limite de tamanho; a Vercel recusa corpos de requisição maiores que 4,5 MB. */
 export const TAMANHO_MAXIMO = 4 * 1024 * 1024;
+/** Quantos arquivos recebidos ficam listados no painel. */
+const MAXIMO_DE_DOCUMENTOS = 60;
 const TIPOS_ACEITOS = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 /** Formatos de áudio do gravador do navegador e das mensagens de voz do WhatsApp. */
 export const TIPOS_DE_AUDIO = ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav", "audio/aac"];
@@ -67,6 +69,18 @@ export async function receberArquivo(
   const lidos = converter(doc.lancamentos, datas.sort().at(-1) ?? hoje, doc.emissor);
   const novos = acrescentar(conta.lancamentos, lidos);
   guardarDadosDaFatura(conta, doc);
+  const datasLidas = lidos.map((l) => l.data).sort();
+  conta.documentos = [
+    ...(conta.documentos ?? []),
+    {
+      tipo: doc.tipo,
+      emissor: doc.emissor,
+      recebidoEm: hoje,
+      lancamentos: lidos.length,
+      de: datasLidas[0] ?? null,
+      ate: datasLidas.at(-1) ?? null,
+    },
+  ].slice(-MAXIMO_DE_DOCUMENTOS);
   await salvarConta(usuario, conta);
 
   const r = resumir(conta, hoje);
@@ -148,9 +162,30 @@ export async function receberAudio(
   return { transcricao, mensagens: await responder(usuario, transcricao, lida, hoje) };
 }
 
-/** Age sobre uma mensagem já interpretada, venha ela de texto ou de áudio. */
+/** Quantas mensagens recentes ficam guardadas para dar continuidade à conversa. */
+const TAMANHO_DO_HISTORICO = 8;
+
+/** Responde e guarda a troca no histórico curto da conversa. */
 async function responder(usuario: string, texto: string, lida: MensagemLida, hoje: string): Promise<string[]> {
   const conta = await buscarConta(usuario);
+  const mensagens = await agir(usuario, conta, texto, lida, hoje);
+  conta.historico = [
+    ...(conta.historico ?? []),
+    { de: "voce" as const, texto: texto.slice(0, 400) },
+    { de: "luana" as const, texto: mensagens.join(" ").slice(0, 400) },
+  ].slice(-TAMANHO_DO_HISTORICO);
+  await salvarConta(usuario, conta);
+  return mensagens;
+}
+
+/** Age sobre uma mensagem já interpretada, venha ela de texto ou de áudio. */
+async function agir(
+  usuario: string,
+  conta: Conta,
+  texto: string,
+  lida: MensagemLida,
+  hoje: string,
+): Promise<string[]> {
 
   if (lida.intencao === "decisao_de_compra" && lida.compra) {
     const renda = lida.rendaMensal ? lerValorEmReais(lida.rendaMensal) : null;
@@ -171,7 +206,9 @@ async function responder(usuario: string, texto: string, lida: MensagemLida, hoj
       conta,
       resumir(conta, hoje),
     );
-    return [`${blocoDeCompra(analise)}\n\n${AVISO}`];
+    // Sem preço nem parcela não há conta a mostrar: a resposta segue como conversa.
+    const semPreco = analise.veredito === "sem_dados" && analise.renda !== null;
+    if (!semPreco) return [`${blocoDeCompra(analise)}\n\n${AVISO}`];
   }
 
   if (lida.intencao === "registrar_gasto") {
@@ -205,11 +242,14 @@ async function responder(usuario: string, texto: string, lida: MensagemLida, hoj
     return [partes.join("\n\n")];
   }
 
-  if (conta.lancamentos.length === 0) return [BOAS_VINDAS];
+  // Boas-vindas só no primeiro contato; depois a conversa segue normalmente.
+  const historico = conta.historico ?? [];
+  if (conta.lancamentos.length === 0 && !conta.rendaMensal && historico.length === 0) return [BOAS_VINDAS];
 
   const r = resumir(conta, hoje);
+  const conversa = historico.map((h) => `${h.de === "voce" ? "Pessoa" : "Luana"}: ${h.texto}`).join("\n");
   try {
-    return [await redigir(texto, resumoParaIA(r, conta.rendaMensal, conta.saldoEmConta))];
+    return [await redigir(texto, resumoParaIA(r, conta.rendaMensal, conta.saldoEmConta), conversa)];
   } catch (erro) {
     registrar(erro);
     // Sem o modelo, ainda dá para entregar os números.

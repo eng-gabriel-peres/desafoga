@@ -2,7 +2,18 @@
 
 import { type FormEvent, Fragment, useEffect, useRef, useState } from "react";
 import { BOAS_VINDAS } from "@/lib/luana/textos";
-import { AvatarDaLuana, IconeClipe, IconeEnviar, IconeFechar, IconeLixeira, IconeMicrofone } from "./icones";
+import {
+  AvatarDaLuana,
+  IconeClipe,
+  IconeEnviar,
+  IconeFechar,
+  IconeLixeira,
+  IconeLua,
+  IconeMicrofone,
+  IconePaleta,
+  IconeSol,
+} from "./icones";
+import { Painel } from "./painel";
 
 interface Mensagem {
   id: number;
@@ -25,6 +36,36 @@ const TAMANHO_MAXIMO = 4 * 1024 * 1024;
 /** Duração máxima de uma mensagem de voz, em segundos. */
 const MAXIMO_DE_AUDIO = 120;
 const FORMATOS_DE_AUDIO = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+
+const CHAVE_DO_TEMA = "luana-tema";
+const CHAVE_DA_COR = "luana-cor";
+/** Cores do chat; os tons de cada uma, por tema, ficam em globals.css. */
+const CORES = [
+  { id: "azul", nome: "Azul", amostra: "#3f9fcb" },
+  { id: "roxo", nome: "Roxo", amostra: "#9370e0" },
+  { id: "verde", nome: "Verde", amostra: "#3faa78" },
+  { id: "amarelo", nome: "Amarelo", amostra: "#d4a514" },
+  { id: "rosa", nome: "Rosa", amostra: "#dc5f98" },
+  { id: "laranja", nome: "Laranja", amostra: "#e07a2c" },
+];
+
+function preferencia(chave: string, padrao: string): string {
+  try {
+    return localStorage.getItem(chave) ?? padrao;
+  } catch {
+    return padrao;
+  }
+}
+
+/** Marca o <html> com a preferência e a guarda neste navegador. */
+function aplicar(chave: string, atributo: "tema" | "cor", valor: string) {
+  document.documentElement.dataset[atributo] = valor;
+  try {
+    localStorage.setItem(chave, valor);
+  } catch {
+    // Sem armazenamento: vale até recarregar a página.
+  }
+}
 
 const INICIO: Mensagem[] = [{ id: 0, autor: "luana", texto: BOAS_VINDAS }];
 
@@ -60,6 +101,8 @@ function conversaGuardada(): Mensagem[] {
   }
 }
 
+const redondo = "flex h-11 w-11 shrink-0 items-center justify-center rounded-full disabled:opacity-50";
+
 const duracao = (segundos: number) => `${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2, "0")}`;
 
 export function Chat() {
@@ -70,6 +113,10 @@ export function Chat() {
   const [progresso, setProgresso] = useState("");
   /** Segundos de gravação em andamento; null quando não está gravando. */
   const [gravando, setGravando] = useState<number | null>(null);
+  const [tema, setTema] = useState(() => preferencia(CHAVE_DO_TEMA, "escuro"));
+  const [cor, setCor] = useState(() => preferencia(CHAVE_DA_COR, "azul"));
+  const [escolhendoCor, setEscolhendoCor] = useState(false);
+  const [painelAberto, setPainelAberto] = useState(false);
   const gravador = useRef<MediaRecorder | null>(null);
   const descartar = useRef(false);
   const relogio = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -223,17 +270,74 @@ export function Chat() {
     }, 1000);
   }
 
+  function alternarTema() {
+    const novo = tema === "claro" ? "escuro" : "claro";
+    setTema(novo);
+    aplicar(CHAVE_DO_TEMA, "tema", novo);
+  }
+
+  function escolherCor(id: string) {
+    setCor(id);
+    aplicar(CHAVE_DA_COR, "cor", id);
+  }
+
+  if (painelAberto) return <Painel usuario={usuario()} aoFechar={() => setPainelAberto(false)} />;
+
   const temOQueEnviar = rascunho.trim() !== "" || anexos.length > 0;
-  const redondo = "flex h-11 w-11 shrink-0 items-center justify-center rounded-full disabled:opacity-50";
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-2xl flex-col">
-      <header className="flex items-center gap-3 border-b border-line px-4 py-3">
-        <AvatarDaLuana />
-        <div className="min-w-0">
-          <h1 className="text-lg font-semibold leading-tight">Luana</h1>
-          <p className="text-sm text-muted">Seus gastos organizados na conversa.</p>
+      <header className="border-b border-line px-3 py-2">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setPainelAberto(true)}
+            title="Abrir o resumo geral"
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-1 text-left hover:bg-accent-soft"
+          >
+            <AvatarDaLuana />
+            <span className="min-w-0">
+              <span className="block text-lg font-semibold leading-tight">Luana</span>
+              <span className="block truncate text-sm text-muted">Toque para ver o resumo geral</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setEscolhendoCor((aberto) => !aberto)}
+            aria-expanded={escolhendoCor}
+            title="Cor do chat"
+            aria-label="Cor do chat"
+            className={`${redondo} text-muted hover:bg-accent-soft hover:text-accent`}
+          >
+            <IconePaleta />
+          </button>
+          <button
+            type="button"
+            onClick={alternarTema}
+            title={tema === "claro" ? "Mudar para o tema escuro" : "Mudar para o tema claro"}
+            aria-label={tema === "claro" ? "Mudar para o tema escuro" : "Mudar para o tema claro"}
+            className={`${redondo} text-muted hover:bg-accent-soft hover:text-accent`}
+          >
+            {tema === "claro" ? <IconeLua /> : <IconeSol />}
+          </button>
         </div>
+        {escolhendoCor && (
+          <div className="flex flex-wrap items-center gap-2 px-1 pb-1 pt-2" role="radiogroup" aria-label="Cor do chat">
+            {CORES.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                role="radio"
+                aria-checked={cor === c.id}
+                onClick={() => escolherCor(c.id)}
+                title={c.nome}
+                aria-label={c.nome}
+                className={`h-8 w-8 rounded-full border-2 ${cor === c.id ? "border-foreground" : "border-transparent"}`}
+                style={{ backgroundColor: c.amostra }}
+              />
+            ))}
+          </div>
+        )}
       </header>
 
       <ol className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4" aria-live="polite">
