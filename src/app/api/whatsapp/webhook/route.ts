@@ -1,5 +1,5 @@
 import { after, type NextRequest } from "next/server";
-import { receberArquivo, receberTexto } from "@/lib/luana/luana";
+import { receberArquivo, receberAudio, receberTexto } from "@/lib/luana/luana";
 import { enviarTexto } from "@/lib/whatsapp/enviar";
 import { mascarar, registrar } from "@/lib/whatsapp/diagnostico";
 import { baixarMidia } from "@/lib/whatsapp/midia";
@@ -73,12 +73,15 @@ async function atender(m: MensagemRecebida): Promise<void> {
 
   if (m.tipo === "text" && m.texto) {
     mensagens = await receberTexto(usuario, m.texto);
+  } else if (m.tipo === "audio" && m.midiaId) {
+    const { bytes, mime } = await baixarMidia(m.midiaId);
+    mensagens = (await receberAudio(usuario, bytes, mime)).mensagens;
   } else if ((m.tipo === "image" || m.tipo === "document") && m.midiaId) {
     await enviarTexto(m.de, "Recebi. Lendo, leva alguns segundos…");
     const { bytes, mime } = await baixarMidia(m.midiaId);
     mensagens = await receberArquivo(usuario, bytes, mime);
   } else {
-    mensagens = ["Só entendo texto, foto ou PDF. Me mande a fatura, um print das compras ou escreva o que gastou."];
+    mensagens = ["Só entendo texto, áudio, foto ou PDF. Me mande a fatura, um print das compras ou conte o que gastou."];
   }
 
   for (const texto of mensagens) await enviarTexto(m.de, texto);

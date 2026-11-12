@@ -6,8 +6,8 @@ import { CORTE_SUGERIDO, META_DE_POUPANCA, type Periodo, type Resumo } from "./r
 
 export const BOAS_VINDAS = [
   "Oi! Eu sou a *Luana*. Organizo seus gastos aqui na conversa.",
-  "Me mande a *fatura do cartão* ou o *extrato da conta* (PDF ou foto), um *print das compras* do app do banco, ou escreva o que gastou, tipo _almoço 35_.",
-  "Eu separo por categoria, somo o dia e o mês, mostro quanto entrou, quanto saiu, quanto foi de juros e IOF e onde dá para economizar.",
+  "Me mande a *fatura do cartão* ou o *extrato da conta* (PDF ou foto), um *print das compras* do app do banco, ou escreva (ou grave um áudio contando) o que gastou, tipo _almoço 35_.",
+  "Eu separo por categoria, somo o dia e o mês, mostro quanto entrou, quanto saiu, quanto foi de juros e IOF e onde dá para economizar. Também faço a conta se você perguntar _posso comprar isso?_",
 ].join("\n\n");
 
 export const AVISO = "_Orientação educativa. Não é recomendação de investimento ou crédito._";

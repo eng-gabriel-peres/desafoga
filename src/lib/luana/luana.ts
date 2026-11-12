@@ -1,7 +1,8 @@
 import { formatarReais, lerPercentual, lerValorEmReais } from "@/lib/dinheiro";
 import { IaIndisponivel, IaSobrecarregada } from "@/lib/ia/gemini";
+import { analisarCompra, blocoDeCompra } from "./compra";
 import { acrescentar, anotar, converter, hojeEmBrasilia } from "./lancamentos";
-import { type DocumentoLido, lerDocumento, lerMensagem, redigir } from "./ler";
+import { type DocumentoLido, lerAudio, lerDocumento, lerMensagem, type MensagemLida, redigir } from "./ler";
 import { apagarConta, buscarConta, salvarConta } from "./repositorio";
 import { type Conta, resumir } from "./resumo";
 import {
@@ -22,6 +23,8 @@ import {
 /** Limite de tamanho; a Vercel recusa corpos de requisição maiores que 4,5 MB. */
 export const TAMANHO_MAXIMO = 4 * 1024 * 1024;
 const TIPOS_ACEITOS = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+/** Formatos de áudio do gravador do navegador e das mensagens de voz do WhatsApp. */
+export const TIPOS_DE_AUDIO = ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav", "audio/aac"];
 
 const SEM_IA =
   "Estou sem acesso ao meu leitor agora, então não consegui entender. Tente de novo em instantes.";
@@ -105,8 +108,71 @@ export async function receberTexto(usuario: string, texto: string): Promise<stri
   } catch (erro) {
     return [falha(erro)];
   }
+  return responder(usuario, texto, lida, hoje);
+}
 
+/**
+ * Mensagem de voz recebida. Devolve também a transcrição, para a conversa
+ * mostrar o que foi entendido.
+ */
+export async function receberAudio(
+  usuario: string,
+  bytes: Uint8Array,
+  mime: string,
+): Promise<{ transcricao: string; mensagens: string[] }> {
+  const tipo = mime.split(";")[0].trim().toLowerCase();
+  if (!TIPOS_DE_AUDIO.includes(tipo)) {
+    return { transcricao: "", mensagens: ["Não consegui abrir esse áudio. Grave de novo ou escreva a mensagem."] };
+  }
+  if (bytes.byteLength > TAMANHO_MAXIMO) {
+    return { transcricao: "", mensagens: ["Esse áudio ficou grande demais. Mande um de até dois minutos."] };
+  }
+
+  const hoje = hojeEmBrasilia();
+  let lida;
+  try {
+    lida = await lerAudio(bytes, tipo, hoje);
+  } catch (erro) {
+    return { transcricao: "", mensagens: [falha(erro)] };
+  }
+  const transcricao = lida.transcricao?.trim() ?? "";
+  if (!transcricao) {
+    return { transcricao: "", mensagens: ["Não entendi o áudio. Pode gravar de novo, mais perto do microfone?"] };
+  }
+  if (/^\s*(apagar|limpar|zerar)\s+(tudo|meus dados|dados)\W*$/i.test(transcricao)) {
+    return {
+      transcricao,
+      mensagens: ["Para apagar seus dados, escreva _apagar tudo_. Por áudio eu não apago, para não errar."],
+    };
+  }
+  return { transcricao, mensagens: await responder(usuario, transcricao, lida, hoje) };
+}
+
+/** Age sobre uma mensagem já interpretada, venha ela de texto ou de áudio. */
+async function responder(usuario: string, texto: string, lida: MensagemLida, hoje: string): Promise<string[]> {
   const conta = await buscarConta(usuario);
+
+  if (lida.intencao === "decisao_de_compra" && lida.compra) {
+    const renda = lida.rendaMensal ? lerValorEmReais(lida.rendaMensal) : null;
+    const citados = lida.compromissosCitados.reduce((s, c) => s + (lerValorEmReais(c.valor) ?? 0), 0);
+    // Renda e contas citadas ficam guardadas para as próximas perguntas.
+    if (renda) conta.rendaMensal = renda;
+    if (citados > 0) conta.contasInformadas = citados;
+    if (renda || citados > 0) await salvarConta(usuario, conta);
+    const parcelas = lida.compra.numeroDeParcelas ? Number.parseInt(lida.compra.numeroDeParcelas, 10) : NaN;
+    const analise = analisarCompra(
+      {
+        item: lida.compra.item,
+        valorTotal: lida.compra.valorTotal ? lerValorEmReais(lida.compra.valorTotal) : null,
+        parcela: lida.compra.valorDaParcela ? lerValorEmReais(lida.compra.valorDaParcela) : null,
+        numeroDeParcelas: Number.isFinite(parcelas) && parcelas > 0 ? parcelas : null,
+        compromissosCitados: conta.contasInformadas ?? 0,
+      },
+      conta,
+      resumir(conta, hoje),
+    );
+    return [`${blocoDeCompra(analise)}\n\n${AVISO}`];
+  }
 
   if (lida.intencao === "registrar_gasto") {
     const novos = anotar(conta.lancamentos, converter(lida.lancamentos, hoje));
