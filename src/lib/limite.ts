@@ -23,7 +23,10 @@ export interface Veredito {
 }
 
 /** Soma 1 em cada chave no dia e devolve o total de cada uma depois da soma. */
-export type Contador = (chaves: string[], dia: string) => Promise<Map<string, number>>;
+export type Contador = ((chaves: string[], dia: string) => Promise<Map<string, number>>) & {
+  /** Lê, sem somar, as chaves pedidas e todas as que começam com o prefixo. */
+  ler?: (dia: string, chaves: string[], prefixo: string) => Promise<Map<string, number>>;
+};
 
 const NOME: Record<Recurso, string> = { texto: "mensagens", arquivo: "arquivos", audio: "áudios" };
 
@@ -68,7 +71,7 @@ export function criarLimitador(contar: Contador, limiteGlobal = LIMITE_GLOBAL_PA
 /** Contador em memória: usado sem banco (desenvolvimento) e nos testes. */
 export function contadorEmMemoria(): Contador {
   const totais = new Map<string, number>();
-  return async (chaves, dia) => {
+  const contar: Contador = async (chaves, dia) => {
     const saida = new Map<string, number>();
     for (const chave of chaves) {
       const total = (totais.get(`${dia}|${chave}`) ?? 0) + 1;
@@ -77,6 +80,15 @@ export function contadorEmMemoria(): Contador {
     }
     return saida;
   };
+  contar.ler = async (dia, chaves, prefixo) => {
+    const saida = new Map<string, number>();
+    for (const [completa, total] of totais) {
+      const [doDia, chave] = [completa.slice(0, dia.length), completa.slice(dia.length + 1)];
+      if (doDia === dia && (chaves.includes(chave) || chave.startsWith(prefixo))) saida.set(chave, total);
+    }
+    return saida;
+  };
+  return contar;
 }
 
 /** Contador no Postgres: vale entre instâncias, que na Vercel não compartilham memória. */
@@ -100,7 +112,7 @@ export function contadorPostgres(url: string): Contador {
         throw erro;
       }));
 
-  return async (chaves, dia) => {
+  const contar: Contador = async (chaves, dia) => {
     await pronto();
     const r = await pool.query<{ chave: string; total: number }>(
       `insert into uso (chave, dia, total)
@@ -111,21 +123,78 @@ export function contadorPostgres(url: string): Contador {
     );
     return new Map(r.rows.map((linha) => [linha.chave, linha.total]));
   };
+  contar.ler = async (dia, chaves, prefixo) => {
+    await pronto();
+    const r = await pool.query<{ chave: string; total: number }>(
+      "select chave, total from uso where dia = $1::date and (chave = any($2::text[]) or left(chave, length($3)) = $3)",
+      [dia, chaves, prefixo],
+    );
+    return new Map(r.rows.map((linha) => [linha.chave, linha.total]));
+  };
+  return contar;
 }
 
+let contador: Contador | null = null;
 let atual: ReturnType<typeof criarLimitador> | null = null;
+
+function contadorAtual(): Contador {
+  const url = process.env.DATABASE_URL;
+  return (contador ??= url ? contadorPostgres(url) : contadorEmMemoria());
+}
+
+function limiteGlobal(): number {
+  const global = Number(process.env.LIMITE_GLOBAL_DIARIO);
+  return Number.isFinite(global) && global > 0 ? global : LIMITE_GLOBAL_PADRAO;
+}
 
 /** Conta um pedido e diz se ele pode ser atendido. */
 export function consumir(recurso: Recurso, visitante: string, rede: string | null): Promise<Veredito> {
-  if (!atual) {
-    const url = process.env.DATABASE_URL;
-    const global = Number(process.env.LIMITE_GLOBAL_DIARIO);
-    atual = criarLimitador(
-      url ? contadorPostgres(url) : contadorEmMemoria(),
-      Number.isFinite(global) && global > 0 ? global : LIMITE_GLOBAL_PADRAO,
-    );
-  }
+  atual ??= criarLimitador(contadorAtual(), limiteGlobal());
   return atual(recurso, visitante, rede);
+}
+
+export type ResultadoDaIA = "ok" | "sem_cota" | "falha";
+
+/** Anota como terminou uma chamada ao modelo de IA. Nunca atrapalha a chamada. */
+export function registrarIA(modelo: string, resultado: ResultadoDaIA): void {
+  void contadorAtual()([`ia:${resultado}:${modelo}`], hojeEmBrasilia()).catch(() => {});
+}
+
+export interface UsoDeHoje {
+  voce: Record<Recurso, { usados: number; limite: number }>;
+  site: { usados: number; limite: number };
+  /** Chamadas ao modelo de IA hoje, por modelo. */
+  ia: { modelo: string; ok: number; semCota: number; falha: number }[];
+}
+
+/** Uso do dia para o painel: o do visitante, o do site e o da cota da IA. */
+export async function usoDeHoje(visitante: string): Promise<UsoDeHoje | null> {
+  const recursos: Recurso[] = ["texto", "arquivo", "audio"];
+  let totais: Map<string, number>;
+  try {
+    const ler = contadorAtual().ler;
+    if (!ler) return null;
+    totais = await ler(hojeEmBrasilia(), ["global", ...recursos.map((r) => `v:${r}:${visitante}`)], "ia:");
+  } catch {
+    return null;
+  }
+
+  const modelos = new Map<string, { modelo: string; ok: number; semCota: number; falha: number }>();
+  for (const [chave, total] of totais) {
+    const m = /^ia:(ok|sem_cota|falha):(.+)$/.exec(chave);
+    if (!m) continue;
+    const linha = modelos.get(m[2]) ?? { modelo: m[2], ok: 0, semCota: 0, falha: 0 };
+    linha[m[1] === "ok" ? "ok" : m[1] === "sem_cota" ? "semCota" : "falha"] += total;
+    modelos.set(m[2], linha);
+  }
+
+  return {
+    voce: Object.fromEntries(
+      recursos.map((r) => [r, { usados: totais.get(`v:${r}:${visitante}`) ?? 0, limite: LIMITE_POR_VISITANTE[r] }]),
+    ) as UsoDeHoje["voce"],
+    site: { usados: totais.get("global") ?? 0, limite: limiteGlobal() },
+    ia: [...modelos.values()].sort((a, b) => b.ok + b.semCota + b.falha - (a.ok + a.semCota + a.falha)),
+  };
 }
 
 /**
