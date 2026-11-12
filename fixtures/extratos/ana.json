@@ -1,0 +1,19 @@
+{
+  "ficticio": true,
+  "banco": "Banco Exemplo",
+  "titular": "Ana (fictícia)",
+  "periodo": { "inicio": "2026-11-01", "fim": "2026-11-12" },
+  "saldoInicial": 31250,
+  "movimentos": [
+    { "data": "2026-11-05", "descricao": "SALARIO EMPRESA EXEMPLO LTDA", "valor": 280000, "tipo": "credito" },
+    { "data": "2026-11-06", "descricao": "PIX ENVIADO IMOBILIARIA CENTRO - ALUGUEL", "valor": 95000, "tipo": "debito" },
+    { "data": "2026-11-07", "descricao": "PAGAMENTO FATURA CARTAO BANCO EXEMPLO", "valor": 35111, "tipo": "debito" },
+    { "data": "2026-11-08", "descricao": "COMPRA DEBITO MERCADO BOM PRECO", "valor": 21240, "tipo": "debito" },
+    { "data": "2026-11-09", "descricao": "PIX RECEBIDO JOAO SILVA (FICTICIO)", "valor": 15000, "tipo": "credito" },
+    { "data": "2026-11-10", "descricao": "CONTA DE LUZ ENERGIA EXEMPLO", "valor": 13875, "tipo": "debito" },
+    { "data": "2026-11-10", "descricao": "APLICACAO CAIXINHA RESERVA - MESMA TITULARIDADE", "valor": 20000, "tipo": "debito" },
+    { "data": "2026-11-11", "descricao": "PIX ENVIADO MARIA SOUZA (FICTICIA)", "valor": 8000, "tipo": "debito" },
+    { "data": "2026-11-11", "descricao": "TARIFA PACOTE DE SERVICOS", "valor": 2490, "tipo": "debito" },
+    { "data": "2026-11-12", "descricao": "COMPRA DEBITO FARMACIA POPULAR", "valor": 4630, "tipo": "debito" }
+  ]
+}
