@@ -109,7 +109,7 @@ export function Chat() {
           aria-hidden
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent font-semibold text-on-accent"
         >
-          S
+          L
         </div>
         <div className="min-w-0">
           <h1 className="text-lg font-semibold leading-tight">Luana</h1>
