@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { receberArquivo, TAMANHO_MAXIMO } from "@/lib/luana/luana";
 import { usuarioValido } from "@/lib/luana/usuario";
+import { consumir, redeDe } from "@/lib/limite";
 
 /** A leitura por IA pode levar algumas dezenas de segundos. */
 export const maxDuration = 180;
@@ -24,6 +25,9 @@ export async function POST(request: NextRequest) {
   if (arquivo.size > TAMANHO_MAXIMO) {
     return NextResponse.json({ erro: "Arquivo maior que 4 MB." }, { status: 413 });
   }
+
+  const uso = await consumir("arquivo", `web:${usuario}`, redeDe(request.headers));
+  if (!uso.permitido) return NextResponse.json({ mensagens: [uso.mensagem] });
 
   const bytes = new Uint8Array(await arquivo.arrayBuffer());
   // "resumo=nao" vem nos arquivos intermediários de um envio com vários.
