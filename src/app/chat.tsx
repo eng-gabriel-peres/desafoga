@@ -16,6 +16,8 @@ const EXEMPLOS = [
 ];
 const TIPOS_ACEITOS = "application/pdf,image/jpeg,image/png,image/webp";
 const CHAVE_DO_USUARIO = "luana-usuario";
+const MAXIMO_DE_ARQUIVOS = 15;
+const TAMANHO_MAXIMO = 4 * 1024 * 1024;
 
 let sessaoSemArmazenamento: string | undefined;
 
@@ -40,6 +42,7 @@ export function Chat() {
   ]);
   const [rascunho, setRascunho] = useState("");
   const [ocupada, setOcupada] = useState<false | "lendo" | "pensando">(false);
+  const [progresso, setProgresso] = useState("");
   const fim = useRef<HTMLDivElement>(null);
   const seletor = useRef<HTMLInputElement>(null);
   const proximoId = useRef(1);
@@ -82,19 +85,36 @@ export function Chat() {
     );
   }
 
-  async function enviarArquivo(arquivo: Blob, nome: string) {
-    if (ocupada) return;
-    acrescentar("voce", [`📎 ${nome}`]);
-    const corpo = new FormData();
-    corpo.append("arquivo", arquivo, nome);
-    corpo.append("usuario", usuario());
-    await pedir("lendo", () => fetch("/api/fatura", { method: "POST", body: corpo }));
+  /** Envia os arquivos um a um, em ordem; o resumo completo vem com o último. */
+  async function enviarArquivos(arquivos: { arquivo: Blob; nome: string }[]) {
+    if (ocupada || arquivos.length === 0) return;
+    const aceitos = arquivos.slice(0, MAXIMO_DE_ARQUIVOS);
+    if (arquivos.length > aceitos.length) {
+      acrescentar("luana", [
+        `Leio até ${MAXIMO_DE_ARQUIVOS} arquivos por vez. Vou ler os ${MAXIMO_DE_ARQUIVOS} primeiros; mande o resto em seguida.`,
+      ]);
+    }
+    for (const [i, { arquivo, nome }] of aceitos.entries()) {
+      acrescentar("voce", [`📎 ${nome}`]);
+      if (arquivo.size > TAMANHO_MAXIMO) {
+        acrescentar("luana", [`${nome} passa de 4 MB. Mande uma versão menor ou um print da tela.`]);
+        continue;
+      }
+      const ultimo = i === aceitos.length - 1;
+      setProgresso(aceitos.length > 1 ? ` (${i + 1} de ${aceitos.length})` : "");
+      const corpo = new FormData();
+      corpo.append("arquivo", arquivo, nome);
+      corpo.append("usuario", usuario());
+      if (!ultimo) corpo.append("resumo", "nao");
+      await pedir("lendo", () => fetch("/api/fatura", { method: "POST", body: corpo }));
+    }
+    setProgresso("");
     if (seletor.current) seletor.current.value = "";
   }
 
   async function enviarExemplo(exemplo: (typeof EXEMPLOS)[number]) {
     const r = await fetch(exemplo.arquivo);
-    await enviarArquivo(await r.blob(), exemplo.nome);
+    await enviarArquivos([{ arquivo: await r.blob(), nome: exemplo.nome }]);
   }
 
   function aoEnviar(evento: FormEvent) {
@@ -135,7 +155,7 @@ export function Chat() {
         ))}
         {ocupada && (
           <li className="self-start px-1 text-sm text-muted">
-            {ocupada === "lendo" ? "Luana está lendo o arquivo…" : "Luana está escrevendo…"}
+            {ocupada === "lendo" ? `Luana está lendo o arquivo${progresso}…` : "Luana está escrevendo…"}
           </li>
         )}
         <div ref={fim} />
@@ -166,15 +186,16 @@ export function Chat() {
           id="arquivo"
           type="file"
           accept={TIPOS_ACEITOS}
+          multiple
           className="sr-only"
           onChange={(e) => {
-            const arquivo = e.target.files?.[0];
-            if (arquivo) void enviarArquivo(arquivo, arquivo.name);
+            const escolhidos = Array.from(e.target.files ?? []);
+            void enviarArquivos(escolhidos.map((arquivo) => ({ arquivo, nome: arquivo.name })));
           }}
         />
         <label
           htmlFor="arquivo"
-          title="Enviar fatura, extrato ou print das compras"
+          title="Enviar faturas, extratos ou prints (pode escolher vários de uma vez)"
           className="flex shrink-0 cursor-pointer items-center rounded-full border border-line px-4 py-2 text-sm hover:border-accent hover:text-accent"
         >
           📎 Anexar
