@@ -1,5 +1,5 @@
-import { Chat } from "./chat";
+import { Conversa } from "./conversa";
 
 export default function Home() {
-  return <Chat />;
+  return <Conversa />;
 }

@@ -2,6 +2,7 @@
 
 import { type FormEvent, Fragment, useEffect, useRef, useState } from "react";
 import { BOAS_VINDAS } from "@/lib/luana/textos";
+import { AvatarDaLuana, IconeClipe, IconeEnviar, IconeFechar, IconeLixeira, IconeMicrofone } from "./icones";
 
 interface Mensagem {
   id: number;
@@ -9,18 +10,23 @@ interface Mensagem {
   texto: string;
 }
 
-const ATALHOS = ["Quanto entrou e quanto saiu?", "Qual foi meu maior gasto?", "Quanto consigo guardar?"];
-const EXEMPLOS = [
-  { rotulo: "Ler fatura de exemplo", arquivo: "/exemplos/fatura-ana.pdf", nome: "fatura-de-exemplo.pdf" },
-  { rotulo: "Ler extrato de exemplo", arquivo: "/exemplos/extrato-ana.pdf", nome: "extrato-de-exemplo.pdf" },
-];
+interface Anexo {
+  arquivo: Blob;
+  nome: string;
+}
+
 const TIPOS_ACEITOS = "application/pdf,image/jpeg,image/png,image/webp";
 const CHAVE_DO_USUARIO = "luana-usuario";
+const CHAVE_DA_CONVERSA = "luana-conversa";
+/** Mensagens guardadas no navegador; as mais antigas saem. */
+const MAXIMO_DE_MENSAGENS = 300;
 const MAXIMO_DE_ARQUIVOS = 15;
 const TAMANHO_MAXIMO = 4 * 1024 * 1024;
 /** Duração máxima de uma mensagem de voz, em segundos. */
 const MAXIMO_DE_AUDIO = 120;
 const FORMATOS_DE_AUDIO = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+
+const INICIO: Mensagem[] = [{ id: 0, autor: "luana", texto: BOAS_VINDAS }];
 
 let sessaoSemArmazenamento: string | undefined;
 
@@ -39,24 +45,49 @@ function usuario(): string {
   }
 }
 
+/** Conversa guardada neste navegador, para não se perder ao atualizar a página. */
+function conversaGuardada(): Mensagem[] {
+  try {
+    const bruto: unknown = JSON.parse(localStorage.getItem(CHAVE_DA_CONVERSA) ?? "null");
+    if (!Array.isArray(bruto)) return INICIO;
+    const validas = bruto.filter(
+      (m): m is Mensagem =>
+        typeof m?.id === "number" && typeof m?.texto === "string" && (m?.autor === "luana" || m?.autor === "voce"),
+    );
+    return validas.length > 0 ? validas : INICIO;
+  } catch {
+    return INICIO;
+  }
+}
+
+const duracao = (segundos: number) => `${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2, "0")}`;
+
 export function Chat() {
-  const [mensagens, setMensagens] = useState<Mensagem[]>([
-    { id: 0, autor: "luana", texto: BOAS_VINDAS },
-  ]);
+  const [mensagens, setMensagens] = useState<Mensagem[]>(conversaGuardada);
   const [rascunho, setRascunho] = useState("");
+  const [anexos, setAnexos] = useState<Anexo[]>([]);
   const [ocupada, setOcupada] = useState<false | "lendo" | "pensando">(false);
   const [progresso, setProgresso] = useState("");
   /** Segundos de gravação em andamento; null quando não está gravando. */
   const [gravando, setGravando] = useState<number | null>(null);
   const gravador = useRef<MediaRecorder | null>(null);
+  const descartar = useRef(false);
   const relogio = useRef<ReturnType<typeof setInterval> | null>(null);
   const fim = useRef<HTMLDivElement>(null);
   const seletor = useRef<HTMLInputElement>(null);
-  const proximoId = useRef(1);
+  const proximoId = useRef(Math.max(...mensagens.map((m) => m.id)) + 1);
 
   useEffect(() => {
     fim.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [mensagens, ocupada]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAVE_DA_CONVERSA, JSON.stringify(mensagens.slice(-MAXIMO_DE_MENSAGENS)));
+    } catch {
+      // Sem armazenamento ou sem espaço: a conversa segue só na tela.
+    }
+  }, [mensagens]);
 
   function acrescentar(autor: Mensagem["autor"], textos: string[]) {
     const novas = textos.map((texto) => ({ id: proximoId.current++, autor, texto }));
@@ -78,45 +109,58 @@ export function Chat() {
     }
   }
 
-  async function enviar(texto: string) {
-    const limpo = texto.trim();
-    if (!limpo || ocupada) return;
-    acrescentar("voce", [limpo]);
-    setRascunho("");
+  async function enviarTexto(texto: string) {
+    acrescentar("voce", [texto]);
     await pedir("pensando", () =>
       fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto: limpo, usuario: usuario() }),
+        body: JSON.stringify({ texto, usuario: usuario() }),
       }),
     );
   }
 
-  /** Envia os arquivos um a um, em ordem; o resumo completo vem com o último. */
-  async function enviarArquivos(arquivos: { arquivo: Blob; nome: string }[]) {
-    if (ocupada || arquivos.length === 0) return;
-    const aceitos = arquivos.slice(0, MAXIMO_DE_ARQUIVOS);
-    if (arquivos.length > aceitos.length) {
-      acrescentar("luana", [
-        `Leio até ${MAXIMO_DE_ARQUIVOS} arquivos por vez. Vou ler os ${MAXIMO_DE_ARQUIVOS} primeiros; mande o resto em seguida.`,
-      ]);
-    }
-    for (const [i, { arquivo, nome }] of aceitos.entries()) {
+  /**
+   * Envia os arquivos um a um, em ordem. Sem texto junto, o resumo completo vem
+   * com o último; com texto, a resposta ao texto vem depois de todos lidos.
+   */
+  async function enviarArquivos(arquivos: Anexo[], comTexto: boolean) {
+    for (const [i, { arquivo, nome }] of arquivos.entries()) {
       acrescentar("voce", [`📎 ${nome}`]);
       if (arquivo.size > TAMANHO_MAXIMO) {
         acrescentar("luana", [`${nome} passa de 4 MB. Mande uma versão menor ou um print da tela.`]);
         continue;
       }
-      const ultimo = i === aceitos.length - 1;
-      setProgresso(aceitos.length > 1 ? ` (${i + 1} de ${aceitos.length})` : "");
+      const ultimo = i === arquivos.length - 1;
+      setProgresso(arquivos.length > 1 ? ` (${i + 1} de ${arquivos.length})` : "");
       const corpo = new FormData();
       corpo.append("arquivo", arquivo, nome);
       corpo.append("usuario", usuario());
-      if (!ultimo) corpo.append("resumo", "nao");
+      if (!ultimo || comTexto) corpo.append("resumo", "nao");
       await pedir("lendo", () => fetch("/api/fatura", { method: "POST", body: corpo }));
     }
     setProgresso("");
+  }
+
+  async function aoEnviar(evento: FormEvent) {
+    evento.preventDefault();
+    const texto = rascunho.trim();
+    if (ocupada || (!texto && anexos.length === 0)) return;
+    const arquivos = anexos;
+    setRascunho("");
+    setAnexos([]);
+    if (arquivos.length > 0) await enviarArquivos(arquivos, texto !== "");
+    if (texto) await enviarTexto(texto);
+  }
+
+  function escolherArquivos(escolhidos: File[]) {
     if (seletor.current) seletor.current.value = "";
+    if (escolhidos.length === 0) return;
+    const todos = [...anexos, ...escolhidos.map((arquivo) => ({ arquivo, nome: arquivo.name }))];
+    if (todos.length > MAXIMO_DE_ARQUIVOS) {
+      acrescentar("luana", [`Leio até ${MAXIMO_DE_ARQUIVOS} arquivos por vez. Mande o resto em seguida.`]);
+    }
+    setAnexos(todos.slice(0, MAXIMO_DE_ARQUIVOS));
   }
 
   async function enviarAudio(audio: Blob) {
@@ -139,15 +183,15 @@ export function Chat() {
     }
   }
 
-  function pararGravacao() {
+  function pararGravacao(jogarFora = false) {
+    descartar.current = jogarFora;
     if (relogio.current) clearInterval(relogio.current);
     relogio.current = null;
     if (gravador.current?.state === "recording") gravador.current.stop();
   }
 
-  async function alternarGravacao() {
-    if (gravando !== null) return pararGravacao();
-    if (ocupada) return;
+  async function comecarGravacao() {
+    if (ocupada || gravando !== null) return;
     let microfone: MediaStream;
     try {
       microfone = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -166,7 +210,7 @@ export function Chat() {
       gravador.current = null;
       setGravando(null);
       const audio = new Blob(pedacos, { type: (novo.mimeType || "audio/webm").split(";")[0] });
-      if (audio.size > 0) void enviarAudio(audio);
+      if (!descartar.current && audio.size > 0) void enviarAudio(audio);
     };
     gravador.current = novo;
     novo.start();
@@ -179,28 +223,13 @@ export function Chat() {
     }, 1000);
   }
 
-  async function enviarExemplo(exemplo: (typeof EXEMPLOS)[number]) {
-    const r = await fetch(exemplo.arquivo);
-    await enviarArquivos([{ arquivo: await r.blob(), nome: exemplo.nome }]);
-  }
-
-  function aoEnviar(evento: FormEvent) {
-    evento.preventDefault();
-    void enviar(rascunho);
-  }
-
-  const chip =
-    "rounded-full border border-line px-3 py-1 text-sm hover:border-accent hover:text-accent disabled:opacity-50";
+  const temOQueEnviar = rascunho.trim() !== "" || anexos.length > 0;
+  const redondo = "flex h-11 w-11 shrink-0 items-center justify-center rounded-full disabled:opacity-50";
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-2xl flex-col">
       <header className="flex items-center gap-3 border-b border-line px-4 py-3">
-        <div
-          aria-hidden
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent font-semibold text-on-accent"
-        >
-          L
-        </div>
+        <AvatarDaLuana />
         <div className="min-w-0">
           <h1 className="text-lg font-semibold leading-tight">Luana</h1>
           <p className="text-sm text-muted">Seus gastos organizados na conversa.</p>
@@ -213,8 +242,8 @@ export function Chat() {
             key={m.id}
             className={
               m.autor === "voce"
-                ? "max-w-[85%] self-end whitespace-pre-wrap rounded-2xl rounded-br-sm bg-accent px-4 py-2 text-on-accent"
-                : "max-w-[85%] self-start whitespace-pre-wrap rounded-2xl rounded-bl-sm bg-surface px-4 py-2"
+                ? "max-w-[85%] self-end whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-accent px-4 py-2 text-on-accent"
+                : "max-w-[85%] self-start whitespace-pre-wrap break-words rounded-2xl rounded-bl-sm bg-surface px-4 py-2"
             }
           >
             {m.autor === "luana" ? <Formatado texto={m.texto} /> : m.texto}
@@ -222,32 +251,34 @@ export function Chat() {
         ))}
         {ocupada && (
           <li className="self-start px-1 text-sm text-muted">
-            {ocupada === "lendo" ? `Luana está lendo o arquivo${progresso}…` : "Luana está escrevendo…"}
+            {ocupada === "lendo" ? `Luana está lendo${progresso}…` : "Luana está escrevendo…"}
           </li>
         )}
         <div ref={fim} />
       </ol>
 
-      <div className="flex flex-wrap gap-2 px-4 pb-2">
-        {EXEMPLOS.map((e) => (
-          <button
-            key={e.arquivo}
-            type="button"
-            disabled={!!ocupada}
-            onClick={() => void enviarExemplo(e)}
-            className={chip}
-          >
-            {e.rotulo}
-          </button>
-        ))}
-        {ATALHOS.map((a) => (
-          <button key={a} type="button" disabled={!!ocupada} onClick={() => void enviar(a)} className={chip}>
-            {a}
-          </button>
-        ))}
-      </div>
+      {anexos.length > 0 && (
+        <ul className="flex flex-wrap gap-2 px-4 pb-2" aria-label="Arquivos a enviar">
+          {anexos.map((a, i) => (
+            <li
+              key={`${a.nome}-${i}`}
+              className="flex max-w-full items-center gap-1 rounded-full bg-accent-soft py-1 pl-3 pr-1 text-sm"
+            >
+              <span className="truncate">{a.nome}</span>
+              <button
+                type="button"
+                onClick={() => setAnexos((atuais) => atuais.filter((_, j) => j !== i))}
+                aria-label={`Remover ${a.nome}`}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full hover:bg-line"
+              >
+                <IconeFechar />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
-      <form onSubmit={aoEnviar} className="flex gap-2 border-t border-line px-4 py-3">
+      <form onSubmit={(e) => void aoEnviar(e)} className="flex items-center gap-2 border-t border-line px-3 py-3">
         <input
           ref={seletor}
           id="arquivo"
@@ -255,57 +286,81 @@ export function Chat() {
           accept={TIPOS_ACEITOS}
           multiple
           className="sr-only"
-          onChange={(e) => {
-            const escolhidos = Array.from(e.target.files ?? []);
-            void enviarArquivos(escolhidos.map((arquivo) => ({ arquivo, nome: arquivo.name })));
-          }}
+          onChange={(e) => escolherArquivos(Array.from(e.target.files ?? []))}
         />
-        <label
-          htmlFor="arquivo"
-          title="Enviar faturas, extratos ou prints (pode escolher vários de uma vez)"
-          className="flex shrink-0 cursor-pointer items-center rounded-full border border-line px-4 py-2 text-sm hover:border-accent hover:text-accent"
-        >
-          📎 Anexar
-        </label>
-        <button
-          type="button"
-          onClick={() => void alternarGravacao()}
-          disabled={!!ocupada && gravando === null}
-          aria-pressed={gravando !== null}
-          title={gravando === null ? "Gravar mensagem de voz" : "Parar e enviar"}
-          className={
-            gravando === null
-              ? "flex shrink-0 items-center rounded-full border border-line px-4 py-2 text-sm hover:border-accent hover:text-accent disabled:opacity-50"
-              : "flex shrink-0 items-center rounded-full bg-accent px-4 py-2 text-sm font-medium text-on-accent"
-          }
-        >
-          {gravando === null
-            ? "🎤 Áudio"
-            : `⏹ Enviar ${Math.floor(gravando / 60)}:${String(gravando % 60).padStart(2, "0")}`}
-        </button>
-        <label htmlFor="mensagem" className="sr-only">
-          Mensagem
-        </label>
-        <input
-          id="mensagem"
-          value={rascunho}
-          onChange={(e) => setRascunho(e.target.value)}
-          maxLength={1000}
-          autoComplete="off"
-          placeholder="Ex.: almoço 35, ou posso comprar uma moto?"
-          className="min-w-0 flex-1 rounded-full border border-line bg-surface px-4 py-2 outline-none focus:border-accent"
-        />
-        <button
-          type="submit"
-          disabled={!!ocupada || rascunho.trim() === ""}
-          className="rounded-full bg-accent px-5 py-2 font-medium text-on-accent disabled:opacity-50"
-        >
-          Enviar
-        </button>
+        {gravando === null ? (
+          <>
+            <label
+              htmlFor="arquivo"
+              title="Anexar faturas, extratos ou prints"
+              aria-label="Anexar arquivos"
+              className={`${redondo} cursor-pointer text-muted hover:bg-accent-soft hover:text-accent`}
+            >
+              <IconeClipe />
+            </label>
+            <input
+              id="mensagem"
+              aria-label="Mensagem"
+              value={rascunho}
+              onChange={(e) => setRascunho(e.target.value)}
+              maxLength={1000}
+              autoComplete="off"
+              className="h-11 min-w-0 flex-1 rounded-full border border-line bg-surface px-4 outline-none focus:border-accent"
+            />
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => pararGravacao(true)}
+              title="Descartar gravação"
+              aria-label="Descartar gravação"
+              className={`${redondo} text-muted hover:bg-accent-soft hover:text-accent`}
+            >
+              <IconeLixeira />
+            </button>
+            <p className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-full border border-line bg-surface px-4" role="status">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" aria-hidden />
+              Gravando {duracao(gravando)}
+            </p>
+          </>
+        )}
+        {gravando !== null ? (
+          <button
+            type="button"
+            onClick={() => pararGravacao()}
+            title="Enviar áudio"
+            aria-label="Enviar áudio"
+            className={`${redondo} bg-accent text-on-accent`}
+          >
+            <IconeEnviar />
+          </button>
+        ) : temOQueEnviar ? (
+          <button
+            type="submit"
+            disabled={!!ocupada}
+            title="Enviar"
+            aria-label="Enviar"
+            className={`${redondo} bg-accent text-on-accent`}
+          >
+            <IconeEnviar />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void comecarGravacao()}
+            disabled={!!ocupada}
+            title="Gravar mensagem de voz"
+            aria-label="Gravar mensagem de voz"
+            className={`${redondo} bg-accent text-on-accent`}
+          >
+            <IconeMicrofone />
+          </button>
+        )}
       </form>
       <p className="px-4 pb-3 text-xs text-muted">
-        Arquivos e áudios enviados são lidos por um modelo de IA do Google e não ficam guardados; os
-        gastos lidos ficam. Escreva <em>apagar tudo</em> para remover.
+        Arquivos e áudios são lidos por um modelo de IA do Google e não ficam guardados; os gastos lidos
+        ficam. Escreva <em>apagar tudo</em> para remover.
       </p>
     </div>
   );
