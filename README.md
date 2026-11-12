@@ -18,7 +18,7 @@ As respostas são simulações educativas, não recomendação de crédito ou in
 - [x] Base do projeto, CI e fluxo de ambientes
 - [x] Motor de juros e simulação de quitação (`src/lib/motor`)
 - [x] Três personas fictícias (`fixtures/personas`)
-- [ ] Webhook do WhatsApp e chat web
+- [x] Webhook do WhatsApp e chat web (respostas por regras, sem IA ainda)
 - [ ] Leitura de fatura
 - [ ] Agente de conversa
 

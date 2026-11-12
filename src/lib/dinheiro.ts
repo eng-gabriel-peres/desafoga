@@ -1,0 +1,19 @@
+const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+/** 123456 -> "R$ 1.234,56" */
+export function formatarReais(centavos: number): string {
+  // Intl usa espaço não separável; trocamos por espaço comum para o WhatsApp.
+  return BRL.format(centavos / 100).replace(/ /g, " ");
+}
+
+/**
+ * Lê o primeiro valor em reais de um texto e devolve em centavos.
+ * Aceita "900", "R$ 1.200", "1.200,50" e "350,5". Devolve null se não houver número.
+ */
+export function lerValorEmReais(texto: string): number | null {
+  const m = texto.match(/(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?/);
+  if (!m) return null;
+  const reais = Number(m[1].replace(/\./g, ""));
+  const centavos = m[2] ? Number(m[2].padEnd(2, "0")) : 0;
+  return reais * 100 + centavos;
+}
