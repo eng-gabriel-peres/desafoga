@@ -1,4 +1,5 @@
 import { AJUSTAVEIS, type Categoria, type Lancamento } from "./lancamentos";
+import type { DocumentoRecebido } from "./painel";
 
 /**
  * Todas as contas da Luana ficam aqui. O modelo de IA só lê documentos e
@@ -21,6 +22,10 @@ export interface Conta {
   fatura: FaturaInfo | null;
   /** Soma das contas mensais que a pessoa contou ter (cartão, aluguel...), em centavos. */
   contasInformadas?: number | null;
+  /** Arquivos já lidos, para o painel. O arquivo em si não é guardado. */
+  documentos?: DocumentoRecebido[];
+  /** Últimas trocas da conversa, para a resposta ter continuidade. */
+  historico?: { de: "voce" | "luana"; texto: string }[];
 }
 
 export interface TotalPorCategoria {

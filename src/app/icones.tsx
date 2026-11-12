@@ -76,3 +76,39 @@ export function AvatarDaLuana({ tamanho = 40 }: { tamanho?: number }) {
     </svg>
   );
 }
+
+export function IconeSol() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden {...traco}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.900 4.900l1.400 1.400M17.700 17.700l1.400 1.400M4.900 19.100l1.400-1.400M17.700 6.300l1.400-1.400" />
+    </svg>
+  );
+}
+
+export function IconeLua() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden {...traco}>
+      <path d="M20 14.500A8.500 8.500 0 019.500 4a8.500 8.500 0 1010.500 10.500z" />
+    </svg>
+  );
+}
+
+export function IconePaleta() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden {...traco}>
+      <path d="M12 3a9 9 0 100 18c1.400 0 2-1 2-2 0-1.500-1-1.800-1-3 0-1 .800-2 2-2h2a4 4 0 004-4c0-4-4-7-9-7z" />
+      <circle cx="7.500" cy="11.500" r="1" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="7.500" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="7.500" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function IconeVoltar() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden {...traco}>
+      <path d="M15 5l-7 7 7 7" />
+    </svg>
+  );
+}
