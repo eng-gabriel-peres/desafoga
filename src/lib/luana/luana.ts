@@ -28,8 +28,17 @@ const SEM_IA =
 const IA_LENTA =
   "O serviço de IA que eu uso para ler está sobrecarregado neste momento e não respondeu a tempo. Não é problema no seu arquivo: mande de novo daqui a um minuto.";
 
-/** Fatura, extrato ou print recebido. Igual no WhatsApp e no chat web. */
-export async function receberArquivo(usuario: string, bytes: Uint8Array, mime: string): Promise<string[]> {
+/**
+ * Fatura, extrato ou print recebido. Igual no WhatsApp e no chat web.
+ * Com `completo` falso, responde só o que foi lido: serve para quando vários
+ * arquivos chegam em sequência e o resumo vai junto com o último.
+ */
+export async function receberArquivo(
+  usuario: string,
+  bytes: Uint8Array,
+  mime: string,
+  completo = true,
+): Promise<string[]> {
   if (!TIPOS_ACEITOS.includes(mime)) {
     return ["Só leio PDF ou foto (JPG, PNG, WebP). Me mande a fatura ou o print em um desses formatos."];
   }
@@ -62,8 +71,10 @@ export async function receberArquivo(usuario: string, bytes: Uint8Array, mime: s
   const repetidos = lidos.length - novos.length;
   const abertura =
     novos.length === 0
-      ? `Já tinha anotado tudo desse arquivo${origem}. Seu resumo continua assim:`
+      ? `Já tinha anotado tudo desse arquivo${origem}.${completo ? " Seu resumo continua assim:" : ""}`
       : `Li seu arquivo${origem}: *${novos.length} ${novos.length === 1 ? "lançamento novo" : "lançamentos novos"}*${repetidos > 0 ? ` (${repetidos} eu já tinha)` : ""}.`;
+
+  if (!completo) return [abertura];
 
   const partes = [abertura];
   const outroMes = avisoDeOutroMes(novos, r);

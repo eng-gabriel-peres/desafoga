@@ -26,5 +26,9 @@ export async function POST(request: NextRequest) {
   }
 
   const bytes = new Uint8Array(await arquivo.arrayBuffer());
-  return NextResponse.json({ mensagens: await receberArquivo(`web:${usuario}`, bytes, arquivo.type) });
+  // "resumo=nao" vem nos arquivos intermediários de um envio com vários.
+  const completo = formulario.get("resumo") !== "nao";
+  return NextResponse.json({
+    mensagens: await receberArquivo(`web:${usuario}`, bytes, arquivo.type, completo),
+  });
 }
