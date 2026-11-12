@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { lerPercentual } from "@/lib/dinheiro";
-import { acrescentar, converter, hojeEmBrasilia, type Lancamento, type LancamentoLido } from "./lancamentos";
+import { acrescentar, anotar, converter, hojeEmBrasilia, type Lancamento, type LancamentoLido } from "./lancamentos";
 import { type Conta, resumir } from "./resumo";
-import { blocoDeEncargos, blocoDeHoje, blocoDoMes, dicas } from "./textos";
+import { avisoDeOutroMes, blocoDeEncargos, blocoDeEntradasESaidas, blocoDeHoje, blocoDePoupanca, blocoDoMes, dicas } from "./textos";
 
 const HOJE = "2026-11-12";
 
@@ -47,6 +47,21 @@ describe("converter e acrescentar", () => {
     expect(acrescentar(existentes, gastos)).toHaveLength(gastos.length);
     expect(acrescentar(existentes, gastos)).toHaveLength(0);
     expect(existentes).toHaveLength(gastos.length);
+  });
+
+  it("anota o mesmo gasto escrito duas vezes no mesmo dia", () => {
+    const cafe: Lancamento = {
+      data: "2026-11-12",
+      descricao: "Café",
+      valor: 800,
+      natureza: "compra",
+      categoria: "alimentacao",
+      parcela: null,
+    };
+    const existentes: Lancamento[] = [];
+    expect(anotar(existentes, [cafe])).toHaveLength(1);
+    expect(anotar(existentes, [{ ...cafe }])).toHaveLength(1);
+    expect(existentes).toHaveLength(2);
   });
 
   it("calcula a data de hoje no fuso de Brasília", () => {
@@ -100,7 +115,13 @@ describe("resumir", () => {
   it("calcula a poupança quando a renda é conhecida", () => {
     const comRenda = resumir(conta(gastos, { rendaMensal: 400000 }), HOJE);
     // meta 20% = 800,00; sobra = 4.000,00 - 577,70 - 196,56
-    expect(comRenda.poupanca).toEqual({ meta: 80000, tetoDeGastos: 320000, sobraDoMes: 322574 });
+    expect(comRenda.poupanca).toEqual({
+      base: "renda_informada",
+      renda: 400000,
+      meta: 80000,
+      tetoDeGastos: 320000,
+      sobraDoMes: 322574,
+    });
     expect(r.poupanca).toBeNull();
   });
 
@@ -122,6 +143,85 @@ describe("resumir", () => {
     expect(vazio.mes.total).toBe(0);
     expect(vazio.corte).toBeNull();
     expect(blocoDeHoje(vazio)).toContain("ainda não anotei");
+  });
+});
+
+describe("extrato de conta", () => {
+  const BANCO = "Banco Exemplo";
+  const extrato = converter(
+    [
+      lido({ descricao: "SALARIO", valor: "2.800,00", natureza: "entrada", data: "2026-11-05" }),
+      lido({ descricao: "PIX RECEBIDO", valor: "150,00", natureza: "entrada", data: "2026-11-09" }),
+      lido({ descricao: "ALUGUEL", valor: "950,00", categoria: "moradia_e_contas", data: "2026-11-06" }),
+      lido({ descricao: "MERCADO", valor: "212,40", categoria: "mercado", data: "2026-11-08" }),
+      lido({ descricao: "PIX ENVIADO", valor: "80,00", categoria: "transferencias", data: "2026-11-11" }),
+      lido({ descricao: "TARIFA", valor: "24,90", natureza: "tarifa_ou_multa", data: "2026-11-11" }),
+      lido({ descricao: "PAGAMENTO FATURA", valor: "351,11", natureza: "pagamento_de_fatura", data: "2026-11-07" }),
+      lido({ descricao: "APLICACAO", valor: "200,00", natureza: "transferencia_propria", data: "2026-11-10" }),
+    ],
+    HOJE,
+    BANCO,
+  );
+  const r = resumir(conta(extrato), HOJE);
+
+  it("soma entradas e saídas e calcula o que sobrou", () => {
+    expect(r.mes.entradas.total).toBe(295000);
+    expect(r.mes.total).toBe(124240);
+    expect(r.mes.saidas).toBe(126730);
+    expect(r.mes.saldo).toBe(168270);
+  });
+
+  it("não conta pagamento de fatura nem movimentação entre contas próprias como gasto", () => {
+    expect(r.mes.faturasPagas).toBe(35111);
+    expect(r.mes.maiores.map((l) => l.descricao)).toEqual(["ALUGUEL", "MERCADO", "PIX ENVIADO"]);
+  });
+
+  it("usa as entradas como renda quando a pessoa não informou a renda", () => {
+    expect(r.poupanca).toMatchObject({ base: "entradas_do_mes", renda: 295000, meta: 59000, sobraDoMes: 168270 });
+    expect(blocoDePoupanca(r)).toContain("Usando como renda o que entrou no mês (R$ 2.950,00)");
+  });
+
+  it("separa por banco quando há mais de um", () => {
+    const outro = converter(
+      [lido({ descricao: "IFOOD", valor: "50,00", categoria: "alimentacao", data: "2026-11-10" })],
+      HOJE,
+      "Banco Dois",
+    );
+    const dois = resumir(conta([...extrato, ...outro]), HOJE);
+    expect(r.mes.porOrigem).toEqual([]);
+    expect(dois.mes.porOrigem).toEqual([
+      { origem: BANCO, entradas: 295000, saidas: 126730 },
+      { origem: "Banco Dois", entradas: 0, saidas: 5000 },
+    ]);
+  });
+
+  it("monta o bloco de entradas e saídas, e não mostra nada sem entradas", () => {
+    const bloco = blocoDeEntradasESaidas(r);
+    expect(bloco).toContain("• Entrou: R$ 2.950,00");
+    expect(bloco).toContain("• *Sobrou: R$ 1.682,70*");
+    expect(bloco).toContain("Fatura de cartão paga pela conta: R$ 351,11");
+    expect(blocoDeEntradasESaidas(resumir(conta(gastos), HOJE))).toBeNull();
+  });
+
+  it("avisa quando o arquivo é de um mês anterior ao do resumo", () => {
+    const outubro = converter(
+      [lido({ descricao: "LOJA", valor: "98,00", categoria: "compras", data: "2026-10-20" })],
+      HOJE,
+    );
+    const tudo = resumir(conta([...extrato, ...outubro]), HOJE);
+    expect(avisoDeOutroMes(outubro, tudo)).toContain("Esse arquivo é de outubro de 2026: R$ 98,00 em gastos");
+    expect(avisoDeOutroMes(extrato, tudo)).toBeNull();
+  });
+
+  it("avisa quando saiu mais do que entrou", () => {
+    const apertado = converter(
+      [
+        lido({ descricao: "PIX RECEBIDO", valor: "100,00", natureza: "entrada" }),
+        lido({ descricao: "MERCADO", valor: "130,00", categoria: "mercado" }),
+      ],
+      HOJE,
+    );
+    expect(blocoDeEntradasESaidas(resumir(conta(apertado), HOJE))).toContain("• *Faltou: R$ 30,00*");
   });
 });
 

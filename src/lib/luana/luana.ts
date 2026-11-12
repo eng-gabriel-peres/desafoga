@@ -1,12 +1,15 @@
 import { formatarReais, lerPercentual, lerValorEmReais } from "@/lib/dinheiro";
 import { IaIndisponivel, IaSobrecarregada } from "@/lib/ia/gemini";
-import { acrescentar, converter, hojeEmBrasilia } from "./lancamentos";
+import { acrescentar, anotar, converter, hojeEmBrasilia } from "./lancamentos";
 import { type DocumentoLido, lerDocumento, lerMensagem, redigir } from "./ler";
 import { apagarConta, buscarConta, salvarConta } from "./repositorio";
 import { type Conta, resumir } from "./resumo";
 import {
   AVISO,
+  avisoDeOutroMes,
   blocoDeEncargos,
+  blocoDeEntradasESaidas,
+  blocoDeMaiores,
   blocoDeHoje,
   blocoDePoupanca,
   blocoDoMes,
@@ -49,7 +52,7 @@ export async function receberArquivo(usuario: string, bytes: Uint8Array, mime: s
   // Encargos costumam vir sem data: entram na data do lançamento mais recente
   // do próprio documento, para caírem no mesmo mês das compras.
   const datas = doc.lancamentos.map((l) => l.data).filter((d) => d && /^\d{4}-\d{2}-\d{2}$/.test(d));
-  const lidos = converter(doc.lancamentos, datas.sort().at(-1) ?? hoje);
+  const lidos = converter(doc.lancamentos, datas.sort().at(-1) ?? hoje, doc.emissor);
   const novos = acrescentar(conta.lancamentos, lidos);
   guardarDadosDaFatura(conta, doc);
   await salvarConta(usuario, conta);
@@ -62,7 +65,14 @@ export async function receberArquivo(usuario: string, bytes: Uint8Array, mime: s
       ? `Já tinha anotado tudo desse arquivo${origem}. Seu resumo continua assim:`
       : `Li seu arquivo${origem}: *${novos.length} ${novos.length === 1 ? "lançamento novo" : "lançamentos novos"}*${repetidos > 0 ? ` (${repetidos} eu já tinha)` : ""}.`;
 
-  const partes = [abertura, blocoDoMes(r)];
+  const partes = [abertura];
+  const outroMes = avisoDeOutroMes(novos, r);
+  if (outroMes) partes.push(outroMes);
+  const fluxo = blocoDeEntradasESaidas(r);
+  if (fluxo) partes.push(fluxo);
+  partes.push(blocoDoMes(r));
+  const maiores = blocoDeMaiores(r);
+  if (maiores) partes.push(maiores);
   const encargos = blocoDeEncargos(r);
   if (encargos) partes.push(encargos);
   if (r.hoje.quantidade > 0) partes.push(blocoDeHoje(r));
@@ -88,14 +98,20 @@ export async function receberTexto(usuario: string, texto: string): Promise<stri
   const conta = await buscarConta(usuario);
 
   if (lida.intencao === "registrar_gasto") {
-    const novos = acrescentar(conta.lancamentos, converter(lida.lancamentos, hoje));
+    const novos = anotar(conta.lancamentos, converter(lida.lancamentos, hoje));
     if (novos.length === 0) {
       return ["Não peguei o valor. Escreva o gasto com o valor, tipo _mercado 120_."];
     }
     await salvarConta(usuario, conta);
     const r = resumir(conta, hoje);
+    const soEntradas = novos.every((l) => l.natureza === "entrada");
     const doDia = novos.every((l) => l.data === hoje);
-    return [`Anotado:\n${listar(novos)}\n\n${doDia ? blocoDeHoje(r) : blocoDoMes(r)}`];
+    const depois = soEntradas
+      ? (blocoDeEntradasESaidas(r) ?? blocoDoMes(r))
+      : doDia
+        ? blocoDeHoje(r)
+        : blocoDoMes(r);
+    return [`Anotado:\n${listar(novos)}\n\n${depois}`];
   }
 
   if (lida.intencao === "informar_renda_ou_saldo") {
@@ -120,7 +136,7 @@ export async function receberTexto(usuario: string, texto: string): Promise<stri
   } catch (erro) {
     registrar(erro);
     // Sem o modelo, ainda dá para entregar os números.
-    return [[blocoDeHoje(r), blocoDoMes(r)].join("\n\n")];
+    return [[blocoDeHoje(r), blocoDeEntradasESaidas(r), blocoDoMes(r)].filter(Boolean).join("\n\n")];
   }
 }
 
