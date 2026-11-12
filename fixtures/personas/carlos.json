@@ -1,0 +1,28 @@
+{
+  "ficticio": true,
+  "persona": {
+    "id": "carlos",
+    "nome": "Carlos (fictício)",
+    "perfil": "Motorista de aplicativo, renda variável perto de R$ 4.200, três parcelamentos e um empréstimo pessoal.",
+    "rendaMensal": 420000
+  },
+  "fatura": {
+    "emissor": "Financeira Modelo",
+    "vencimento": "2026-11-15",
+    "total": 187340,
+    "pagamentoMinimo": 28101,
+    "lancamentos": [
+      { "data": "2026-10-02", "descricao": "PNEUS E CIA 04/10", "valor": 21500, "categoria": "transporte" },
+      { "data": "2026-10-05", "descricao": "CELULAR NOVO 07/12", "valor": 24990, "categoria": "eletronicos" },
+      { "data": "2026-10-09", "descricao": "POSTO RODOVIA", "valor": 62000, "categoria": "transporte" },
+      { "data": "2026-10-18", "descricao": "SUPERMERCADO CENTRAL", "valor": 53850, "categoria": "mercado" },
+      { "data": "2026-10-22", "descricao": "SEGURO PROTECAO CARTAO", "valor": 1990, "categoria": "tarifas" },
+      { "data": "2026-10-25", "descricao": "GELADEIRA 02/10", "valor": 23010, "categoria": "casa" }
+    ],
+    "encargos": []
+  },
+  "dividas": [
+    { "id": "emprestimo", "nome": "Empréstimo pessoal", "tipo": "emprestimo", "saldo": 850000, "taxaMensal": 0.065, "pagamentoMinimo": 72000 },
+    { "id": "parcelas", "nome": "Parcelamentos no cartão", "tipo": "parcelamento", "saldo": 523000, "taxaMensal": 0.0, "pagamentoMinimo": 69500 }
+  ]
+}

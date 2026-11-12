@@ -1,0 +1,27 @@
+{
+  "ficticio": true,
+  "persona": {
+    "id": "marina",
+    "nome": "Marina (fictícia)",
+    "perfil": "Professora, renda líquida de R$ 5.500, paga a fatura inteira mas usa o cheque especial todo fim de mês.",
+    "rendaMensal": 550000
+  },
+  "fatura": {
+    "emissor": "Banco Demonstração",
+    "vencimento": "2026-11-05",
+    "total": 312480,
+    "pagamentoMinimo": 46872,
+    "lancamentos": [
+      { "data": "2026-10-01", "descricao": "ESCOLA INFANTIL", "valor": 120000, "categoria": "educacao" },
+      { "data": "2026-10-04", "descricao": "HIPERMERCADO SUL", "valor": 89400, "categoria": "mercado" },
+      { "data": "2026-10-11", "descricao": "ACADEMIA MENSAL", "valor": 11990, "categoria": "assinaturas" },
+      { "data": "2026-10-11", "descricao": "APP DE MUSICA", "valor": 2190, "categoria": "assinaturas" },
+      { "data": "2026-10-14", "descricao": "PLANO DE SAUDE", "valor": 68900, "categoria": "saude" },
+      { "data": "2026-10-27", "descricao": "RESTAURANTE DA PRACA", "valor": 20000, "categoria": "lazer" }
+    ],
+    "encargos": []
+  },
+  "dividas": [
+    { "id": "cheque", "nome": "Cheque especial", "tipo": "cheque_especial", "saldo": 180000, "taxaMensal": 0.08, "pagamentoMinimo": 18000 }
+  ]
+}

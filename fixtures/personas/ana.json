@@ -1,0 +1,31 @@
+{
+  "ficticio": true,
+  "persona": {
+    "id": "ana",
+    "nome": "Ana (fictícia)",
+    "perfil": "Auxiliar administrativa, renda líquida de R$ 2.800, entrou no rotativo do cartão há três meses.",
+    "rendaMensal": 280000
+  },
+  "fatura": {
+    "emissor": "Banco Exemplo",
+    "vencimento": "2026-11-10",
+    "total": 234076,
+    "pagamentoMinimo": 35111,
+    "lancamentos": [
+      { "data": "2026-10-03", "descricao": "MERCADO BOM PRECO", "valor": 41230, "categoria": "mercado" },
+      { "data": "2026-10-07", "descricao": "FARMACIA 03/06", "valor": 5890, "categoria": "saude" },
+      { "data": "2026-10-12", "descricao": "POSTO AVENIDA", "valor": 18000, "categoria": "transporte" },
+      { "data": "2026-10-15", "descricao": "STREAMING MENSAL", "valor": 3990, "categoria": "assinaturas" },
+      { "data": "2026-10-20", "descricao": "LOJA DE ROUPAS 02/05", "valor": 9800, "categoria": "vestuario" },
+      { "data": "2026-10-28", "descricao": "SALDO ANTERIOR FINANCIADO", "valor": 135510, "categoria": "divida" }
+    ],
+    "encargos": [
+      { "descricao": "ENCARGOS ROTATIVO", "valor": 18744 },
+      { "descricao": "IOF", "valor": 912 }
+    ]
+  },
+  "dividas": [
+    { "id": "cartao", "nome": "Cartão Banco Exemplo (rotativo)", "tipo": "cartao_rotativo", "saldo": 234076, "taxaMensal": 0.138, "pagamentoMinimo": 35111 },
+    { "id": "cheque", "nome": "Cheque especial", "tipo": "cheque_especial", "saldo": 60000, "taxaMensal": 0.08, "pagamentoMinimo": 6000 }
+  ]
+}

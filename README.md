@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Desafoga
 
-## Getting Started
+Mande sua fatura no WhatsApp e descubra quanto de juros você paga e como parar de pagar.
 
-First, run the development server:
+Projeto do Hack Brasil 2026, trilha Pagamentos & finanças. Nome provisório.
+
+## O que faz
+
+- Lê fatura e extrato enviados no chat (PDF ou foto).
+- Mostra quanto foi pago de juros e encargos no mês e a projeção em 12 meses.
+- Monta um plano de quitação, da dívida mais cara para a mais barata.
+- Responde simulações como "e se eu pagar R$ 200 a mais por mês?".
+
+As respostas são simulações educativas, não recomendação de crédito ou investimento.
+
+## Estado atual
+
+- [x] Base do projeto, CI e fluxo de ambientes
+- [x] Motor de juros e simulação de quitação (`src/lib/motor`)
+- [x] Três personas fictícias (`fixtures/personas`)
+- [ ] Webhook do WhatsApp e chat web
+- [ ] Leitura de fatura
+- [ ] Agente de conversa
+
+## Rodando localmente
+
+Requisitos: Node 24 e pnpm 11.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+cp .env.example .env.local
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Outros comandos: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm build`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Arquitetura
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Camada | Função |
+|---|---|
+| Canais | WhatsApp (API Cloud da Meta) e chat web no mesmo webhook |
+| Ingestão | Converte PDF, foto e extrato em transações padronizadas |
+| Motor financeiro | Juros, simulações e plano. Código puro com testes, sem IA |
+| Agente | Entende a pergunta, chama o motor e redige a resposta |
+| Dados | Postgres (Neon) |
 
-## Learn More
+Stack: Next.js 16, TypeScript, Tailwind, Vitest, Vercel.
 
-To learn more about Next.js, take a look at the following resources:
+## Contribuindo
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Fluxo de branches e ambientes em [CONTRIBUTING.md](CONTRIBUTING.md).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Dados
 
-## Deploy on Vercel
+Todos os dados do repositório e da demo são fictícios.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Licença
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+[MIT](LICENSE)
