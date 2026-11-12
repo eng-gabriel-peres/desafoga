@@ -1,6 +1,6 @@
 import { formatarReais, lerPercentual, lerValorEmReais } from "@/lib/dinheiro";
 import { IaIndisponivel, IaSobrecarregada } from "@/lib/ia/gemini";
-import { acrescentar, converter, hojeEmBrasilia } from "./lancamentos";
+import { acrescentar, anotar, converter, hojeEmBrasilia } from "./lancamentos";
 import { type DocumentoLido, lerDocumento, lerMensagem, redigir } from "./ler";
 import { apagarConta, buscarConta, salvarConta } from "./repositorio";
 import { type Conta, resumir } from "./resumo";
@@ -88,7 +88,7 @@ export async function receberTexto(usuario: string, texto: string): Promise<stri
   const conta = await buscarConta(usuario);
 
   if (lida.intencao === "registrar_gasto") {
-    const novos = acrescentar(conta.lancamentos, converter(lida.lancamentos, hoje));
+    const novos = anotar(conta.lancamentos, converter(lida.lancamentos, hoje));
     if (novos.length === 0) {
       return ["Não peguei o valor. Escreva o gasto com o valor, tipo _mercado 120_."];
     }
