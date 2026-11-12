@@ -1,6 +1,7 @@
 import { after, type NextRequest } from "next/server";
 import { receberArquivo, receberAudio, receberTexto } from "@/lib/luana/luana";
 import { enviarTexto } from "@/lib/whatsapp/enviar";
+import { consumir, type Recurso } from "@/lib/limite";
 import { mascarar, registrar } from "@/lib/whatsapp/diagnostico";
 import { baixarMidia } from "@/lib/whatsapp/midia";
 import { assinaturaValida, extrairMensagens, type MensagemRecebida } from "@/lib/whatsapp/webhook";
@@ -70,6 +71,14 @@ export async function POST(request: NextRequest) {
 async function atender(m: MensagemRecebida): Promise<void> {
   const usuario = `wa:${m.de}`;
   let mensagens: string[];
+
+  // No WhatsApp o número já identifica a pessoa; não há endereço de rede a contar.
+  const recurso: Recurso = m.tipo === "text" ? "texto" : m.tipo === "audio" ? "audio" : "arquivo";
+  const uso = await consumir(recurso, usuario, null);
+  if (!uso.permitido) {
+    await enviarTexto(m.de, uso.mensagem ?? "Cheguei ao limite de hoje. Volto amanhã.");
+    return;
+  }
 
   if (m.tipo === "text" && m.texto) {
     mensagens = await receberTexto(usuario, m.texto);
