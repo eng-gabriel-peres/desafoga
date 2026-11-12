@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { montarPainel } from "@/lib/luana/painel";
 import { buscarConta } from "@/lib/luana/repositorio";
 import { usuarioValido } from "@/lib/luana/usuario";
+import { usoDeHoje } from "@/lib/limite";
 
 /** Resumo geral do visitante para o painel. O identificador vai no corpo, não na URL. */
 export async function POST(request: NextRequest) {
@@ -15,5 +16,6 @@ export async function POST(request: NextRequest) {
   if (!usuarioValido(usuario)) {
     return NextResponse.json({ erro: 'Envie "usuario".' }, { status: 400 });
   }
-  return NextResponse.json(montarPainel(await buscarConta(`web:${usuario}`)));
+  const [conta, uso] = await Promise.all([buscarConta(`web:${usuario}`), usoDeHoje(`web:${usuario}`)]);
+  return NextResponse.json({ ...montarPainel(conta), uso });
 }

@@ -1,5 +1,6 @@
 import { type GenerateContentConfig, GoogleGenAI, type Part } from "@google/genai";
 import { z } from "zod";
+import { registrarIA } from "@/lib/limite";
 
 export class IaIndisponivel extends Error {}
 /** O serviço do modelo está sobrecarregado ou lento; vale tentar de novo depois. */
@@ -20,6 +21,9 @@ const RODADAS = 2;
 /** Tempo máximo de cada tentativa e do conjunto, em milissegundos. */
 const LIMITE_POR_TENTATIVA = 70_000;
 const LIMITE_TOTAL = 150_000;
+/** Depois de um "sem cota" (429), o modelo fica este tempo sem ser tentado. */
+const PAUSA_SEM_COTA = 10 * 60_000;
+const semCotaAte = new Map<string, number>();
 /** Erros que não adianta repetir: pedido inválido ou chave recusada. */
 const SEM_NOVA_TENTATIVA = [400, 401, 403];
 
@@ -32,7 +36,9 @@ async function gerar(partes: Part[], config: GenerateContentConfig): Promise<str
   let ultimoErro = "nenhuma tentativa feita";
   for (let rodada = 0; rodada < RODADAS; rodada++) {
     if (rodada > 0) await new Promise((r) => setTimeout(r, 2000));
-    for (const model of MODELOS) {
+    // Modelos em pausa por falta de cota só entram se não sobrar nenhum outro.
+    const disponiveis = MODELOS.filter((m) => (semCotaAte.get(m) ?? 0) < Date.now());
+    for (const model of disponiveis.length > 0 ? disponiveis : MODELOS) {
       if (Date.now() - inicio > LIMITE_TOTAL) break;
       const t0 = Date.now();
       try {
@@ -42,11 +48,17 @@ async function gerar(partes: Part[], config: GenerateContentConfig): Promise<str
           config,
         });
         const texto = resposta.text?.trim();
-        if (texto) return texto;
+        if (texto) {
+          registrarIA(model, "ok");
+          return texto;
+        }
+        registrarIA(model, "falha");
         ultimoErro = `${model}: resposta vazia`;
       } catch (erro) {
         const status = (erro as { status?: number }).status;
         ultimoErro = `${model}: ${status ?? (erro instanceof Error ? erro.name : "erro")}`;
+        registrarIA(model, status === 429 ? "sem_cota" : "falha");
+        if (status === 429) semCotaAte.set(model, Date.now() + PAUSA_SEM_COTA);
         if (status && SEM_NOVA_TENTATIVA.includes(status)) {
           const detalhe = erro instanceof Error ? erro.message.slice(0, 300) : "";
           throw new IaIndisponivel(`${ultimoErro} ${detalhe}`);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { contadorEmMemoria, criarLimitador, FOLGA_POR_REDE, LIMITE_POR_VISITANTE, redeDe } from "./limite";
+import { type Contador, contadorEmMemoria, criarLimitador, FOLGA_POR_REDE, LIMITE_POR_VISITANTE, redeDe } from "./limite";
 
 async function repetir(vezes: number, acao: () => Promise<unknown>) {
   for (let i = 0; i < vezes; i++) await acao();
@@ -43,10 +43,25 @@ describe("limite de uso", () => {
   });
 
   it("atende quando a contagem falha", async () => {
-    const consumir = criarLimitador(async () => {
+    const quebrado: Contador = async () => {
       throw new Error("banco fora do ar");
-    });
+    };
+    const consumir = criarLimitador(quebrado);
     expect(await consumir("texto", "ana", null)).toEqual({ permitido: true });
+  });
+
+  it("lê as contagens do dia sem somar", async () => {
+    const contar = contadorEmMemoria();
+    await contar(["v:texto:ana", "global", "ia:ok:modelo-a"], "2026-11-12");
+    await contar(["ia:sem_cota:modelo-b"], "2026-11-12");
+    await contar(["global"], "2026-11-11");
+    const lidas = await contar.ler?.("2026-11-12", ["global", "v:texto:ana"], "ia:");
+    expect(Object.fromEntries(lidas ?? [])).toEqual({
+      "v:texto:ana": 1,
+      global: 1,
+      "ia:ok:modelo-a": 1,
+      "ia:sem_cota:modelo-b": 1,
+    });
   });
 
   it("identifica a rede pelo primeiro endereço, sem guardar o endereço", () => {
