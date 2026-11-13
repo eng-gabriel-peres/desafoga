@@ -9,6 +9,7 @@
   --muted: #94a5b2;
   --line: #2a3944;
   --accent: #62bce3;
+  --alert: #f2a65a;
   --on-accent: #0f171d;
   --accent-soft: color-mix(in srgb, var(--accent) 18%, var(--surface));
 }
@@ -21,6 +22,7 @@
   --muted: #586a78;
   --line: #d5dee5;
   --accent: #0b6790;
+  --alert: #b4530a;
   --on-accent: #ffffff;
 }
 
@@ -43,6 +45,7 @@
   --color-muted: var(--muted);
   --color-line: var(--line);
   --color-accent: var(--accent);
+  --color-alert: var(--alert);
   --color-accent-soft: var(--accent-soft);
   --color-on-accent: var(--on-accent);
   --font-sans: var(--font-geist-sans);

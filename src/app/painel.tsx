@@ -205,7 +205,7 @@ function Orcamento({ orcamento }: { orcamento: NonNullable<DadosDoPainel["orcame
             <li key={l.grupo} className="rounded-xl bg-surface px-4 py-3">
               <span className="flex items-baseline justify-between gap-3">
                 <span className="min-w-0 font-medium">
-                  {l.itens.length === 1 ? l.itens[0].descricao : l.nome}
+                  {l.grupo !== "cartao" && l.itens.length === 1 ? l.itens[0].descricao : l.nome}
                 </span>
                 <span className="shrink-0 text-sm tabular-nums">
                   {formatarReais(l.realizado)} <span className="text-muted">de {formatarReais(l.previsto)}</span>
@@ -213,11 +213,11 @@ function Orcamento({ orcamento }: { orcamento: NonNullable<DadosDoPainel["orcame
               </span>
               <span className="mt-2 block h-1.5 rounded-full bg-line" aria-hidden>
                 <span
-                  className="block h-1.5 rounded-full bg-accent"
+                  className={`block h-1.5 rounded-full ${passou ? "bg-alert" : "bg-accent"}`}
                   style={{ width: `${Math.min(100, Math.round((l.realizado / l.previsto) * 100))}%` }}
                 />
               </span>
-              <span className="mt-1 block text-xs text-muted">
+              <span className={`mt-1 block text-xs ${passou ? "text-alert" : "text-muted"}`}>
                 {l.itens.length > 1 && `${l.itens.map((i) => `${i.descricao} ${formatarReais(i.valor)}`).join(" · ")}. `}
                 {passou
                   ? `Passou ${formatarReais(l.realizado - l.previsto)} do previsto.`
