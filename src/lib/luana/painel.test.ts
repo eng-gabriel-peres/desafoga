@@ -59,6 +59,20 @@ describe("montarPainel", () => {
     ]);
   });
 
+  it("usa a renda informada quando o mês mais recente não tem entrada anotada", () => {
+    const semEntradas: Conta = {
+      ...conta,
+      rendaMensal: 600000,
+      lancamentos: conta.lancamentos.filter((l) => l.natureza !== "entrada"),
+    };
+    const [recente, ...antigos] = montarPainel(semEntradas, "2026-11-12").meses;
+    expect(recente.rendaInformada).toBe(600000);
+    expect(recente.saldo).toBe(600000 - recente.gastos - recente.encargos);
+    for (const m of antigos) expect(m).toMatchObject({ rendaInformada: null, saldo: null });
+    // Com entrada anotada, vale a entrada.
+    expect(montarPainel({ ...conta, rendaMensal: 600000 }, "2026-11-12").meses[0].rendaInformada).toBeNull();
+  });
+
   it("limita a quantidade de meses", () => {
     expect(montarPainel(conta, "2026-11-12", 1).meses).toHaveLength(1);
   });
