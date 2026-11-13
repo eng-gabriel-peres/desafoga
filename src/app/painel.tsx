@@ -252,7 +252,11 @@ function Mes({ mes }: { mes: MesDoPainel }) {
     <section>
       <h2 className="mb-2 text-base font-semibold first-letter:uppercase">{nome}</h2>
       <dl className="mb-3 grid grid-cols-3 gap-3">
-        <Numero rotulo="Entrou" valor={mes.entradas} />
+        {mes.rendaInformada !== null ? (
+          <Numero rotulo="Renda informada" valor={mes.rendaInformada} />
+        ) : (
+          <Numero rotulo="Entrou" valor={mes.entradas} />
+        )}
         <Numero rotulo="Saiu" valor={mes.gastos + mes.encargos} />
         {mes.saldo === null ? (
           <div className="rounded-xl bg-surface px-4 py-3">
@@ -260,7 +264,11 @@ function Mes({ mes }: { mes: MesDoPainel }) {
             <dd className="text-sm text-muted">sem entradas anotadas</dd>
           </div>
         ) : (
-          <Numero rotulo={mes.saldo >= 0 ? "Sobrou" : "Faltou"} valor={Math.abs(mes.saldo)} destaque />
+          <Numero
+            rotulo={mes.saldo < 0 ? "Faltou" : mes.rendaInformada !== null ? "Sobra até agora" : "Sobrou"}
+            valor={Math.abs(mes.saldo)}
+            destaque
+          />
         )}
       </dl>
 
