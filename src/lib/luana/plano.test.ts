@@ -112,7 +112,7 @@ describe("resumo com plano", () => {
     const novos = [gasto(3500, "alimentacao")];
     const r = resumir(conta({ plano: PLANO, lancamentos: novos }), HOJE);
     const texto = blocoDoPlanoPara(r, novos) ?? "";
-    expect(texto).toContain("Cartão: previsto R$ 2.000,00, já foram R$ 35,00");
+    expect(texto).toContain("Cartão e demais gastos: previsto R$ 2.000,00, já foram R$ 35,00");
     expect(texto).not.toContain("Mercado");
   });
 
