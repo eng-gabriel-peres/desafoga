@@ -1,7 +1,7 @@
 import { formatarReais, lerPercentual, lerValorEmReais } from "@/lib/dinheiro";
 import { IaIndisponivel, IaSobrecarregada } from "@/lib/ia/gemini";
 import { analisarCompra, blocoDeCompra } from "./compra";
-import { PERGUNTA, proximaPergunta } from "./entrevista";
+import { PERGUNTA, proximaPergunta, pular, registrarResposta } from "./entrevista";
 import { acrescentar, anotar, converter, hojeEmBrasilia } from "./lancamentos";
 import { type DocumentoLido, lerAudio, lerDocumento, lerMensagem, type MensagemLida, redigir } from "./ler";
 import { type DespesaLida, informar } from "./plano";
@@ -259,6 +259,7 @@ async function agir(
   }
   // Resposta sem dado ("não tenho", "pula") a uma pergunta da entrevista: segue para a próxima.
   if (pendente && (lida.intencao === "outro" || lida.intencao === "saudacao")) {
+    pular(conta);
     return seguirEntrevista(conta, hoje, ["Sem problema, essa eu pulo."]);
   }
 
@@ -297,6 +298,8 @@ async function agir(
     if (!conta.entrevista && (conta.documentos ?? []).length === 0) {
       conta.entrevista = { perguntadas: [], pendente: null };
     }
+
+    registrarResposta(conta, { renda: !!renda, despesas: despesas.anotados, reserva: reserva !== null });
 
     const anotado = [
       renda && `• Entra por mês: ${formatarReais(renda)}`,
