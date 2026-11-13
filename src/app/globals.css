@@ -38,6 +38,10 @@
 :root[data-tema="claro"][data-cor="rosa"] { --accent: #b3306e; }
 :root[data-tema="claro"][data-cor="laranja"] { --accent: #b4530c; }
 
+/* No laranja e no amarelo o alerta ficaria da cor das barras normais: vira vermelho. */
+:root[data-cor="laranja"], :root[data-cor="amarelo"] { --alert: #f47c6c; }
+:root[data-tema="claro"][data-cor="laranja"], :root[data-tema="claro"][data-cor="amarelo"] { --alert: #b3261e; }
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
