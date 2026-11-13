@@ -141,6 +141,7 @@ describe("resumir", () => {
     // meta 20% = 800,00; sobra = 4.000,00 - 577,70 - 196,56
     expect(comRenda.poupanca).toEqual({
       base: "renda_informada",
+      comPrevisao: false,
       renda: 400000,
       meta: 80000,
       tetoDeGastos: 320000,

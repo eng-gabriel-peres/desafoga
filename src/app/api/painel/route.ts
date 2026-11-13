@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { hojeEmBrasilia } from "@/lib/luana/lancamentos";
 import { montarPainel } from "@/lib/luana/painel";
 import { buscarConta } from "@/lib/luana/repositorio";
 import { usuarioValido } from "@/lib/luana/usuario";
@@ -17,5 +18,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ erro: 'Envie "usuario".' }, { status: 400 });
   }
   const [conta, uso] = await Promise.all([buscarConta(`web:${usuario}`), usoDeHoje(`web:${usuario}`)]);
-  return NextResponse.json({ ...montarPainel(conta), uso });
+  return NextResponse.json({ ...montarPainel(conta, hojeEmBrasilia()), uso });
 }

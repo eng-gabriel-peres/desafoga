@@ -28,7 +28,7 @@ export interface AnaliseDeCompra {
   renda: number | null;
   origemDaRenda: "informada" | "entradas_do_mes" | null;
   saidas: number;
-  origemDasSaidas: "anotadas" | "citadas";
+  origemDasSaidas: "anotadas" | "citadas" | "previstas";
   /** Renda menos saídas, antes da compra. */
   sobra: number | null;
   parcela: number | null;
@@ -45,13 +45,20 @@ export interface AnaliseDeCompra {
   encargosAtuais: number;
   /** Meses guardando toda a sobra para comprar à vista. */
   mesesParaJuntar: number | null;
+  /** Preço à vista informado. */
+  valorTotal: number | null;
+  /** Dinheiro guardado à parte; não entra na sobra. */
+  reserva: number | null;
 }
 
 export function analisarCompra(pedido: PedidoDeCompra, conta: Conta, r: Resumo): AnaliseDeCompra {
   const renda = conta.rendaMensal ?? (r.mes.entradas.total > 0 ? r.mes.entradas.total : null);
   const origemDaRenda = conta.rendaMensal ? "informada" : renda ? "entradas_do_mes" : null;
-  const citadas = pedido.compromissosCitados > r.mes.saidas;
-  const saidas = citadas ? pedido.compromissosCitados : r.mes.saidas;
+  // Vale a maior conta conhecida: a anotada, a citada na mensagem ou a prevista no plano.
+  const previstas = r.plano?.esperado ?? 0;
+  const saidas = Math.max(r.mes.saidas, pedido.compromissosCitados, previstas);
+  const origemDasSaidas: AnaliseDeCompra["origemDasSaidas"] =
+    saidas === r.mes.saidas ? "anotadas" : saidas === previstas ? "previstas" : "citadas";
   const sobra = renda === null ? null : renda - saidas;
 
   const estimada = !pedido.parcela && !!pedido.valorTotal && !!pedido.numeroDeParcelas;
@@ -82,7 +89,7 @@ export function analisarCompra(pedido: PedidoDeCompra, conta: Conta, r: Resumo):
     renda,
     origemDaRenda,
     saidas,
-    origemDasSaidas: citadas ? "citadas" : "anotadas",
+    origemDasSaidas,
     sobra,
     parcela,
     parcelaSemJuros: estimada,
@@ -93,6 +100,8 @@ export function analisarCompra(pedido: PedidoDeCompra, conta: Conta, r: Resumo):
     encargosAtuais,
     mesesParaJuntar:
       !parcela && pedido.valorTotal && sobra !== null && sobra > 0 ? Math.ceil(pedido.valorTotal / sobra) : null,
+    valorTotal: pedido.valorTotal,
+    reserva: conta.reserva ?? null,
   };
 }
 
@@ -120,7 +129,7 @@ export function blocoDeCompra(a: AnaliseDeCompra): string {
 
   const linhas = [
     `• Renda: ${formatarReais(a.renda as number)} (${a.origemDaRenda === "informada" ? "a que você me disse" : "o que entrou no mês"})`,
-    `• Contas do mês: ${formatarReais(a.saidas)} (${a.origemDasSaidas === "citadas" ? "as que você citou" : "as que tenho anotadas"})`,
+    `• Contas do mês: ${formatarReais(a.saidas)} (${a.origemDasSaidas === "citadas" ? "as que você citou" : a.origemDasSaidas === "previstas" ? "o que você previu, mais o que já anotei" : "as que tenho anotadas"})`,
     `• Sobra hoje: ${formatarReais(a.sobra as number)}`,
   ];
   if (a.parcela) {
@@ -147,6 +156,13 @@ export function blocoDeCompra(a: AnaliseDeCompra): string {
   if (a.custoDoParcelamento && a.totalParcelado) {
     partes.push(
       `No parcelado você paga ${formatarReais(a.totalParcelado)} no total, ${formatarReais(a.custoDoParcelamento)} a mais que o preço à vista.`,
+    );
+  }
+  if (a.reserva) {
+    partes.push(
+      a.valorTotal && a.reserva >= a.valorTotal
+        ? `Você tem ${formatarReais(a.reserva)} guardados, que eu não contei na sobra. Dá para pagar à vista tirando de lá, e a reserva cairia para ${formatarReais(a.reserva - a.valorTotal)}.`
+        : `Os ${formatarReais(a.reserva)} que você tem guardados ficaram fora desta conta.`,
     );
   }
   if (a.parcelaSemJuros) {
