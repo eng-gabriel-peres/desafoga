@@ -91,10 +91,12 @@ const comMaiuscula = (texto: string) => texto.charAt(0).toUpperCase() + texto.sl
 
 /** Uma linha do orçamento: previsto, o que já foi e o que resta. */
 function linhaDoPlano(l: LinhaDoPlano): string {
-  const nome =
-    l.itens.length === 1
-      ? comMaiuscula(l.itens[0].descricao)
-      : `${l.nome} (${l.itens.map((i) => i.descricao.toLowerCase()).join(", ")})`;
+  const unico = l.itens.length === 1;
+  const nome = !unico
+    ? `${l.nome} (${l.itens.map((i) => i.descricao.toLowerCase()).join(", ")})`
+    : l.grupo === "cartao"
+      ? l.nome
+      : comMaiuscula(l.itens[0].descricao);
   if (l.realizado === 0) return `• ${nome}: ${formatarReais(l.previsto)}`;
   const situacao =
     l.realizado <= l.previsto
@@ -273,7 +275,7 @@ export function resumoParaIA(r: Resumo, renda: number | null, saldo: number | nu
       orcamento: r.plano
         ? {
             itens: r.plano.linhas.map((l) => ({
-              item: l.itens.length === 1 ? l.itens[0].descricao : l.nome,
+              item: l.grupo !== "cartao" && l.itens.length === 1 ? l.itens[0].descricao : l.nome,
               previsto: formatarReais(l.previsto),
               jaAnotado: formatarReais(l.realizado),
               resta: l.realizado <= l.previsto ? formatarReais(l.previsto - l.realizado) : "estourou",
