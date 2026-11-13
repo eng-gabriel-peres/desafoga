@@ -1,3 +1,4 @@
+import type { ItemDoPlano } from "./plano";
 import type { Conta } from "./resumo";
 
 /**
@@ -9,7 +10,7 @@ export const PASSOS = ["renda", "fixas", "variaveis", "reserva"] as const;
 export type Passo = (typeof PASSOS)[number];
 
 export interface Entrevista {
-  /** Perguntas já feitas, para nenhuma se repetir. */
+  /** Perguntas encerradas: respondidas ou puladas pela pessoa. Só estas não voltam. */
   perguntadas: Passo[];
   /** A pergunta que está esperando resposta. */
   pendente: Passo | null;
@@ -37,6 +38,8 @@ function respondido(passo: Passo, conta: Conta): boolean {
 /**
  * Avança a entrevista: devolve a próxima pergunta, ou null quando acabou
  * (ou quando não há entrevista em andamento). Altera `conta.entrevista`.
+ * Uma pergunta que ficou sem resposta (a mensagem se perdeu, ou a pessoa falou
+ * de outra coisa) volta a ser feita até ser respondida ou pulada.
  */
 export function proximaPergunta(conta: Conta): string | null {
   const e = conta.entrevista;
@@ -47,7 +50,35 @@ export function proximaPergunta(conta: Conta): string | null {
     e.concluida = true;
     return null;
   }
-  e.perguntadas.push(passo);
   e.pendente = passo;
   return PERGUNTA[passo];
+}
+
+/** A pessoa disse que não tem ou não quer responder: a pergunta pendente não volta. */
+export function pular(conta: Conta): void {
+  const e = conta.entrevista;
+  if (!e?.pendente) return;
+  e.perguntadas.push(e.pendente);
+  e.pendente = null;
+}
+
+const VARIAVEIS = ["cartao", "mercado", "transporte"];
+
+/**
+ * Encerra a pergunta pendente quando a mensagem trouxe o tipo de dado que ela
+ * pedia. Se trouxe outra coisa, a pergunta continua aberta e volta depois.
+ */
+export function registrarResposta(
+  conta: Conta,
+  dados: { renda: boolean; despesas: ItemDoPlano[]; reserva: boolean },
+): void {
+  const e = conta.entrevista;
+  if (!e?.pendente) return;
+  const respondeu: Record<Passo, boolean> = {
+    renda: dados.renda,
+    fixas: dados.despesas.some((d) => !VARIAVEIS.includes(d.grupo)),
+    variaveis: dados.despesas.length > 0,
+    reserva: dados.reserva,
+  };
+  if (respondeu[e.pendente]) pular(conta);
 }
