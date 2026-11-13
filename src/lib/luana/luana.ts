@@ -1,8 +1,10 @@
 import { formatarReais, lerPercentual, lerValorEmReais } from "@/lib/dinheiro";
 import { IaIndisponivel, IaSobrecarregada } from "@/lib/ia/gemini";
 import { analisarCompra, blocoDeCompra } from "./compra";
+import { PERGUNTA, proximaPergunta } from "./entrevista";
 import { acrescentar, anotar, converter, hojeEmBrasilia } from "./lancamentos";
 import { type DocumentoLido, lerAudio, lerDocumento, lerMensagem, type MensagemLida, redigir } from "./ler";
+import { type DespesaLida, informar } from "./plano";
 import { apagarConta, buscarConta, salvarConta } from "./repositorio";
 import { type Conta, resumir } from "./resumo";
 import {
@@ -14,6 +16,8 @@ import {
   blocoDeHoje,
   blocoDePoupanca,
   blocoDoMes,
+  blocoDoPlano,
+  blocoDoPlanoPara,
   BOAS_VINDAS,
   dicas,
   listar,
@@ -118,7 +122,7 @@ export async function receberTexto(usuario: string, texto: string): Promise<stri
   const hoje = hojeEmBrasilia();
   let lida;
   try {
-    lida = await lerMensagem(texto, hoje);
+    lida = await lerMensagem(texto, hoje, await perguntaPendente(usuario));
   } catch (erro) {
     return [falha(erro)];
   }
@@ -145,7 +149,7 @@ export async function receberAudio(
   const hoje = hojeEmBrasilia();
   let lida;
   try {
-    lida = await lerAudio(bytes, tipo, hoje);
+    lida = await lerAudio(bytes, tipo, hoje, await perguntaPendente(usuario));
   } catch (erro) {
     return { transcricao: "", mensagens: [falha(erro)] };
   }
@@ -160,6 +164,30 @@ export async function receberAudio(
     };
   }
   return { transcricao, mensagens: await responder(usuario, transcricao, lida, hoje) };
+}
+
+/** A pergunta da entrevista que está esperando resposta, para o leitor entender respostas curtas. */
+async function perguntaPendente(usuario: string): Promise<string | null> {
+  try {
+    const pendente = (await buscarConta(usuario)).entrevista?.pendente;
+    return pendente ? PERGUNTA[pendente] : null;
+  } catch {
+    return null;
+  }
+}
+
+const FIM_DA_ENTREVISTA =
+  "Daqui para frente é só ir me contando os gastos do dia (_mercado 120_, _uber 23_) que eu vou abatendo do previsto. Se um valor mudar, me fale o novo. E quando quiser, pergunte _posso comprar isso?_";
+
+/** Junta a resposta com o próximo passo da entrevista: outra pergunta ou o fechamento. */
+function seguirEntrevista(conta: Conta, hoje: string, partes: string[]): string[] {
+  const emAndamento = !!conta.entrevista && !conta.entrevista.concluida;
+  const pergunta = proximaPergunta(conta);
+  if (pergunta) return [[...partes, pergunta].join("\n\n")];
+  const r = resumir(conta, hoje);
+  const plano = blocoDoPlano(r);
+  const fecho = plano ?? (r.poupanca ? blocoDePoupanca(r) : null);
+  return [[...partes, fecho, emAndamento ? FIM_DA_ENTREVISTA : null].filter(Boolean).join("\n\n")];
 }
 
 /** Quantas mensagens recentes ficam guardadas para dar continuidade à conversa. */
@@ -211,6 +239,29 @@ async function agir(
     if (!semPreco) return [`${blocoDeCompra(analise)}\n\n${AVISO}`];
   }
 
+  if (lida.intencao === "quer_contar_de_cabeca") {
+    conta.entrevista = { perguntadas: [], pendente: null };
+    return seguirEntrevista(conta, hoje, [
+      "Fechado, sem arquivo nenhum. Vou te fazer umas perguntas rápidas. Responda do seu jeito, valor aproximado serve.",
+    ]);
+  }
+
+  const pendente = conta.entrevista?.pendente ?? null;
+  // Na entrevista, uma lista de contas pode ser lida como gastos: vale como despesa mensal.
+  if (lida.intencao === "registrar_gasto" && (pendente === "fixas" || pendente === "variaveis")) {
+    lida = {
+      ...lida,
+      intencao: "informar_renda_ou_saldo",
+      despesasMensais: lida.lancamentos
+        .filter((l) => l.natureza === "compra")
+        .map((l) => ({ descricao: l.descricao, valor: l.valor, categoria: l.categoria })),
+    };
+  }
+  // Resposta sem dado ("não tenho", "pula") a uma pergunta da entrevista: segue para a próxima.
+  if (pendente && (lida.intencao === "outro" || lida.intencao === "saudacao")) {
+    return seguirEntrevista(conta, hoje, ["Sem problema, essa eu pulo."]);
+  }
+
   if (lida.intencao === "registrar_gasto") {
     const novos = anotar(conta.lancamentos, converter(lida.lancamentos, hoje));
     if (novos.length === 0) {
@@ -225,21 +276,36 @@ async function agir(
       : doDia
         ? blocoDeHoje(r)
         : blocoDoMes(r);
-    return [`Anotado:\n${listar(novos)}\n\n${depois}`];
+    const previsto = blocoDoPlanoPara(r, novos);
+    return [[`Anotado:\n${listar(novos)}`, previsto, depois].filter(Boolean).join("\n\n")];
   }
 
   if (lida.intencao === "informar_renda_ou_saldo") {
     const renda = lida.rendaMensal ? lerValorEmReais(lida.rendaMensal) : null;
     const saldo = lida.saldoEmConta ? lerValorEmReais(lida.saldoEmConta) : null;
+    const reserva = lida.reserva ? lerValorEmReais(lida.reserva) : null;
+    const despesas = informar(conta.plano, lida.despesasMensais as DespesaLida[]);
+    const mexeuNoPlano = despesas.anotados.length + despesas.removidos.length > 0;
+    if (!renda && saldo === null && reserva === null && !mexeuNoPlano) {
+      return ["Não peguei o valor. Escreva, por exemplo, _ganho 4000_ ou _aluguel 1500, luz 200_."];
+    }
     if (renda) conta.rendaMensal = renda;
     if (saldo !== null) conta.saldoEmConta = saldo;
-    if (!renda && saldo === null) return ["Não peguei o valor. Escreva, por exemplo, _ganho 4000_."];
-    await salvarConta(usuario, conta);
-    const r = resumir(conta, hoje);
-    const partes: string[] = [];
-    if (renda) partes.push(`Anotei sua renda: ${formatarReais(renda)} por mês.`, blocoDePoupanca(r));
-    if (saldo !== null) partes.push(`Anotei seu saldo em conta: ${formatarReais(saldo)}.`);
-    return [partes.join("\n\n")];
+    if (reserva !== null) conta.reserva = reserva;
+    if (mexeuNoPlano) conta.plano = despesas.plano;
+    // Quem começa contando de cabeça, sem arquivo, entra na conversa guiada.
+    if (!conta.entrevista && (conta.documentos ?? []).length === 0) {
+      conta.entrevista = { perguntadas: [], pendente: null };
+    }
+
+    const anotado = [
+      renda && `• Entra por mês: ${formatarReais(renda)}`,
+      ...despesas.anotados.map((i) => `• ${i.descricao}: ${formatarReais(i.valor)} por mês`),
+      ...despesas.removidos.map((d) => `• ${d}: tirei do seu mês`),
+      saldo !== null && `• Saldo em conta: ${formatarReais(saldo)}`,
+      reserva !== null && `• Guardado à parte: ${formatarReais(reserva)} (fica fora da conta do mês)`,
+    ].filter(Boolean);
+    return seguirEntrevista(conta, hoje, [`Anotei:\n${anotado.join("\n")}`]);
   }
 
   // Boas-vindas só no primeiro contato; depois a conversa segue normalmente.

@@ -36,13 +36,38 @@ export type DocumentoLido = z.infer<typeof DocumentoLido>;
 
 export const MensagemLida = z.object({
   intencao: z
-    .enum(["registrar_gasto", "informar_renda_ou_saldo", "decisao_de_compra", "pergunta", "saudacao", "outro"])
+    .enum([
+      "registrar_gasto",
+      "informar_renda_ou_saldo",
+      "quer_contar_de_cabeca",
+      "decisao_de_compra",
+      "pergunta",
+      "saudacao",
+      "outro",
+    ])
     .describe(
-      "registrar_gasto = a pessoa conta algo que gastou ou um valor avulso que recebeu (natureza entrada); informar_renda_ou_saldo = diz quanto ganha ou quanto tem na conta; decisao_de_compra = quer saber se pode, deve ou consegue comprar, financiar ou assumir uma despesa nova; pergunta = quer saber algo sobre os gastos ou pede dica",
+      "registrar_gasto = a pessoa conta um gasto que já aconteceu (almoço 35, gastei 120 no mercado hoje) ou um valor avulso que recebeu (natureza entrada); informar_renda_ou_saldo = descreve a situação do mês dela: quanto ganha, quanto tem na conta, quanto tem guardado, ou quanto são as contas e despesas de todo mês (aluguel é 1500, pago 200 de luz, gasto uns 800 de mercado por mês, a fatura do cartão dá uns 2 mil); quer_contar_de_cabeca = diz que não quer ou não pode mandar extrato, fatura ou arquivo e prefere contar ou responder perguntas; decisao_de_compra = quer saber se pode, deve ou consegue comprar, financiar ou assumir uma despesa nova; pergunta = quer saber algo sobre os gastos ou pede dica",
     ),
   lancamentos: z.array(LancamentoLido).describe("Só quando a intenção é registrar_gasto"),
   rendaMensal: z.string().nullable().describe("Renda mensal informada, como escrita"),
   saldoEmConta: z.string().nullable().describe("Saldo em conta informado, como escrito"),
+  reserva: z
+    .string()
+    .nullable()
+    .describe("Dinheiro guardado à parte (cofrinho, caixinha, poupança, reserva, investimento), como escrito; null se não citou"),
+  despesasMensais: z
+    .array(
+      z.object({
+        descricao: z.string().describe("Nome curto da despesa, ex.: aluguel, luz, condomínio, cartão, mercado"),
+        valor: z.string().describe("Valor por mês, como dito"),
+        categoria: z
+          .enum([...CATEGORIAS, "cartao"])
+          .describe("cartao = a fatura do cartão de crédito como um todo; as demais seguem a mesma regra dos lançamentos"),
+      }),
+    )
+    .describe(
+      "Despesas de todo mês ou previstas para o mês que a pessoa informou. Só em informar_renda_ou_saldo; vazio nos outros casos. Uma despesa que ela diz não ter mais vai com valor 0",
+    ),
   compra: z
     .object({
       item: z.string().describe("O que a pessoa quer comprar, em poucas palavras, minúsculas"),
@@ -76,19 +101,31 @@ export async function lerDocumento(bytes: Uint8Array, mime: string, hoje: string
   );
 }
 
-export async function lerMensagem(texto: string, hoje: string): Promise<MensagemLida> {
+/** Avisa o modelo de que a mensagem responde a uma pergunta da Luana. */
+function comContexto(pergunta: string | null): string {
+  return pergunta
+    ? `\n\nA assistente acabou de perguntar: "${pergunta}". Se a mensagem responde a isso, a intenção é informar_renda_ou_saldo, mesmo que venha só um número ou uma lista de valores. Um "não", "não tenho" ou "pula" é intenção "outro".`
+    : "";
+}
+
+export async function lerMensagem(texto: string, hoje: string, pergunta: string | null = null): Promise<MensagemLida> {
   return gerarJson(
     MensagemLida,
-    `Você interpreta mensagens de WhatsApp enviadas a uma assistente de finanças pessoais. Identifique a intenção e transcreva gastos, renda ou saldo citados. "ontem" e "hoje" viram datas.\n\n${REGRAS_DE_LEITURA.replace("{HOJE}", hoje)}`,
+    `Você interpreta mensagens de WhatsApp enviadas a uma assistente de finanças pessoais. Identifique a intenção e transcreva gastos, renda ou saldo citados. "ontem" e "hoje" viram datas.\n\n${REGRAS_DE_LEITURA.replace("{HOJE}", hoje)}${comContexto(pergunta)}`,
     [{ text: texto }],
   );
 }
 
 /** Mesma leitura de `lerMensagem`, a partir de um áudio; devolve também a transcrição. */
-export async function lerAudio(bytes: Uint8Array, mime: string, hoje: string): Promise<MensagemLida> {
+export async function lerAudio(
+  bytes: Uint8Array,
+  mime: string,
+  hoje: string,
+  pergunta: string | null = null,
+): Promise<MensagemLida> {
   return gerarJson(
     MensagemLida,
-    `Você interpreta mensagens de voz enviadas a uma assistente de finanças pessoais. Transcreva o áudio em "transcricao", identifique a intenção e transcreva gastos, renda, saldo ou compra citados. Valores falados por extenso viram números ("oito mil" = 8000). "ontem" e "hoje" viram datas. Se não houver fala compreensível, devolva transcricao vazia e intenção "outro".\n\n${REGRAS_DE_LEITURA.replace("{HOJE}", hoje)}`,
+    `Você interpreta mensagens de voz enviadas a uma assistente de finanças pessoais. Transcreva o áudio em "transcricao", identifique a intenção e transcreva gastos, renda, saldo ou compra citados. Valores falados por extenso viram números ("oito mil" = 8000). "ontem" e "hoje" viram datas. Se não houver fala compreensível, devolva transcricao vazia e intenção "outro".\n\n${REGRAS_DE_LEITURA.replace("{HOJE}", hoje)}${comContexto(pergunta)}`,
     [parteDeArquivo(bytes, mime), { text: "Ouça esta mensagem de voz." }],
   );
 }
@@ -105,7 +142,8 @@ Jeito de falar:
 - No máximo 5 linhas. Negrito só com *asteriscos*. Sem títulos, sem tabelas.
 
 Conteúdo:
-- Use somente o RESUMO abaixo, que foi calculado por outro sistema. Use os valores exatamente como estão. Não some, subtraia, estime nem crie número novo. Se a resposta pede um número que não está lá, diga que ainda não tem esse dado e peça a fatura, o extrato, um print ou a renda.
+- Use somente o RESUMO abaixo, que foi calculado por outro sistema. Use os valores exatamente como estão. Não some, subtraia, estime nem crie número novo. Se a resposta pede um número que não está lá, diga que ainda não tem esse dado e peça a fatura, o extrato, um print ou que ela conte de cabeça (renda e contas do mês).
+- "orcamento" traz o que a pessoa previu para o mês e o que já foi anotado; são valores informados por ela, sem conferência em extrato. "guardadoAParte" é reserva: não conta como sobra do mês.
 - Para dicas de economia, parta de "sugestoesCalculadas" e das maiores categorias.
 - Se ela pergunta se vale a pena um gasto sem dizer o preço, responda com o que o RESUMO mostra (quanto já gastou hoje e no mês, quanto sobra) e pergunte o valor.
 - Não recomende investimento, banco, cartão ou empréstimo específico.
