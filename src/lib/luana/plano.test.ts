@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { analisarCompra, blocoDeCompra } from "./compra";
-import { PERGUNTA, proximaPergunta } from "./entrevista";
+import { PERGUNTA, proximaPergunta, pular, registrarResposta } from "./entrevista";
 import type { Lancamento } from "./lancamentos";
 import { acompanhar, informar } from "./plano";
 import { type Conta, resumir } from "./resumo";
@@ -148,15 +148,31 @@ describe("entrevista", () => {
     expect(proximaPergunta(c)).toBe(PERGUNTA.fixas);
     expect(c.entrevista?.pendente).toBe("fixas");
     c.plano = PLANO;
+    registrarResposta(c, { renda: false, despesas: PLANO.itens, reserva: false });
     expect(proximaPergunta(c)).toBe(PERGUNTA.reserva);
+    pular(c);
     expect(proximaPergunta(c)).toBeNull();
     expect(c.entrevista).toMatchObject({ pendente: null, concluida: true });
   });
 
-  it("não repete a pergunta que ficou sem resposta", () => {
+  it("não repete a pergunta que a pessoa pulou", () => {
     const c = conta({ entrevista: { perguntadas: [], pendente: null } });
     expect(proximaPergunta(c)).toBe(PERGUNTA.renda);
+    pular(c);
     expect(proximaPergunta(c)).toBe(PERGUNTA.fixas);
+  });
+
+  it("volta à pergunta quando a resposta se perdeu e a mensagem seguinte falou de outra coisa", () => {
+    const c = conta({ entrevista: { perguntadas: [], pendente: null } });
+    expect(proximaPergunta(c)).toBe(PERGUNTA.renda);
+    // A resposta da renda não chegou; a pessoa já mandou as contas fixas.
+    const fixas = PLANO.itens.filter((i) => i.grupo === "moradia_e_contas");
+    c.plano = { itens: fixas };
+    registrarResposta(c, { renda: false, despesas: fixas, reserva: false });
+    expect(proximaPergunta(c)).toBe(PERGUNTA.renda);
+    c.rendaMensal = 500000;
+    registrarResposta(c, { renda: true, despesas: [], reserva: false });
+    expect(proximaPergunta(c)).toBe(PERGUNTA.variaveis);
   });
 
   it("não começa sozinha", () => {
