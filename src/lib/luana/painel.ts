@@ -32,6 +32,11 @@ export interface MesDoPainel {
   /** Entradas menos gastos e encargos; null quando não há entrada conhecida. */
   saldo: number | null;
   faturasPagas: number;
+  /**
+   * Renda que a pessoa informou, usada no lugar das entradas quando o mês mais
+   * recente não tem nenhuma entrada anotada; null nos outros casos.
+   */
+  rendaInformada: number | null;
   categorias: CategoriaDoPainel[];
   maiores: ItemDoPainel[];
 }
@@ -85,7 +90,7 @@ export function montarPainel(conta: Conta, hoje: string, limiteDeMeses = 6): Pai
   );
 
   return {
-    meses: meses.map((referencia) => {
+    meses: meses.map((referencia, posicao) => {
       const doMes = conta.lancamentos.filter((l) => l.data.startsWith(referencia));
       const compras = doMes.filter((l) => l.natureza === "compra");
       const entradas = doMes.filter((l) => l.natureza === "entrada");
@@ -96,6 +101,7 @@ export function montarPainel(conta: Conta, hoje: string, limiteDeMeses = 6): Pai
 
       const grupos = new Map<Categoria, Lancamento[]>();
       for (const l of compras) grupos.set(l.categoria, [...(grupos.get(l.categoria) ?? []), l]);
+      const rendaInformada = posicao === 0 && entradas.length === 0 && conta.rendaMensal ? conta.rendaMensal : null;
       const categorias = [...grupos]
         .map(([categoria, itens]) => ({
           categoria,
@@ -110,7 +116,13 @@ export function montarPainel(conta: Conta, hoje: string, limiteDeMeses = 6): Pai
         entradas: total(entradas),
         gastos,
         encargos,
-        saldo: entradas.length > 0 ? total(entradas) - gastos - encargos : null,
+        saldo:
+          entradas.length > 0
+            ? total(entradas) - gastos - encargos
+            : rendaInformada !== null
+              ? rendaInformada - gastos - encargos
+              : null,
+        rendaInformada,
         faturasPagas: total(doMes.filter((l) => l.natureza === "pagamento_de_fatura")),
         categorias,
         maiores: porDescricao(compras).slice(0, 5),
