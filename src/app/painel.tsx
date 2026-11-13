@@ -43,7 +43,13 @@ export function Painel({ usuario, aoFechar }: { usuario: string; aoFechar: () =>
     };
   }, [usuario]);
 
-  const vazio = dados && dados.meses.length === 0 && dados.documentos.length === 0;
+  const vazio =
+    dados &&
+    dados.meses.length === 0 &&
+    dados.documentos.length === 0 &&
+    !dados.orcamento &&
+    !dados.rendaMensal &&
+    !dados.reserva;
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-2xl flex-col">
@@ -65,7 +71,7 @@ export function Painel({ usuario, aoFechar }: { usuario: string; aoFechar: () =>
         {!falhou && !dados && <p className="text-muted">Carregando…</p>}
         {vazio && (
           <p className="text-muted">
-            Ainda não tenho nada anotado. Mande uma fatura, um extrato ou escreva um gasto na conversa.
+            Ainda não tenho nada anotado. Mande uma fatura, um extrato, escreva um gasto ou diga _prefiro contar_ na conversa.
           </p>
         )}
 
@@ -73,13 +79,16 @@ export function Painel({ usuario, aoFechar }: { usuario: string; aoFechar: () =>
 
         {dados && !vazio && (
           <div className="flex flex-col gap-6">
-            {(dados.rendaMensal || dados.contasInformadas || dados.saldoEmConta !== null) && (
+            {(dados.rendaMensal || dados.contasInformadas || dados.saldoEmConta !== null || dados.reserva) && (
               <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {dados.rendaMensal && <Numero rotulo="Renda que você me disse" valor={dados.rendaMensal} />}
                 {dados.contasInformadas && <Numero rotulo="Contas mensais que você citou" valor={dados.contasInformadas} />}
                 {dados.saldoEmConta !== null && <Numero rotulo="Saldo em conta" valor={dados.saldoEmConta} />}
+                {dados.reserva ? <Numero rotulo="Guardado à parte" valor={dados.reserva} /> : null}
               </dl>
             )}
+
+            {dados.orcamento && <Orcamento orcamento={dados.orcamento} />}
 
             {dados.meses.map((m) => (
               <Mes key={m.referencia} mes={m} />
@@ -167,6 +176,63 @@ function Uso({ uso }: { uso: UsoDeHoje }) {
         O Google não informa quanto resta da cota gratuita. Aqui aparece o que aconteceu hoje: quando um
         modelo responde &quot;sem cota&quot;, a Luana passa para o seguinte.
       </p>
+    </section>
+  );
+}
+
+/** O mês contado de cabeça: previsto contra o que já foi anotado. */
+function Orcamento({ orcamento }: { orcamento: NonNullable<DadosDoPainel["orcamento"]> }) {
+  return (
+    <section>
+      <h2 className="text-base font-semibold">Previsto para {nomeDoMes(orcamento.referencia)}</h2>
+      <p className="mb-2 text-xs text-muted">
+        Valores que você me contou, sem conferir em extrato. O que você anota vai abatendo do previsto.
+      </p>
+      <dl className="mb-3 grid grid-cols-2 gap-3">
+        <Numero rotulo="Deve sair no mês" valor={orcamento.esperado} />
+        {orcamento.sobra !== null && (
+          <Numero
+            rotulo={orcamento.sobra >= 0 ? "Sobra prevista" : "Falta"}
+            valor={Math.abs(orcamento.sobra)}
+            destaque
+          />
+        )}
+      </dl>
+      <ul className="flex flex-col gap-2">
+        {orcamento.linhas.map((l) => {
+          const passou = l.realizado > l.previsto;
+          return (
+            <li key={l.grupo} className="rounded-xl bg-surface px-4 py-3">
+              <span className="flex items-baseline justify-between gap-3">
+                <span className="min-w-0 font-medium">
+                  {l.itens.length === 1 ? l.itens[0].descricao : l.nome}
+                </span>
+                <span className="shrink-0 text-sm tabular-nums">
+                  {formatarReais(l.realizado)} <span className="text-muted">de {formatarReais(l.previsto)}</span>
+                </span>
+              </span>
+              <span className="mt-2 block h-1.5 rounded-full bg-line" aria-hidden>
+                <span
+                  className="block h-1.5 rounded-full bg-accent"
+                  style={{ width: `${Math.min(100, Math.round((l.realizado / l.previsto) * 100))}%` }}
+                />
+              </span>
+              <span className="mt-1 block text-xs text-muted">
+                {l.itens.length > 1 && `${l.itens.map((i) => `${i.descricao} ${formatarReais(i.valor)}`).join(" · ")}. `}
+                {passou
+                  ? `Passou ${formatarReais(l.realizado - l.previsto)} do previsto.`
+                  : `Restam ${formatarReais(l.previsto - l.realizado)}.`}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      {(orcamento.foraDoPlano > 0 || orcamento.encargos > 0) && (
+        <p className="mt-2 text-sm text-muted">
+          {orcamento.foraDoPlano > 0 && `Gastos fora do previsto: ${formatarReais(orcamento.foraDoPlano)}. `}
+          {orcamento.encargos > 0 && `Juros, IOF e tarifas: ${formatarReais(orcamento.encargos)}.`}
+        </p>
+      )}
     </section>
   );
 }

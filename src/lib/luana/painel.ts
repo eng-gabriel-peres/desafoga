@@ -1,4 +1,5 @@
 import type { Categoria, Lancamento } from "./lancamentos";
+import { type Acompanhamento, acompanhar } from "./plano";
 import type { Conta } from "./resumo";
 
 /**
@@ -51,6 +52,10 @@ export interface Painel {
   rendaMensal: number | null;
   contasInformadas: number | null;
   saldoEmConta: number | null;
+  /** Dinheiro guardado à parte. */
+  reserva: number | null;
+  /** Previsto contra realizado no mês indicado; null sem despesas informadas. */
+  orcamento: (Acompanhamento & { referencia: string; sobra: number | null }) | null;
   documentos: DocumentoRecebido[];
 }
 
@@ -70,8 +75,14 @@ function porDescricao(itens: Lancamento[]): ItemDoPainel[] {
   return [...mapa.values()].sort((a, b) => b.total - a.total);
 }
 
-export function montarPainel(conta: Conta, limiteDeMeses = 6): Painel {
+export function montarPainel(conta: Conta, hoje: string, limiteDeMeses = 6): Painel {
   const meses = [...new Set(conta.lancamentos.map((l) => l.data.slice(0, 7)))].sort().reverse().slice(0, limiteDeMeses);
+  // O plano vale para o mês mais recente; sem lançamentos, para o mês atual.
+  const referencia = meses[0] ?? hoje.slice(0, 7);
+  const plano = acompanhar(
+    conta.plano,
+    conta.lancamentos.filter((l) => l.data.startsWith(referencia)),
+  );
 
   return {
     meses: meses.map((referencia) => {
@@ -108,6 +119,10 @@ export function montarPainel(conta: Conta, limiteDeMeses = 6): Painel {
     rendaMensal: conta.rendaMensal,
     contasInformadas: conta.contasInformadas ?? null,
     saldoEmConta: conta.saldoEmConta,
+    reserva: conta.reserva ?? null,
+    orcamento: plano
+      ? { ...plano, referencia, sobra: conta.rendaMensal ? conta.rendaMensal - plano.esperado : null }
+      : null,
     documentos: [...(conta.documentos ?? [])].reverse(),
   };
 }

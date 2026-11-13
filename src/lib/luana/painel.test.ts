@@ -30,7 +30,7 @@ const conta: Conta = {
 };
 
 describe("montarPainel", () => {
-  const painel = montarPainel(conta);
+  const painel = montarPainel(conta, "2026-11-12");
 
   it("traz um bloco por mês, do mais recente para o mais antigo", () => {
     expect(painel.meses.map((m) => m.referencia)).toEqual(["2026-11", "2026-10"]);
@@ -60,7 +60,7 @@ describe("montarPainel", () => {
   });
 
   it("limita a quantidade de meses", () => {
-    expect(montarPainel(conta, 1).meses).toHaveLength(1);
+    expect(montarPainel(conta, "2026-11-12", 1).meses).toHaveLength(1);
   });
 
   it("lista os documentos do mais recente para o mais antigo", () => {
@@ -71,7 +71,7 @@ describe("montarPainel", () => {
         { ...doc, recebidoEm: "2026-11-10" },
         { ...doc, recebidoEm: "2026-11-12" },
       ],
-    });
+    }, "2026-11-12");
     expect(comDocs.documentos.map((d) => d.recebidoEm)).toEqual(["2026-11-12", "2026-11-10"]);
   });
 });

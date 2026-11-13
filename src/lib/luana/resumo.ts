@@ -1,5 +1,7 @@
 import { AJUSTAVEIS, type Categoria, type Lancamento } from "./lancamentos";
+import type { Entrevista } from "./entrevista";
 import type { DocumentoRecebido } from "./painel";
+import { type Acompanhamento, acompanhar, type Plano } from "./plano";
 
 /**
  * Todas as contas da Luana ficam aqui. O modelo de IA só lê documentos e
@@ -22,6 +24,12 @@ export interface Conta {
   fatura: FaturaInfo | null;
   /** Soma das contas mensais que a pessoa contou ter (cartão, aluguel...), em centavos. */
   contasInformadas?: number | null;
+  /** Despesas de todo mês que a pessoa contou de cabeça. */
+  plano?: Plano;
+  /** Dinheiro guardado à parte (cofrinho, caixinha), em centavos. Fica fora da conta do mês. */
+  reserva?: number | null;
+  /** Conversa guiada de quem preferiu não mandar arquivos. */
+  entrevista?: Entrevista;
   /** Arquivos já lidos, para o painel. O arquivo em si não é guardado. */
   documentos?: DocumentoRecebido[];
   /** Últimas trocas da conversa, para a resposta ter continuidade. */
@@ -82,8 +90,14 @@ export interface Resumo {
     renda: number;
     meta: number;
     tetoDeGastos: number;
+    /** Renda menos o que deve sair no mês (o previsto, quando há plano). */
     sobraDoMes: number;
+    /** true quando a sobra considera despesas previstas, não só as anotadas. */
+    comPrevisao: boolean;
   } | null;
+  /** Previsto contra realizado no mês; null sem despesas informadas. */
+  plano: Acompanhamento | null;
+  reserva: number | null;
   corte: { categoria: Categoria; total: number; economia: number } | null;
 }
 
@@ -137,6 +151,7 @@ export function resumir(conta: Conta, hoje: string): Resumo {
   const ajustavel = mes.porCategoria.find((c) => AJUSTAVEIS.includes(c.categoria));
   const f = conta.fatura;
   const renda = conta.rendaMensal ?? (entradas.total > 0 ? entradas.total : null);
+  const plano = acompanhar(conta.plano, doMes);
 
   return {
     hoje: { data: hoje, ...periodo(compras.filter((l) => l.data === hoje)) },
@@ -163,9 +178,12 @@ export function resumir(conta: Conta, hoje: string): Resumo {
           renda,
           meta: Math.round(renda * META_DE_POUPANCA),
           tetoDeGastos: Math.round(renda * (1 - META_DE_POUPANCA)),
-          sobraDoMes: renda - saidas,
+          sobraDoMes: renda - (plano?.esperado ?? saidas),
+          comPrevisao: plano !== null,
         }
       : null,
+    plano,
+    reserva: conta.reserva ?? null,
     corte: ajustavel
       ? {
           categoria: ajustavel.categoria,

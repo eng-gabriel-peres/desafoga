@@ -1,5 +1,6 @@
 import { formatarReais } from "@/lib/dinheiro";
 import { NOME_DA_CATEGORIA, type Lancamento } from "./lancamentos";
+import type { LinhaDoPlano } from "./plano";
 import { CORTE_SUGERIDO, META_DE_POUPANCA, type Periodo, type Resumo } from "./resumo";
 
 /** Mensagens montadas pelo código. Negrito no padrão do WhatsApp: *assim*. */
@@ -7,6 +8,7 @@ import { CORTE_SUGERIDO, META_DE_POUPANCA, type Periodo, type Resumo } from "./r
 export const BOAS_VINDAS = [
   "Oi! Eu sou a *Luana*. Organizo seus gastos aqui na conversa.",
   "Me mande a *fatura do cartão* ou o *extrato da conta* (PDF ou foto), um *print das compras* do app do banco, ou escreva (ou grave um áudio contando) o que gastou, tipo _almoço 35_.",
+  "Não quer mandar arquivo? Escreva _prefiro contar_ e eu te pergunto o básico: quanto entra, as contas fixas, o cartão e o que você tem guardado.",
   "Eu separo por categoria, somo o dia e o mês, mostro quanto entrou, quanto saiu, quanto foi de juros e IOF e onde dá para economizar. Também faço a conta se você perguntar _posso comprar isso?_",
 ].join("\n\n");
 
@@ -85,6 +87,52 @@ export function blocoDeMaiores(r: Resumo): string | null {
   return `*Maiores gastos*\n${listar(r.mes.maiores)}`;
 }
 
+const comMaiuscula = (texto: string) => texto.charAt(0).toUpperCase() + texto.slice(1);
+
+/** Uma linha do orçamento: previsto, o que já foi e o que resta. */
+function linhaDoPlano(l: LinhaDoPlano): string {
+  const nome =
+    l.itens.length === 1
+      ? comMaiuscula(l.itens[0].descricao)
+      : `${l.nome} (${l.itens.map((i) => i.descricao.toLowerCase()).join(", ")})`;
+  if (l.realizado === 0) return `• ${nome}: ${formatarReais(l.previsto)}`;
+  const situacao =
+    l.realizado <= l.previsto
+      ? `restam ${formatarReais(l.previsto - l.realizado)}`
+      : `passou ${formatarReais(l.realizado - l.previsto)}`;
+  return `• ${nome}: previsto ${formatarReais(l.previsto)}, já foram ${formatarReais(l.realizado)}, ${situacao}`;
+}
+
+/** O mês contado de cabeça: previsto contra realizado. Null sem despesas informadas. */
+export function blocoDoPlano(r: Resumo): string | null {
+  const p = r.plano;
+  if (!p) return null;
+  const linhas = p.linhas.map(linhaDoPlano);
+  if (r.poupanca) linhas.unshift(`• Entra: ${formatarReais(r.poupanca.renda)}`);
+  if (p.foraDoPlano > 0) linhas.push(`• Gastos fora do previsto: ${formatarReais(p.foraDoPlano)}`);
+  if (p.encargos > 0) linhas.push(`• Juros, IOF e tarifas: ${formatarReais(p.encargos)}`);
+  linhas.push(`• Deve sair no mês: ${formatarReais(p.esperado)}`);
+  if (r.poupanca) {
+    const sobra = r.poupanca.sobraDoMes;
+    linhas.push(sobra >= 0 ? `• *Sobra prevista: ${formatarReais(sobra)}*` : `• *Falta: ${formatarReais(-sobra)}*`);
+  }
+  if (r.reserva) linhas.push(`• Guardado à parte: ${formatarReais(r.reserva)} (fora da conta do mês)`);
+  return `*${comMaiuscula(nomeDoMes(r.mes.referencia))}, pelo que você me contou*\n${linhas.join("\n")}\n_Valores informados por você, sem conferir em extrato. Em cada item vale o maior entre o previsto e o que já anotei._`;
+}
+
+/** Depois de um gasto anotado: como ficou o previsto das categorias mexidas. */
+export function blocoDoPlanoPara(r: Resumo, novos: Lancamento[]): string | null {
+  if (!r.plano) return null;
+  const categorias = new Set<string>(novos.filter((l) => l.natureza === "compra").map((l) => l.categoria));
+  const comPrevisao = new Set<string>(r.plano.linhas.map((l) => l.grupo));
+  // O cartão recebe os gastos das categorias que não têm previsão própria.
+  const caiuNoCartao = [...categorias].some((c) => !comPrevisao.has(c));
+  const linhas = r.plano.linhas.filter(
+    (l) => l.realizado > 0 && (l.grupo === "cartao" ? caiuNoCartao : categorias.has(l.grupo)),
+  );
+  return linhas.length > 0 ? `*No seu previsto*\n${linhas.map(linhaDoPlano).join("\n")}` : null;
+}
+
 export function blocoDeHoje(r: Resumo): string {
   if (r.hoje.quantidade === 0) return `Hoje (${dataCurta(r.hoje.data)}) ainda não anotei nenhum gasto.`;
   return `*Hoje (${dataCurta(r.hoje.data)}): ${formatarReais(r.hoje.total)}*\n${linhasPorCategoria(r.hoje)}`;
@@ -140,16 +188,18 @@ export function blocoDePoupanca(r: Resumo): string {
     return "Me diga sua renda mensal (ex.: _ganho 4000_) que eu calculo quanto dá para guardar.";
   }
   const p = r.poupanca;
+  const com = p.comPrevisao ? "Contando o que você previu e o que já anotei" : "Com os gastos que tenho anotados";
+  const passou = p.comPrevisao ? "O previsto e o anotado já passam" : "Os gastos anotados já passaram";
   const origem =
     p.base === "entradas_do_mes"
       ? `Usando como renda o que entrou no mês (${formatarReais(p.renda)}), para`
       : "Para";
   const situacao =
     p.sobraDoMes >= p.meta
-      ? `Com os gastos que tenho anotados, sobram ${formatarReais(p.sobraDoMes)}: dá para bater a meta.`
+      ? `${com}, sobram ${formatarReais(p.sobraDoMes)}: dá para bater a meta.`
       : p.sobraDoMes > 0
-        ? `Com os gastos que tenho anotados, sobram ${formatarReais(p.sobraDoMes)}: faltam ${formatarReais(p.meta - p.sobraDoMes)} para a meta.`
-        : `Os gastos anotados já passaram da renda em ${formatarReais(-p.sobraDoMes)}.`;
+        ? `${com}, sobram ${formatarReais(p.sobraDoMes)}: faltam ${formatarReais(p.meta - p.sobraDoMes)} para a meta.`
+        : `${passou} da renda em ${formatarReais(-p.sobraDoMes)}.`;
   return `${origem} guardar ${META_DE_POUPANCA * 100}% da renda, a meta é ${formatarReais(p.meta)} por mês, com gastos de até ${formatarReais(p.tetoDeGastos)}. ${situacao}`;
 }
 
@@ -219,6 +269,20 @@ export function resumoParaIA(r: Resumo, renda: number | null, saldo: number | nu
         : "sem dados",
       rendaMensal: renda ? formatarReais(renda) : "não informada",
       saldoEmConta: saldo !== null ? formatarReais(saldo) : "não informado",
+      guardadoAParte: r.reserva ? formatarReais(r.reserva) : "não informado",
+      orcamento: r.plano
+        ? {
+            itens: r.plano.linhas.map((l) => ({
+              item: l.itens.length === 1 ? l.itens[0].descricao : l.nome,
+              previsto: formatarReais(l.previsto),
+              jaAnotado: formatarReais(l.realizado),
+              resta: l.realizado <= l.previsto ? formatarReais(l.previsto - l.realizado) : "estourou",
+              passouDoPrevistoEm: l.realizado > l.previsto ? formatarReais(l.realizado - l.previsto) : "não passou",
+            })),
+            deveSairNoMes: formatarReais(r.plano.esperado),
+            sobraPrevista: r.poupanca ? formatarReais(r.poupanca.sobraDoMes) : "sem renda informada",
+          }
+        : "a pessoa não informou despesas mensais",
       sugestoesCalculadas: dicas(r),
     },
     null,
