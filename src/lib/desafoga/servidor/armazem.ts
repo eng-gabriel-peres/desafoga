@@ -19,6 +19,8 @@ interface Armazem {
   ler(chave: string): Promise<unknown | null>;
   gravar(chave: string, dados: unknown): Promise<void>;
   apagar(chave: string): Promise<void>;
+  /** Grava só se a chave ainda não existe, de forma atômica. Diz se gravou. */
+  criarSeNaoExiste(chave: string, dados: unknown): Promise<boolean>;
 }
 
 function armazemPostgres(url: string): Armazem {
@@ -55,6 +57,14 @@ function armazemPostgres(url: string): Armazem {
       await pronto();
       await pool.query("delete from desafoga where chave = $1", [chave]);
     },
+    async criarSeNaoExiste(chave, dados) {
+      await pronto();
+      const r = await pool.query("insert into desafoga (chave, dados) values ($1, $2::jsonb) on conflict (chave) do nothing", [
+        chave,
+        JSON.stringify(dados),
+      ]);
+      return (r.rowCount ?? 0) > 0;
+    },
   };
 }
 
@@ -86,6 +96,12 @@ function armazemEmArquivo(arquivo: string | null): Armazem {
     async apagar(chave) {
       delete todos()[chave];
       gravarArquivo();
+    },
+    async criarSeNaoExiste(chave, dados) {
+      if (Object.hasOwn(todos(), chave)) return false;
+      todos()[chave] = structuredClone(dados);
+      gravarArquivo();
+      return true;
     },
   };
 }
@@ -295,8 +311,8 @@ export async function confirmarTelefone(
 export async function conectarPorLink(visitante: string, pessoaId: string, codigo: string): Promise<string> {
   const lido = lerCodigoDeConexao(codigo);
   if (!lido) throw new PedidoRecusado("Esse link venceu ou não é válido. Mande uma mensagem para a Luana no WhatsApp para receber outro.");
-  const usos = (await somarHoje([`link-usado:${lido.uso}`])).get(`link-usado:${lido.uso}`) ?? 0;
-  if (usos > 1) throw new PedidoRecusado("Esse link já foi usado. Mande uma mensagem para a Luana no WhatsApp para receber outro.");
+  // Marca o uso de vez (sem contagem por dia): o mesmo link nunca vale duas vezes.
+  if (!(await armazem().criarSeNaoExiste(`link-usado:${lido.uso}`, Date.now()))) throw new PedidoRecusado("Esse link já foi usado. Mande uma mensagem para a Luana no WhatsApp para receber outro.");
   await ligarTelefone(visitante, pessoaId, lido.telefone);
   return lido.telefone;
 }
