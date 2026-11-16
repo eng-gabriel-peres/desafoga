@@ -58,7 +58,7 @@ export interface Contexto {
   definirSessao: (nova: NovaSessao | null) => void;
 }
 
-type Recurso = "texto" | "arquivo" | "audio" | "codigo";
+type Recurso = "texto" | "arquivo" | "audio" | "codigo" | "conta";
 
 function acao<A extends z.ZodTypeAny, R>(argumentos: A, executar: (args: z.infer<A>, ctx: Contexto) => Promise<R>, recurso?: Recurso) {
   return { argumentos, executar, recurso };
@@ -80,9 +80,14 @@ const ACOES = {
     if (!sessao) return null;
     return { ...sessao, acompanhantes: sessao.pessoa ? await repo.acompanhantes(sessao.pessoa.id) : [] };
   }),
-  "sessao.entrarNaDemo": acao(z.tuple([z.enum(["ana", "carlos", "lucia", "rafael", "paula", "marcos"])]), async ([perfil], ctx) => {
-    ctx.definirSessao(await entrarNaDemo(perfil as PerfilDaDemo, ctx.sessao));
-  }),
+  // Criar demo e conta grava dezenas de linhas: entra no limite por rede e no global.
+  "sessao.entrarNaDemo": acao(
+    z.tuple([z.enum(["ana", "carlos", "lucia", "rafael", "paula", "marcos"])]),
+    async ([perfil], ctx) => {
+      ctx.definirSessao(await entrarNaDemo(perfil as PerfilDaDemo, ctx.sessao));
+    },
+    "conta",
+  ),
   "sessao.criarConta": acao(
     z.tuple([
       z.discriminatedUnion("tipo", [
@@ -93,6 +98,7 @@ const ACOES = {
     async ([conta], ctx) => {
       ctx.definirSessao(await criarConta(conta, ctx.sessao));
     },
+    "conta",
   ),
   "sessao.sair": acao(z.tuple([]), async (_, ctx) => {
     if (ctx.sessao) await encerrarSessao(ctx.sessao.id);
@@ -255,8 +261,9 @@ const ACOES = {
     return repo.anotar(p, { autorId: s.profissional.id, texto: n.texto, privada: n.privada });
   }),
   "memoria.apagarAnotacao": acao(z.tuple([id, id]), async ([p, n], { sessao }) => {
-    await exigirProfissionalDe(sessao, p);
-    await repo.apagarAnotacao(p, n);
+    // Só quem escreveu apaga a própria anotação.
+    const s = await exigirProfissionalDe(sessao, p);
+    if (!(await repo.apagarAnotacao(p, n, s.profissional.id))) throw new SemPermissao("Só quem escreveu a anotação pode apagá-la.");
   }),
 
   // ----- assistente -----

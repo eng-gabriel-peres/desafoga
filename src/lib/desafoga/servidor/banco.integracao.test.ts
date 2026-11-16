@@ -84,6 +84,11 @@ describe.runIf(url)("Desafoga no Postgres", () => {
 
     const { dados: nota } = await chamar("memoria.anotar", [dani.pessoa!.id, { texto: "Primeira conversa.", privada: true }], psi);
     expect((nota as { autorId: string }).autorId).toBe(psi.profissional!.id);
+    // Outro profissional que também acompanha não apaga a nota de quem escreveu.
+    const eco = await criar({ tipo: "profissional", nome: "Dr. Outro", papel: "Economista" });
+    await chamar("sessao.aceitarConvite", [eco.profissional!.convite], dani);
+    await expect(chamar("memoria.apagarAnotacao", [dani.pessoa!.id, (nota as { id: string }).id], eco)).rejects.toThrow("Só quem escreveu");
+    await chamar("memoria.apagarAnotacao", [dani.pessoa!.id, (nota as { id: string }).id], psi);
     // A pessoa não lê a memória (as notas privadas ficam com quem acompanha).
     await expect(chamar("memoria.obter", [dani.pessoa!.id], dani)).rejects.toThrow("não acompanha");
   });

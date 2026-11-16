@@ -7,10 +7,10 @@ import { hojeEmBrasilia } from "@/lib/luana/lancamentos";
  * pública: conta por visitante, por endereço de rede e no total do site.
  */
 
-export type Recurso = "texto" | "arquivo" | "audio" | "codigo";
+export type Recurso = "texto" | "arquivo" | "audio" | "codigo" | "conta";
 
 /** Pedidos por dia de um mesmo visitante. */
-export const LIMITE_POR_VISITANTE: Record<Recurso, number> = { texto: 200, arquivo: 40, audio: 40, codigo: 20 };
+export const LIMITE_POR_VISITANTE: Record<Recurso, number> = { texto: 200, arquivo: 40, audio: 40, codigo: 20, conta: 15 };
 /** Um endereço de rede pode ter várias pessoas (casa, empresa): folga maior. */
 export const FOLGA_POR_REDE = 3;
 /** Teto diário do site inteiro, somando tudo. Ajustável por LIMITE_GLOBAL_DIARIO. */
@@ -30,7 +30,7 @@ export type Contador = ((chaves: string[], dia: string) => Promise<Map<string, n
   devolver?: (chaves: string[], dia: string) => Promise<void>;
 };
 
-const NOME: Record<Recurso, string> = { texto: "mensagens", arquivo: "arquivos", audio: "áudios", codigo: "tentativas de código" };
+const NOME: Record<Recurso, string> = { texto: "mensagens", arquivo: "arquivos", audio: "áudios", codigo: "tentativas de código", conta: "contas e demonstrações novas" };
 
 export function criarLimitador(contar: Contador, limiteGlobal = LIMITE_GLOBAL_PADRAO) {
   return async function consumir(recurso: Recurso, visitante: string, rede: string | null): Promise<Veredito> {

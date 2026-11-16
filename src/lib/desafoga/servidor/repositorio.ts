@@ -270,8 +270,9 @@ export async function anotar(pessoaId: string, nota: { autorId: string; texto: s
   return { id: n.id, autorId: n.autorId, quando: iso(n.quando), texto: n.texto, privada: n.privada };
 }
 
-export async function apagarAnotacao(pessoaId: string, anotacaoId: string): Promise<void> {
-  await prisma().anotacao.deleteMany({ where: { id: anotacaoId, pessoaId } });
+/** Apaga a anotação se ela é deste autor. Diz se apagou. */
+export async function apagarAnotacao(pessoaId: string, anotacaoId: string, autorId: string): Promise<boolean> {
+  return (await prisma().anotacao.deleteMany({ where: { id: anotacaoId, pessoaId, autorId } })).count > 0;
 }
 
 export async function estado(pessoaId: string, canal: Canal): Promise<EstadoConversa> {

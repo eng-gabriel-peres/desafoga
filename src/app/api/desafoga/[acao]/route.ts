@@ -36,7 +36,9 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
       if (!acaoExiste(acao)) return erro("Ação desconhecida.", 404);
       const recurso = recursoDa(acao);
       if (recurso) {
-        const uso = await consumir(recurso, `desafoga:${sessao?.id ?? rede ?? "anonimo"}`, rede);
+        // Criar conta ou demo conta pela rede: uma conta nova não ganha cota nova.
+        const quem = recurso === "conta" ? (rede ?? "anonimo") : (sessao?.id ?? rede ?? "anonimo");
+        const uso = await consumir(recurso, `desafoga:${quem}`, rede);
         if (!uso.permitido) return erro(uso.mensagem ?? "Limite de uso de hoje atingido.", 429);
       }
       const corpo = (await request.json().catch(() => ({}))) as { args?: unknown };
