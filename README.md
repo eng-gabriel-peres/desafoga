@@ -18,17 +18,40 @@ Projeto do Hack Brasil 2026, trilha 05, Pagamentos & finanças.
 
 ## Rodando localmente
 
-Requisitos: Node 24 e pnpm 11.
+Requisitos: Node 24, pnpm 11 e Docker.
 
 ```bash
 pnpm install
-cp .env.example .env.local   # GEMINI_API_KEY liga a IA; sem ela, a Luana responde por regras
+cp .env.example .env.local    # já vem apontando para o Postgres do Docker
+pnpm db:up                    # sobe o Postgres (porta 5440) com o banco de testes
+pnpm db:migrate               # cria as tabelas
 pnpm dev
 ```
 
-Abra http://localhost:3000 e escolha **Entrar como Ana** (app da pessoa) ou **Entrar como Paula Reis** (painel do responsável).
+No `.env.local`, use `DATABASE_URL=postgresql://desafoga:desafoga@localhost:5440/desafoga` e `TEST_DATABASE_URL=postgresql://desafoga:desafoga@localhost:5440/desafoga_teste`. `GEMINI_API_KEY` liga a IA; sem ela, a Luana responde por regras.
 
-Outros comandos: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm build`.
+Abra http://localhost:3000. Para testar sem cadastro, toque em **Entrar como Ana** (app da pessoa) ou **Entrar como Paula Reis** (painel de quem acompanha). Para usar de verdade, **Criar minha conta**.
+
+Tudo em containers (banco, migrações e app em http://localhost:3000): `docker compose --profile completo up --build`.
+
+| Comando | O que faz |
+|---|---|
+| `pnpm db:up` / `pnpm db:down` | Sobe e desliga o Postgres do Docker |
+| `pnpm db:migrate` | Cria uma migração nova a partir do schema e aplica (desenvolvimento) |
+| `pnpm db:deploy` | Aplica as migrações existentes (CI, Vercel, Docker) |
+| `pnpm db:seed` | Cria um espaço com os dados de demonstração |
+| `pnpm db:studio` | Abre o Prisma Studio para olhar o banco |
+| `pnpm test` | Testes; com `TEST_DATABASE_URL`, também os de integração com o Postgres |
+| `pnpm lint`, `pnpm typecheck`, `pnpm build` | Verificações do CI |
+
+## Banco de dados e contas
+
+- **Postgres + Prisma 7** (`prisma/schema.prisma`, migrações em `prisma/migrations`). Em produção, Neon na Vercel; o `vercel-build` aplica as migrações antes do build. Localmente e no CI, Postgres no Docker.
+- **Espaços:** cada "Entrar como Ana/Paula" cria uma cópia própria dos dados fictícios (espaço DEMO, apagado depois de 7 dias); as contas criadas de verdade ficam no espaço REAL.
+- **Sem senha, por decisão do hackathon:** a conta é criada com nome e consentimento, e o navegador lembra dela por um cookie httpOnly; no banco fica só o hash do token. Evite computador compartilhado. A próxima etapa é entrar pelo WhatsApp com código, que já existe para conectar o número.
+- **Permissões em toda ação** (`src/lib/desafoga/servidor/acesso.ts`): a pessoa só vê e muda os próprios dados; o profissional só vê quem aceitou o convite (código no painel, aceito em Perfil); a anotação é sempre em nome de quem está na sessão e só o autor apaga; notas privadas não chegam à pessoa nem à IA.
+- **LGPD:** consentimento ao criar a conta, acompanhamento só com aceite da pessoa e "Apagar minha conta" em Perfil, que apaga tudo dela.
+- **Segurança da API:** chamadas exigem o cabeçalho `x-desafoga` (barra pedidos forjados de outros sites); limites de uso por sessão, por rede (só quando o endereço é confiável: na Vercel, ou atrás de proxy declarado em `CONFIAR_NO_PROXY`) e tetos globais.
 
 ## Rotas
 
@@ -36,22 +59,23 @@ O sistema tem duas áreas separadas: o app de quem usa e o painel de quem acompa
 
 | Rota | Área | Tela |
 |---|---|---|
-| `/` | Entrada | Escolha do perfil da demonstração (no futuro, o login) |
+| `/` | Entrada | Demonstração sem cadastro (Ana ou Paula) ou criar a conta |
 | `/app/hoje` | Pessoa | Nota do dia, compras de hoje, atalho para as dívidas, semana e padrões |
 | `/app/registrar` | Pessoa | Registrar compra em 3 passos: nome, valor e categoria; emoção; se era necessária |
 | `/app/assistente` | Pessoa | Chat com a Luana no estilo WhatsApp |
 | `/app/dividas` | Pessoa | Raio-x do mês, plano de quitação, lista de dívidas e custo emocional |
+| `/app/perfil` | Pessoa | WhatsApp, quem acompanha (código de convite) e apagar a conta |
 | `/app/conectar` | Pessoa | Conecta o WhatsApp pelo link que a Luana mandou |
 | `/app/dividas/fatura` | Pessoa | Enviar fatura: upload, leitura em 3 etapas e classificação das compras novas |
-| `/painel` | Responsável | Pacientes: tabela no desktop, cartões no celular |
+| `/painel` | Responsável | Pacientes (tabela no desktop, cartões no celular) e código de convite |
 | `/painel/[id]` | Responsável | Resumo do paciente: indicadores, humor e gasto por dia, padrões e avisos |
 | `/painel/[id]/dividas` | Responsável | Dívidas do paciente, só leitura, com "Sugerir valor mensal" |
 | `/painel/[id]/memoria` | Responsável | Memória da assistente: características, tom, objetivo, anotações e teste |
-| `/api/desafoga/[acao]` | API | Dados e conversa do Desafoga (uma ação por chamada, com o visitante no cabeçalho) |
+| `/api/desafoga/[acao]` | API | Dados e conversa do Desafoga (uma ação por chamada; sessão por cookie) |
 | `/api/twilio/webhook`, `/api/whatsapp/webhook` | WhatsApp | Mensagens que chegam pelo WhatsApp |
 | `/luana`, `/p` | Luana antiga | Chat web de antes e painel pelo link (o WhatsApp agora atende só pelo Desafoga) |
 
-Pacientes da demonstração: `ana`, `carlos`, `lucia` e `rafael`.
+Na demonstração, a Paula acompanha Ana, Carlos, Lúcia e Rafael; os ids das páginas de paciente são os do banco.
 
 ## Estrutura de pastas
 
@@ -59,7 +83,7 @@ Pacientes da demonstração: `ana`, `carlos`, `lucia` e `rafael`.
 src/
   app/
     (desafoga)/           layout raiz do Desafoga (fonte, tokens claro/escuro, Letra maior)
-      page.tsx            entrada da demonstração
+      page.tsx            entrada: demonstração ou criar conta
       app/                área da pessoa (moldura com menu inferior / barra lateral)
       painel/             área do responsável
     (luana)/              chat da Luana com IA e painel pelo link (/luana, /p)
@@ -67,21 +91,24 @@ src/
   components/desafoga/
     ui/                   botões, painel, KPI, etiquetas, avatar, carinha SVG
     moldura/              moldura de cada área, menus, sino de avisos, Letra maior
-    telas/                uma tela por arquivo (hoje, registrar, assistente, dívidas, fatura, pacientes, resumo, memória)
-    dividas/, chat/       partes das telas de dívidas e do chat
+    telas/                uma tela por arquivo (hoje, registrar, assistente, dívidas, fatura, perfil, pacientes, resumo, memória)
+    dividas/, chat/       partes das telas de dívidas (inclui o cadastro de dívidas) e do chat
+    sessao.tsx            quem está usando o app; manda para a entrada quem não tem o perfil da área
   hooks/                  consulta à camada de serviço, data atual, paciente aberto, Letra maior
   services/
     contratos.ts          interfaces que as telas usam
     tipos.ts              tipos de domínio (persona, memória, aviso, mensagem…)
-    nucleo.ts             operações sobre os dados, iguais no servidor e no navegador
-    api/                  implementação padrão: chama /api/desafoga
-    mock/                 implementação local, sem servidor (NEXT_PUBLIC_DESAFOGA_DADOS=local)
-  fixtures/desafoga/      dados fictícios tipados: 4 personas, dívidas, faturas, memória
+    api/                  implementação: chama /api/desafoga
+  fixtures/desafoga/      dados fictícios tipados da demonstração: 4 personas, dívidas, faturas, memória
+  generated/prisma/       cliente gerado pelo Prisma (pnpm install / prisma generate; fora do git)
   lib/
     finance/              motor financeiro em funções puras, com testes
     assistente/           regras da conversa da Luana, detecção de sofrimento, contexto da IA, com testes
-    desafoga/             conversa com IA, leitura de fatura, telefone; servidor/ (banco, ações, rotas, WhatsApp)
+    desafoga/             conversa com IA, leitura de fatura, telefone, regras
+      servidor/           repositório (Prisma), sessão, permissões, rotas da API, WhatsApp, semente da demo
     luana/, ia/, whatsapp/, twilio/   a Luana com IA e o WhatsApp
+prisma/                   schema, migrações e seed da demonstração
+docker-compose.yml, Dockerfile   Postgres local e o projeto completo em containers
 docs/referencia/          protótipo usado como referência visual
 ```
 
@@ -108,12 +135,13 @@ A Luana é a mesma nos dois canais: mesmo código no servidor (`src/lib/desafoga
 
 Para a demonstração com o sandbox da Twilio: preencha `NEXT_PUBLIC_WHATSAPP_NUMERO` e `NEXT_PUBLIC_WHATSAPP_CODIGO` (código do "join"), mande `join <código>` para o número do sandbox, conecte o seu número na conta da Ana, digite o código que chegar no WhatsApp e converse com a Luana pelo WhatsApp.
 
-## O que ainda é simulado
+## O que ainda é simulado ou falta
 
-- **Dados:** são fictícios (`src/fixtures/desafoga`), com datas relativas a hoje. Cada navegador ganha a sua cópia no servidor (Postgres com `DATABASE_URL`; sem ele, `.data/desafoga.json`). "Recomeçar demonstração" volta ao início e mantém o WhatsApp cadastrado.
-- **Login:** não existe. A entrada em `/` escolhe o perfil (Ana ou Paula Reis). O número de WhatsApp fica em "Conectar WhatsApp" até o cadastro existir.
+- **Demonstração:** Ana, Carlos, Lúcia, Rafael, Paula e Marcos são fictícios (`src/fixtures/desafoga`), com datas relativas ao dia em que a demo é criada. Contas reais começam vazias.
+- **Login sem senha:** decisão do hackathon para quem avalia testar sem cadastro. Para uso aberto ao público, falta entrar pelo WhatsApp com código ou e-mail.
 - **Sem IA:** a leitura de fatura usa um extrato de exemplo e o áudio não é transcrito. A tela avisa quando isso acontece.
 - **Avisos ao responsável:** compra alta, sofrimento intenso e sugestão de valor mensal aparecem no sino; ainda não chegam por e-mail ou WhatsApp ao profissional.
+- **Exportar os dados** (LGPD): apagar já existe; exportar ainda não.
 
 Saúde mental: se uma mensagem indicar sofrimento intenso, a Luana acolhe, indica o CVV (188) e o SAMU (192) e avisa o responsável. Ela nunca faz diagnóstico.
 
