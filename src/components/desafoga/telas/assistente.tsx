@@ -49,7 +49,7 @@ export function TelaAssistente() {
   }
 
   return (
-    <div className="h-[calc(100dvh-9.75rem-env(safe-area-inset-bottom)-env(safe-area-inset-top))] desk:mx-auto desk:h-[calc(100dvh-8.7rem)] desk:max-w-[860px]">
+    <div className="h-[calc(100dvh-9.75rem-env(safe-area-inset-bottom)-env(safe-area-inset-top))] desk:h-[calc(100dvh-8.7rem)]">
       <h1 className="sr-only">Assistente</h1>
       <Chat
         mensagens={[...salvas, ...visiveis]}

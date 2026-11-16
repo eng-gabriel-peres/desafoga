@@ -38,7 +38,7 @@ function Bolha({ mensagem }: { mensagem: Mensagem }) {
   const minha = mensagem.de === "pessoa";
   return (
     <li
-      className={`max-w-[85%] rounded-2xl px-3 pt-2 pb-1.5 text-[0.98rem] break-words whitespace-pre-wrap shadow-[0_1px_0_rgb(0_0_0/0.08)] desk:max-w-[70%] ${
+      className={`max-w-[85%] rounded-2xl px-3 pt-2 pb-1.5 text-[0.98rem] break-words whitespace-pre-wrap shadow-[0_1px_0_rgb(0_0_0/0.08)] desk:max-w-[min(70%,640px)] ${
         minha ? "self-end rounded-tr-[4px] bg-chat-me" : "self-start rounded-tl-[4px] bg-chat-bot"
       }`}
     >
