@@ -106,6 +106,7 @@ describe.runIf(url)("Desafoga no Postgres", () => {
     expect(total(semUltimo as M)).toBe(47000);
     await expect(chamar("metas.guardar", [p, reserva.id, { valor: 100, descricao: "" }], paula)).rejects.toThrow();
     expect((await chamar("metas.incentivar", [p, reserva.id], paula)).dados).toEqual({ whatsapp: false });
+    await expect(chamar("metas.incentivar", [p, reserva.id], paula)).rejects.toThrow("há pouco");
     const { dados: conversa } = await chamar("assistente.conversa", [p], ana);
     expect((conversa as { texto: string }[]).at(-1)!.texto).toContain("está acompanhando sua meta Reserva de emergência");
 

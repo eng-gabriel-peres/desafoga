@@ -11,6 +11,7 @@ import type { Fatura } from "@/services/tipos";
 import { exigirAPropriaPessoa, exigirProfissionalDe, exigirSessao, exigirVer, SemPermissao } from "./acesso";
 import { responderTexto, testarResposta } from "./acoes";
 import { enviarPeloWhatsapp, whatsappConfigurado } from "./enviar";
+import { registros } from "./registros";
 import * as repo from "./repositorio";
 import {
   aceitarConvite,
@@ -26,6 +27,13 @@ import {
 import { cancelarPedido, confirmarCodigo, desconectar, desistirDoPedido, pedirCodigo, PedidoRecusado } from "./vinculo-whatsapp";
 
 const id = z.string().uuid();
+
+/** Um incentivo ou lembrete por meta a cada intervalo: evita encher o WhatsApp de alguém. */
+async function respeitarIntervalo(chave: string, intervaloMs: number, mensagem: string): Promise<void> {
+  const ultimo = (await registros().ler(chave)) as number | null;
+  if (ultimo && Date.now() - ultimo < intervaloMs) throw new ErroDeEntrada(mensagem);
+  await registros().gravar(chave, Date.now());
+}
 
 /** Manda pelo WhatsApp conectado da pessoa, se houver; falha não derruba o pedido. */
 async function tentarWhatsapp(pessoaId: string, texto: string): Promise<boolean> {
@@ -73,7 +81,7 @@ export interface Contexto {
   definirSessao: (nova: NovaSessao | null) => void;
 }
 
-type Recurso = "texto" | "arquivo" | "audio" | "codigo" | "conta";
+type Recurso = "texto" | "arquivo" | "audio" | "codigo" | "conta" | "envio";
 
 function acao<A extends z.ZodTypeAny, R>(argumentos: A, executar: (args: z.infer<A>, ctx: Contexto) => Promise<R>, recurso?: Recurso) {
   return { argumentos, executar, recurso };
@@ -322,22 +330,32 @@ const ACOES = {
     return repo.apagarDeposito(p, m, d);
   }),
   /** O profissional manda um incentivo: chega pela Luana no app e, se der, no WhatsApp. */
-  "metas.incentivar": acao(z.tuple([id, id]), async ([p, m], { sessao }) => {
-    const s = await exigirProfissionalDe(sessao, p);
-    const meta = await repo.metaPorId(p, m);
-    const texto = mensagemDeIncentivo(s.profissional.nome, meta, situacaoDaMeta(meta, new Date()));
-    await repo.mensagemDaLuana(p, texto);
-    return { whatsapp: await tentarWhatsapp(p, texto) };
-  }),
+  "metas.incentivar": acao(
+    z.tuple([id, id]),
+    async ([p, m], { sessao }) => {
+      const s = await exigirProfissionalDe(sessao, p);
+      const meta = await repo.metaPorId(p, m);
+      await respeitarIntervalo(`incentivo:${m}`, 6 * 60 * 60_000, "Você já mandou um incentivo para essa meta há pouco. Tente de novo mais tarde.");
+      const texto = mensagemDeIncentivo(s.profissional.nome, meta, situacaoDaMeta(meta, new Date()));
+      await repo.mensagemDaLuana(p, texto);
+      return { whatsapp: await tentarWhatsapp(p, texto) };
+    },
+    "envio",
+  ),
   /** Lembrete de guardar agora (o envio programado nos dias de guardar ainda não existe). */
-  "metas.lembrar": acao(z.tuple([id, id]), async ([p, m], { sessao }) => {
-    exigirAPropriaPessoa(sessao, p);
-    const meta = await repo.metaPorId(p, m);
-    const texto = mensagemDeLembrete(meta, situacaoDaMeta(meta, new Date()));
-    if (await tentarWhatsapp(p, texto)) return { whatsapp: true };
-    await repo.mensagemDaLuana(p, texto);
-    return { whatsapp: false };
-  }),
+  "metas.lembrar": acao(
+    z.tuple([id, id]),
+    async ([p, m], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      const meta = await repo.metaPorId(p, m);
+      await respeitarIntervalo(`lembrete:${m}`, 60 * 60_000, "Você já recebeu um lembrete dessa meta há pouco. Tente de novo daqui a uma hora.");
+      const texto = mensagemDeLembrete(meta, situacaoDaMeta(meta, new Date()));
+      if (await tentarWhatsapp(p, texto)) return { whatsapp: true };
+      await repo.mensagemDaLuana(p, texto);
+      return { whatsapp: false };
+    },
+    "envio",
+  ),
 
   // ----- faturas -----
   "faturas.listar": acao(z.tuple([id]), async ([p], { sessao }) => {

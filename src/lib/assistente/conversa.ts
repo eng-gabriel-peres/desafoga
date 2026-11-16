@@ -39,7 +39,7 @@ import type {
   RespostaRapida,
   TipoAviso,
 } from "@/services/tipos";
-import { adivinharCategoria, apelidosDaMeta, entender, lerEmocao, lerNecessidade, normalizar } from "./entender";
+import { adivinharCategoria, apelidosDaMeta, entender, lerEmocao, lerNecessidade, normalizar, temPalavra } from "./entender";
 import {
   AVISO_EDUCATIVO,
   NOME_DA_EMOCAO,
@@ -313,7 +313,7 @@ function acharMeta(metas: Meta[], texto: string): Meta | null {
   // O nome inteiro primeiro; depois a primeira palavra ("reserva", "viagem").
   const peloNome =
     metas.find((m) => t.includes(normalizar(m.nome))) ??
-    metas.find((m) => apelidosDaMeta(m.nome).some((a) => new RegExp(`\\b${a}\\b`).test(t)));
+    metas.find((m) => apelidosDaMeta(m.nome).some((a) => temPalavra(t, a)));
   return peloNome ?? (metas.length === 1 ? metas[0] : null);
 }
 

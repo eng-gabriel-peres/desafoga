@@ -206,6 +206,12 @@ describe("metas: a transferência já conta na meta", () => {
     expect(r.respostas[0].texto).toBe("Você ainda não tem uma meta ativa. Crie uma na aba Metas e eu acompanho com você.");
   });
 
+  it("nome de meta com símbolos não vira expressão regular", () => {
+    const estranha = { ...ctx.metas[0], id: "x", nome: "(a+)+$ [viagem" };
+    expect(entender("transferi 100 pro (a+)+$ [viagem", [estranha.nome])).toEqual({ tipo: "guardar", valor: 10000 });
+    expect(() => responder(ESTADO_INICIAL, "guardei 10 (a+)+$", { ...ctx, metas: [estranha] })).not.toThrow();
+  });
+
   it("conta como está a meta", () => {
     expect(responder(ESTADO_INICIAL, "minhas metas", ctx).respostas[0].texto).toMatch(/^Sua meta Reserva de emergência está com 27%/);
   });

@@ -71,6 +71,13 @@ const GUARDEI = /^(eu )?(ja )?(guardei|juntei|economizei|separei|poupei)\b/;
 /** "transferi 1000 pro cofrinho", "vou transferir 1k da conta para a viagem": só com a meta citada. */
 const TRANSFERI = /^(eu )?(vou |acabei de |ja )?(transfer|deposit|coloc|coloq|mand|botei|pus)\w*\b/;
 
+/** O texto tem esta palavra (ou expressão) inteira? Compara palavras, sem montar regex com o texto da pessoa. */
+export function temPalavra(texto: string, palavra: string): boolean {
+  const t = ` ${texto.replace(/[^\p{L}\p{N}]+/gu, " ")} `;
+  const p = palavra.replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  return Boolean(p) && t.includes(` ${p} `);
+}
+
 /** Como a pessoa chama a meta: o nome inteiro ou a primeira palavra ("reserva", "viagem"). */
 export function apelidosDaMeta(nome: string): string[] {
   const n = normalizar(nome);
@@ -85,7 +92,7 @@ export function apelidosDaMeta(nome: string): string[] {
 function lerGuardar(t: string, nomesDasMetas: string[]): Intencao | null {
   const valor = lerValorEmReais(t);
   if (!valor) return null;
-  const citaMeta = LUGAR_DE_GUARDAR.test(t) || nomesDasMetas.some((n) => n && apelidosDaMeta(n).some((a) => new RegExp(`\\b${a}\\b`).test(t)));
+  const citaMeta = LUGAR_DE_GUARDAR.test(t) || nomesDasMetas.some((n) => n && apelidosDaMeta(n).some((a) => temPalavra(t, a)));
   if (GUARDEI.test(t) || (TRANSFERI.test(t) && citaMeta)) return { tipo: "guardar", valor };
   return null;
 }
