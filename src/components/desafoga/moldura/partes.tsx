@@ -27,21 +27,8 @@ export function Marca({ comNome = true }: { comNome?: boolean }) {
   );
 }
 
-export function BotaoLetraMaior({ comTexto = false }: { comTexto?: boolean }) {
+export function BotaoLetraMaior() {
   const [ativa, alternar] = useLetraMaior();
-  if (comTexto) {
-    return (
-      <button
-        type="button"
-        aria-pressed={ativa}
-        onClick={alternar}
-        className="flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-surface2 px-3 text-[0.9rem] font-bold aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-ink"
-      >
-        <ALargeSmall aria-hidden="true" className="size-5" />
-        Letra maior
-      </button>
-    );
-  }
   return (
     <BotaoIcone aria-label="Letra maior" aria-pressed={ativa} onClick={alternar}>
       <ALargeSmall aria-hidden="true" />
@@ -49,50 +36,41 @@ export function BotaoLetraMaior({ comTexto = false }: { comTexto?: boolean }) {
   );
 }
 
+/**
+ * Barra de menu flutuante, no celular e no desktop. O item em destaque (a
+ * Luana) fica num círculo que sobe acima da barra.
+ */
 export function MenuInferior({ itens, caminho }: { itens: ItemDoMenu[]; caminho: string }) {
   return (
     <nav
       aria-label="Menu"
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] desk:hidden"
+      className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-[540px] rounded-[22px] border border-line bg-surface shadow-[0_10px_30px_rgb(0_0_0/0.14)]"
     >
-      <ul className="mx-auto grid max-w-[620px] auto-cols-fr grid-flow-col">
-        {itens.map(({ href, rotulo, Icone, ativo }) => {
+      <ul className="grid auto-cols-fr grid-flow-col px-1">
+        {itens.map(({ href, rotulo, Icone, ativo, destaque }) => {
           const atual = ativo(caminho);
           return (
             <li key={href}>
               <Link
                 href={href}
                 aria-current={atual ? "page" : undefined}
-                className="relative flex min-h-16 flex-col items-center justify-center gap-0.5 text-[0.78rem] text-muted no-underline aria-[current=page]:font-bold aria-[current=page]:text-primary"
+                className="group flex min-h-16 flex-col items-center justify-end gap-0.5 rounded-[18px] pb-2.5 text-[0.78rem] text-muted no-underline hover:text-ink aria-[current=page]:font-bold aria-[current=page]:text-primary"
               >
-                {atual && <span aria-hidden="true" className="absolute inset-x-1/4 top-0 h-[3px] rounded-b bg-primary" />}
-                <Icone aria-hidden="true" className="size-6" />
+                {destaque ? (
+                  <span
+                    aria-hidden="true"
+                    className="-mt-7 grid size-14 place-items-center rounded-full bg-primary text-primary-ink ring-[5px] ring-bg transition-transform group-hover:scale-105 group-aria-[current=page]:ring-primary-soft"
+                  >
+                    <Icone className="size-6" />
+                  </span>
+                ) : (
+                  <Icone aria-hidden="true" className="size-6" />
+                )}
                 {rotulo}
               </Link>
             </li>
           );
         })}
-      </ul>
-    </nav>
-  );
-}
-
-export function MenuLateral({ itens, caminho }: { itens: ItemDoMenu[]; caminho: string }) {
-  return (
-    <nav aria-label="Menu">
-      <ul className="grid gap-1">
-        {itens.map(({ href, rotulo, Icone, ativo }) => (
-          <li key={href}>
-            <Link
-              href={href}
-              aria-current={ativo(caminho) ? "page" : undefined}
-              className="flex min-h-[46px] items-center gap-3 rounded-xl px-3 font-bold text-muted no-underline hover:bg-surface2 hover:text-ink aria-[current=page]:bg-primary-soft aria-[current=page]:text-primary"
-            >
-              <Icone aria-hidden="true" className="size-5" />
-              {rotulo}
-            </Link>
-          </li>
-        ))}
       </ul>
     </nav>
   );

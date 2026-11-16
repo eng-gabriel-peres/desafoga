@@ -83,7 +83,7 @@ src/
   app/
     (desafoga)/           layout raiz do Desafoga (fonte, tokens claro/escuro, Letra maior)
       page.tsx            entrada: demonstração ou criar conta
-      app/                área da pessoa (moldura com menu inferior / barra lateral)
+      app/                área da pessoa (moldura com barra de menu flutuante e menu do perfil)
       painel/             área do responsável
     (luana)/              chat da Luana com IA e painel pelo link (/luana, /p)
     api/                  rotas do chat, da fatura e do WhatsApp

@@ -13,6 +13,8 @@ export interface ItemDoMenu {
   Icone: LucideIcon;
   /** Marca o item como página atual. */
   ativo: (caminho: string) => boolean;
+  /** Item principal, em destaque no meio da barra. */
+  destaque?: boolean;
 }
 
 export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
@@ -20,7 +22,7 @@ export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
     return [
       { href: "/app/hoje", rotulo: "Hoje", Icone: House, ativo: (c) => c === "/app/hoje" },
       { href: "/app/registrar", rotulo: "Registrar", Icone: Plus, ativo: (c) => c === "/app/registrar" },
-      { href: "/app/assistente", rotulo: "Assistente", Icone: MessageCircle, ativo: (c) => c === "/app/assistente" },
+      { href: "/app/assistente", rotulo: "Assistente", Icone: MessageCircle, ativo: (c) => c === "/app/assistente", destaque: true },
       { href: "/app/dividas", rotulo: "Dívidas", Icone: Wallet, ativo: (c) => c.startsWith("/app/dividas") },
       { href: "/app/perfil", rotulo: "Perfil", Icone: UserRound, ativo: (c) => c === "/app/perfil" },
     ];
