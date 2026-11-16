@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { novoBanco, pessoa, salvarPlano } from "@/services/nucleo";
-import { comBanco, confirmarTelefone, desvincularTelefone, donoDoTelefone, pedirTelefone } from "./armazem";
+import { comBanco, confirmarTelefone, desvincularTelefone, donoDoTelefone, pedirTelefone as pedirComContato, registrarContato } from "./armazem";
 import { executar } from "./rotas";
 import { atenderNoWhatsapp } from "./whatsapp";
 
 const outroCodigo = (c: string) => (c === "000000" ? "111111" : "000000");
+
+/** Nos testes, o número já escreveu para a Luana antes de pedir o código. */
+async function pedirTelefone(visitante: string, pessoaId: string, numero: string) {
+  await registrarContato(numero);
+  return pedirComContato(visitante, pessoaId, numero);
+}
 
 describe("conectar o WhatsApp com código", () => {
   it("só liga o número depois que a pessoa digita o código recebido", async () => {
@@ -33,14 +39,53 @@ describe("conectar o WhatsApp com código", () => {
     await expect(confirmarTelefone("visitante-bbbb", "ana", a!.codigo)).rejects.toThrow("venceu");
 
     const b = await pedirTelefone("visitante-bbbb", "carlos", "11944443333");
-    for (let i = 0; i < 4; i++) await expect(confirmarTelefone("visitante-bbbb", "carlos", outroCodigo(b!.codigo))).rejects.toThrow("não confere");
-    await expect(confirmarTelefone("visitante-bbbb", "carlos", outroCodigo(b!.codigo))).rejects.toThrow("muitas vezes");
-    await expect(confirmarTelefone("visitante-bbbb", "carlos", b!.codigo)).rejects.toThrow("venceu");
+    for (let i = 0; i < 5; i++) await expect(confirmarTelefone("visitante-bbbb", "carlos", outroCodigo(b!.codigo))).rejects.toThrow("não confere");
+    await expect(confirmarTelefone("visitante-bbbb", "carlos", b!.codigo)).rejects.toThrow("muitas vezes");
+  });
+
+  it("tentativas em paralelo não escapam do limite", async () => {
+    const p = await pedirTelefone("visitante-jjjj", "ana", "11922221111");
+    const errado = outroCodigo(p!.codigo);
+    const resultados = await Promise.allSettled(Array.from({ length: 12 }, () => confirmarTelefone("visitante-jjjj", "ana", errado)));
+    const naoConfere = resultados.filter((r) => r.status === "rejected" && String(r.reason).includes("não confere"));
+    expect(naoConfere.length).toBeLessThanOrEqual(5);
+  });
+
+  it("pedir código novo não zera as tentativas do número no dia", async () => {
+    const numero = "11911110000";
+    await registrarContato(numero);
+    let total = 0;
+    let rodadas = 0;
+    for (let rodada = 0; rodada < 3; rodada++) {
+      // Cada rodada, um navegador diferente pede um código novo e erra.
+      const p = await pedirComContato(`visitante-k${rodada}kkk`, "ana", numero, { agora: Date.now() + rodada * 61_000 }).catch(() => null);
+      if (!p) break;
+      rodadas++;
+      for (let i = 0; i < 5; i++) {
+        const r = await confirmarTelefone(`visitante-k${rodada}kkk`, "ana", outroCodigo(p.codigo)).catch((e: Error) => e.message);
+        if (String(r).includes("não confere")) total++;
+      }
+    }
+    expect(rodadas).toBe(3);
+    expect(total).toBeLessThanOrEqual(10);
+  });
+
+  it("só manda código para quem falou com a Luana no WhatsApp", async () => {
+    await expect(pedirComContato("visitante-llll", "ana", "11900009999")).rejects.toThrow("oi");
+    await registrarContato("5511900009999");
+    expect(await pedirComContato("visitante-llll", "ana", "11900009999")).not.toBeNull();
   });
 
   it("não manda dois códigos seguidos para o mesmo número", async () => {
     await pedirTelefone("visitante-hhhh", "ana", "11933332222");
     await expect(pedirTelefone("visitante-iiii", "ana", "11933332222")).rejects.toThrow("Espere um minuto");
+    // E no máximo 5 por dia, mesmo respeitando o intervalo.
+    const vezes = [];
+    for (let i = 1; i <= 8; i++) {
+      vezes.push(await pedirComContato("visitante-hhhh", "ana", "11933332222", { agora: Date.now() + i * 61_000 }).then(() => "ok", (e: Error) => e.message));
+    }
+    expect(vezes.filter((v) => v === "ok").length).toBeLessThanOrEqual(5);
+    expect(vezes.at(-1)).toContain("demais hoje");
   });
 
   it("outro navegador não apaga a ligação de quem confirmou", async () => {

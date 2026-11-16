@@ -7,10 +7,10 @@ import { hojeEmBrasilia } from "@/lib/luana/lancamentos";
  * pública: conta por visitante, por endereço de rede e no total do site.
  */
 
-export type Recurso = "texto" | "arquivo" | "audio";
+export type Recurso = "texto" | "arquivo" | "audio" | "codigo";
 
 /** Pedidos por dia de um mesmo visitante. */
-export const LIMITE_POR_VISITANTE: Record<Recurso, number> = { texto: 200, arquivo: 40, audio: 40 };
+export const LIMITE_POR_VISITANTE: Record<Recurso, number> = { texto: 200, arquivo: 40, audio: 40, codigo: 20 };
 /** Um endereço de rede pode ter várias pessoas (casa, empresa): folga maior. */
 export const FOLGA_POR_REDE = 3;
 /** Teto diário do site inteiro, somando tudo. Ajustável por LIMITE_GLOBAL_DIARIO. */
@@ -28,7 +28,7 @@ export type Contador = ((chaves: string[], dia: string) => Promise<Map<string, n
   ler?: (dia: string, chaves: string[], prefixo: string) => Promise<Map<string, number>>;
 };
 
-const NOME: Record<Recurso, string> = { texto: "mensagens", arquivo: "arquivos", audio: "áudios" };
+const NOME: Record<Recurso, string> = { texto: "mensagens", arquivo: "arquivos", audio: "áudios", codigo: "tentativas de código" };
 
 export function criarLimitador(contar: Contador, limiteGlobal = LIMITE_GLOBAL_PADRAO) {
   return async function consumir(recurso: Recurso, visitante: string, rede: string | null): Promise<Veredito> {
@@ -145,6 +145,15 @@ function contadorAtual(): Contador {
 function limiteGlobal(): number {
   const global = Number(process.env.LIMITE_GLOBAL_DIARIO);
   return Number.isFinite(global) && global > 0 ? global : LIMITE_GLOBAL_PADRAO;
+}
+
+/**
+ * Soma 1 em cada chave no dia, de forma atômica (no Postgres, um único
+ * upsert), e devolve os totais. Serve para contagens de segurança, como as
+ * tentativas do código do WhatsApp.
+ */
+export function somarHoje(chaves: string[]): Promise<Map<string, number>> {
+  return contadorAtual()(chaves, hojeEmBrasilia());
 }
 
 /** Conta um pedido e diz se ele pode ser atendido. */

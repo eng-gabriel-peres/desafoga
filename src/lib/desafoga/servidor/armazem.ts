@@ -7,9 +7,10 @@
  * (`demo:<visitante>`), para um jurado não mexer nos dados do outro. O número
  * de WhatsApp cadastrado aponta para a pessoa (`telefone:<número>`).
  */
-import { randomInt, timingSafeEqual } from "node:crypto";
+import { randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { Pool } from "pg";
+import { somarHoje } from "@/lib/limite";
 import { novoBanco, type Banco } from "@/services/nucleo";
 import { normalizarTelefone } from "../telefone";
 
@@ -138,41 +139,67 @@ interface Vinculo {
 }
 
 interface Pedido {
+  /** Identifica o pedido no contador de tentativas. */
+  id: string;
   telefone: string;
   codigo: string;
   expira: number;
-  tentativas: number;
 }
 
 /** Tempo para digitar o código recebido no WhatsApp. */
 const VALIDADE_DO_CODIGO_MS = 15 * 60_000;
-/** Tentativas de código por envio: 6 dígitos não dão para adivinhar em 5. */
-const MAXIMO_DE_TENTATIVAS = 5;
-/** Intervalo mínimo entre dois códigos para o mesmo número, para não virar spam. */
+/** Tentativas por código: 6 dígitos não dão para adivinhar em 5. */
+const TENTATIVAS_POR_CODIGO = 5;
+/** Tentativas por número no dia, somando todos os códigos: pedir código novo não zera a conta. */
+const TENTATIVAS_POR_NUMERO_NO_DIA = 10;
+/** Códigos enviados para o mesmo número no dia. */
+const CODIGOS_POR_NUMERO_NO_DIA = 5;
+/** Intervalo mínimo entre dois códigos para o mesmo número. */
 const INTERVALO_ENTRE_ENVIOS_MS = 60_000;
+/** Só mandamos código para quem falou com a Luana no WhatsApp nesse período (é também a janela do WhatsApp). */
+const JANELA_DE_CONTATO_MS = 24 * 60 * 60_000;
 
 export class PedidoRecusado extends Error {}
+
+/** Anota que o número escreveu para a Luana: a partir daí podemos responder a ele. */
+export async function registrarContato(numero: string, agora = Date.now()): Promise<void> {
+  const telefone = normalizarTelefone(numero);
+  if (telefone) await armazem().gravar(`contato:${telefone}`, agora);
+}
 
 /**
  * Primeiro passo do cadastro do WhatsApp: gera um código de 6 dígitos para
  * mandar ao número. A ligação só vale quando a pessoa digita esse código no
  * app (`confirmarTelefone`): ninguém liga à própria conta o número de outra
  * pessoa sem ter o celular dela na mão.
+ *
+ * Contra spam, o número precisa ter escrito para a Luana nas últimas 24 horas
+ * (`exigirContato`), e recebe no máximo alguns códigos por dia.
  */
 export async function pedirTelefone(
   visitante: string,
   pessoaId: string,
   texto: string,
-  agora = Date.now(),
+  { agora = Date.now(), exigirContato = true }: { agora?: number; exigirContato?: boolean } = {},
 ): Promise<{ telefone: string; codigo: string } | null> {
   const telefone = normalizarTelefone(texto);
   if (!telefone) return null;
+  if (exigirContato) {
+    const contato = (await armazem().ler(`contato:${telefone}`)) as number | null;
+    if (!contato || agora - contato > JANELA_DE_CONTATO_MS) {
+      throw new PedidoRecusado("Mande antes um “oi” para a Luana no WhatsApp desse número. Depois peça o código de novo.");
+    }
+  }
   const ultimoEnvio = (await armazem().ler(`envio:${telefone}`)) as number | null;
   if (ultimoEnvio && agora - ultimoEnvio < INTERVALO_ENTRE_ENVIOS_MS) {
     throw new PedidoRecusado("Acabamos de mandar um código para esse número. Espere um minuto para pedir outro.");
   }
+  const envios = (await somarHoje([`codigo-enviado:${telefone}`])).get(`codigo-enviado:${telefone}`) ?? 0;
+  if (envios > CODIGOS_POR_NUMERO_NO_DIA) {
+    throw new PedidoRecusado("Esse número já recebeu códigos demais hoje. Tente de novo amanhã.");
+  }
   const codigo = String(randomInt(0, 1_000_000)).padStart(6, "0");
-  const pedido: Pedido = { telefone, codigo, expira: agora + VALIDADE_DO_CODIGO_MS, tentativas: 0 };
+  const pedido: Pedido = { id: randomUUID(), telefone, codigo, expira: agora + VALIDADE_DO_CODIGO_MS };
   await armazem().gravar(`pedido:${visitante}:${pessoaId}`, pedido);
   await armazem().gravar(`envio:${telefone}`, agora);
   return { telefone, codigo };
@@ -185,22 +212,28 @@ export async function cancelarPedido(visitante: string, pessoaId: string, telefo
 }
 
 /**
- * Segundo passo: a pessoa digitou no app o código que recebeu. Liga o número
- * a ela (desfazendo a ligação anterior, se houver) e devolve o número.
+ * Segundo passo: a pessoa digitou no app o código que recebeu. Cada tentativa
+ * é contada antes da comparação, de forma atômica no banco: tentativas em
+ * paralelo não escapam do limite. Liga o número à pessoa e devolve o número.
  */
 export async function confirmarTelefone(visitante: string, pessoaId: string, codigo: string, agora = Date.now()): Promise<string> {
   const chave = `pedido:${visitante}:${pessoaId}`;
   const pedido = (await armazem().ler(chave)) as Pedido | null;
   if (!pedido || pedido.expira < agora) throw new PedidoRecusado("O código venceu. Peça um novo.");
-  if (!iguais(pedido.codigo, codigo.trim())) {
-    pedido.tentativas += 1;
-    if (pedido.tentativas >= MAXIMO_DE_TENTATIVAS) {
-      await armazem().apagar(chave);
-      throw new PedidoRecusado("Código errado muitas vezes. Peça um novo.");
-    }
-    await armazem().gravar(chave, pedido);
-    throw new PedidoRecusado("Código não confere. Confira a mensagem no WhatsApp.");
+
+  const doPedido = `codigo-tentativa:${pedido.id}`;
+  const doNumero = `codigo-tentativa-numero:${pedido.telefone}`;
+  const totais = await somarHoje([doPedido, doNumero]);
+  if ((totais.get(doNumero) ?? 0) > TENTATIVAS_POR_NUMERO_NO_DIA) {
+    await armazem().apagar(chave);
+    throw new PedidoRecusado("Muitas tentativas para esse número hoje. Tente de novo amanhã.");
   }
+  if ((totais.get(doPedido) ?? 0) > TENTATIVAS_POR_CODIGO) {
+    await armazem().apagar(chave);
+    throw new PedidoRecusado("Código errado muitas vezes. Peça um novo.");
+  }
+  if (!iguais(pedido.codigo, codigo.trim())) throw new PedidoRecusado("Código não confere. Confira a mensagem no WhatsApp.");
+
   const { telefone } = pedido;
   await comBanco(visitante, async (banco) => {
     const anterior = banco.telefones[pessoaId];

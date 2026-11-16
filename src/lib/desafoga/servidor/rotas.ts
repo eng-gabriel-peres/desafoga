@@ -60,11 +60,12 @@ const ACOES = {
   "pessoas.whatsapp": acao(z.tuple([id]), (v, [p]) => comBanco(v, (b) => b.telefones[p] ?? null, false)),
   "pessoas.conectarWhatsapp": acao(z.tuple([id, texto(30)]), async (v, [p, tel]) => {
     await comBanco(v, (b) => pessoa(b, p), false);
-    const pedido = await pedirTelefone(v, p, tel);
+    // Desenvolvimento sem WhatsApp configurado: não há como mandar nem receber, o código aparece na tela.
+    const semWhatsapp = !whatsappConfigurado() && process.env.NODE_ENV !== "production";
+    const pedido = await pedirTelefone(v, p, tel, { exigirContato: !semWhatsapp });
     if (!pedido) throw new ErroDeEntrada("Número inválido. Use DDD e número, por exemplo (11) 99999-8888.");
     const mensagem = `Seu código do Desafoga é ${pedido.codigo}. Digite no app para conectar este WhatsApp. Se não foi você, ignore esta mensagem.`;
-    if (!whatsappConfigurado() && process.env.NODE_ENV !== "production") {
-      // Desenvolvimento sem WhatsApp configurado: o código aparece na tela.
+    if (semWhatsapp) {
       return { telefone: pedido.telefone, codigoDeTeste: pedido.codigo };
     }
     try {
@@ -73,7 +74,7 @@ const ACOES = {
       await cancelarPedido(v, p, pedido.telefone);
       console.error("Desafoga: código não enviado,", e instanceof Error ? e.message.slice(0, 200) : "erro");
       throw new ErroDeEntrada(
-        "Não consegui mandar o código para esse WhatsApp. No sandbox da Twilio, mande antes a mensagem de entrada (join) para o número da Luana e tente de novo.",
+        "Não consegui mandar o código para esse WhatsApp. Confira o número e mande antes um “oi” para a Luana por ele (no sandbox da Twilio, a mensagem de entrada “join”).",
       );
     }
     return { telefone: pedido.telefone, codigoDeTeste: null };
@@ -85,7 +86,7 @@ const ACOES = {
       if (e instanceof PedidoRecusado) throw new ErroDeEntrada(e.message);
       throw e;
     }
-  }),
+  }, "codigo"),
   "pessoas.desconectarWhatsapp": acao(z.tuple([id]), (v, [p]) => desvincularTelefone(v, p)),
 
   "compras.listar": acao(z.tuple([id]), (v, [p]) => comBanco(v, (b) => pessoa(b, p).compras, false)),
@@ -136,7 +137,7 @@ const ACOES = {
   recomecar: acao(z.tuple([]), (v) => recomecarBanco(v)),
 };
 
-type Recurso = "texto" | "arquivo" | "audio";
+type Recurso = "texto" | "arquivo" | "audio" | "codigo";
 
 function acao<A extends z.ZodTypeAny, R>(
   argumentos: A,

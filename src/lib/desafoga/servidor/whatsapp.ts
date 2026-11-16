@@ -5,7 +5,7 @@
  */
 import { paraWhatsapp } from "../conversar";
 import { receberArquivoNoChat, receberAudioNoChat, responderTexto } from "./acoes";
-import { donoDoTelefone } from "./armazem";
+import { donoDoTelefone, registrarContato } from "./armazem";
 
 export interface MensagemRecebida {
   de: string;
@@ -19,12 +19,14 @@ export function mensagemSemConta(origem: string): string {
   return [
     "Oi! Eu sou a Luana, assistente do Desafoga.",
     "Este número ainda não está conectado a nenhuma conta, então não consigo anotar nada por aqui.",
-    `Para começar, crie sua conta em ${origem} e, no app, toque em Conectar WhatsApp. Eu mando um código para este número e você confirma por lá.`,
+    `Para começar, crie sua conta em ${origem} e, no app, toque em Conectar WhatsApp com este número. Eu mando um código para cá e você digita por lá.`,
   ].join("\n\n");
 }
 
 /** Textos a enviar de volta para quem mandou a mensagem. */
 export async function atenderNoWhatsapp(m: MensagemRecebida, origem: string, avisarLeitura: () => Promise<void>): Promise<string[]> {
+  // Quem escreve abre a conversa: a partir daí podemos mandar o código de conexão para este número.
+  await registrarContato(m.de);
   const dono = await donoDoTelefone(m.de);
   if (!dono) return [mensagemSemConta(origem)];
   const { visitante, pessoaId } = dono;

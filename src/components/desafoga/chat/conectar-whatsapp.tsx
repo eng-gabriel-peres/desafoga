@@ -134,19 +134,19 @@ function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual:
                 {enviando ? "Enviando…" : "Enviar código"}
               </Botao>
             </form>
-            {(NUMERO_DA_LUANA || CODIGO_DE_ENTRADA) && (
-              <div className="mt-5 rounded-2xl bg-surface p-4 text-[0.95rem]">
-                <b className="block">Antes, no seu WhatsApp</b>
-                <ol className="mt-1.5 list-decimal space-y-1 pl-5">
-                  {NUMERO_DA_LUANA && <li>Salve o número da Luana: {NUMERO_DA_LUANA}.</li>}
-                  {CODIGO_DE_ENTRADA && (
-                    <li>
-                      Mande <b>join {CODIGO_DE_ENTRADA}</b> para ele (é o sandbox da Twilio; sem isso o código não chega).
-                    </li>
-                  )}
-                </ol>
-              </div>
-            )}
+            <div className="mt-5 rounded-2xl bg-surface p-4 text-[0.95rem]">
+              <b className="block">Antes, no seu WhatsApp</b>
+              <ol className="mt-1.5 list-decimal space-y-1 pl-5">
+                {CODIGO_DE_ENTRADA && (
+                  <li>
+                    Mande <b>join {CODIGO_DE_ENTRADA}</b> para {NUMERO_DA_LUANA || "o número da Luana"} (é o sandbox da Twilio).
+                  </li>
+                )}
+                <li>
+                  Mande um “oi” para a Luana{NUMERO_DA_LUANA && !CODIGO_DE_ENTRADA ? ` (${NUMERO_DA_LUANA})` : ""}. Ela só manda o código para quem já falou com ela.
+                </li>
+              </ol>
+            </div>
           </>
         )}
 
