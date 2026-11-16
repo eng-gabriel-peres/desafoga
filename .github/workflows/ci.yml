@@ -17,6 +17,23 @@ jobs:
   verificar:
     name: lint, tipos, testes e build
     runs-on: ubuntu-latest
+    # Postgres para os testes de integração (o mesmo do docker-compose).
+    services:
+      banco:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: desafoga
+          POSTGRES_PASSWORD: desafoga
+          POSTGRES_DB: desafoga_teste
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U desafoga -d desafoga_teste"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgresql://desafoga:desafoga@localhost:5432/desafoga_teste
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
