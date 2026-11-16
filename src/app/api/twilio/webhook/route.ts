@@ -1,8 +1,7 @@
 import { after, type NextRequest } from "next/server";
 import { consumir, type Recurso } from "@/lib/limite";
-import { mensagemDoPainel, origemDoSite, pedidoDePainel } from "@/lib/link";
-import { atenderNoDesafoga } from "@/lib/desafoga/servidor/whatsapp";
-import { receberArquivo, receberAudio, receberTexto } from "@/lib/luana/luana";
+import { origemDoSite } from "@/lib/link";
+import { atenderNoWhatsapp } from "@/lib/desafoga/servidor/whatsapp";
 import { enviarTexto } from "@/lib/twilio/enviar";
 import { baixarMidia } from "@/lib/twilio/midia";
 import { assinaturaValida, extrairMensagem, lerFormulario, type MensagemTwilio } from "@/lib/twilio/webhook";
@@ -67,9 +66,8 @@ export async function POST(request: NextRequest) {
 }
 
 async function atender(m: MensagemTwilio, origem: string): Promise<void> {
-  // Mesma identidade do webhook da Meta: o número é a conta da pessoa.
+  // O limite de uso conta por número.
   const usuario = `wa:${m.de}`;
-  let mensagens: string[];
 
   const recurso: Recurso = m.tipo === "audio" ? "audio" : m.tipo === "image" || m.tipo === "document" ? "arquivo" : "texto";
   const uso = await consumir(recurso, usuario, null);
@@ -78,39 +76,17 @@ async function atender(m: MensagemTwilio, origem: string): Promise<void> {
     return;
   }
 
-  // Número cadastrado no Desafoga: a Luana responde com os dados da pessoa.
+  // A Luana do Desafoga: com conta, responde com os dados da pessoa; sem conta, manda o link de cadastro.
   const midia = m.midiaUrl;
-  const doDesafoga = await atenderNoDesafoga(
+  const mensagens = await atenderNoWhatsapp(
     {
       de: m.de,
       tipo: m.tipo,
       texto: m.texto,
       baixar: midia ? () => baixarMidia(midia, m.midiaMime ?? "application/octet-stream") : undefined,
     },
+    origem,
     () => enviarTexto(m.de, "Recebi. Lendo, leva alguns segundos…"),
   );
-  if (doDesafoga) {
-    for (const texto of doDesafoga) await enviarTexto(m.de, texto);
-    return;
-  }
-
-  if (m.tipo === "text" && m.texto && pedidoDePainel(m.texto)) {
-    await enviarTexto(m.de, mensagemDoPainel(usuario, origem));
-    return;
-  }
-
-  if (m.tipo === "text" && m.texto) {
-    mensagens = await receberTexto(usuario, m.texto);
-  } else if (m.tipo === "audio" && m.midiaUrl) {
-    const { bytes, mime } = await baixarMidia(m.midiaUrl, m.midiaMime ?? "audio/ogg");
-    mensagens = (await receberAudio(usuario, bytes, mime)).mensagens;
-  } else if ((m.tipo === "image" || m.tipo === "document") && m.midiaUrl) {
-    await enviarTexto(m.de, "Recebi. Lendo, leva alguns segundos…");
-    const { bytes, mime } = await baixarMidia(m.midiaUrl, m.midiaMime ?? "application/pdf");
-    mensagens = await receberArquivo(usuario, bytes, mime);
-  } else {
-    mensagens = ["Só entendo texto, áudio, foto ou PDF. Me mande a fatura, um print das compras ou conte o que gastou."];
-  }
-
   for (const texto of mensagens) await enviarTexto(m.de, texto);
 }

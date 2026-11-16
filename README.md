@@ -48,7 +48,7 @@ O sistema tem duas áreas separadas: o app de quem usa e o painel de quem acompa
 | `/painel/[id]/memoria` | Responsável | Memória da assistente: características, tom, objetivo, anotações e teste |
 | `/api/desafoga/[acao]` | API | Dados e conversa do Desafoga (uma ação por chamada, com o visitante no cabeçalho) |
 | `/api/twilio/webhook`, `/api/whatsapp/webhook` | WhatsApp | Mensagens que chegam pelo WhatsApp |
-| `/luana`, `/p` | Luana antiga | Chat de antes e painel pelo link, para números sem cadastro |
+| `/luana`, `/p` | Luana antiga | Chat web de antes e painel pelo link (o WhatsApp agora atende só pelo Desafoga) |
 
 Pacientes da demonstração: `ana`, `carlos`, `lucia` e `rafael`.
 
@@ -99,12 +99,12 @@ Valores em centavos e taxas como fração ao mês. Cada função tem teste.
 
 A Luana é a mesma nos dois canais: mesmo código no servidor (`src/lib/desafoga`), mesma memória do profissional e mesmos números.
 
-- **Dados unificados:** no cadastro, a pessoa informa o número de WhatsApp (hoje, em "Conectar WhatsApp", no chat do app) e manda pelo WhatsApp o código que aparece na tela (`DESAFOGA 123456`). Só depois disso o número fica ligado à conta, para ninguém cadastrar o número de outra pessoa. A partir daí, tudo o que ela manda por esse número (compras, faturas, áudios) cai na conta dela e aparece no app e no painel do responsável.
+- **Dados unificados:** no cadastro, a pessoa informa o número de WhatsApp (hoje, em "Conectar WhatsApp", no chat do app). A Luana manda um código para esse WhatsApp e a pessoa digita o código no app; só então o número fica ligado à conta, para ninguém conectar o número de outra pessoa. A partir daí, tudo o que ela manda por esse número (compras, faturas, áudios) cai na conta dela e aparece no app e no painel do responsável.
 - **Conversas separadas:** o chat do app e o do WhatsApp são conversas diferentes. Uma pergunta em aberto num canal não se mistura com o outro.
 - **IA lê, código calcula:** o Gemini lê gastos escritos do jeito da pessoa ("almoço 35 e uber 18,50"), faturas, prints e áudios, e conversa usando a memória. Plano, simulações, juros, o registro de compras (com emoção e necessidade) e a resposta a sofrimento intenso seguem por regras, com os números de `src/lib/finance`. Sem `GEMINI_API_KEY`, ou com a IA fora do ar, as regras respondem tudo.
-- **Webhooks:** `/api/twilio/webhook` (sandbox da Twilio) e `/api/whatsapp/webhook` (Meta). Número cadastrado vai para o Desafoga; número sem cadastro segue com a Luana de antes.
+- **Webhooks:** `/api/twilio/webhook` (sandbox da Twilio) e `/api/whatsapp/webhook` (Meta). Número sem conta recebe um aviso de que não está conectado e o link da plataforma para se cadastrar.
 
-Para a demonstração com o sandbox da Twilio: preencha `NEXT_PUBLIC_WHATSAPP_NUMERO` e `NEXT_PUBLIC_WHATSAPP_CODIGO` (código do "join"), conecte o seu número na conta da Ana, mande o código pelo WhatsApp e converse com a Luana pelo WhatsApp.
+Para a demonstração com o sandbox da Twilio: preencha `NEXT_PUBLIC_WHATSAPP_NUMERO` e `NEXT_PUBLIC_WHATSAPP_CODIGO` (código do "join"), mande `join <código>` para o número do sandbox, conecte o seu número na conta da Ana, digite o código que chegar no WhatsApp e converse com a Luana pelo WhatsApp.
 
 ## O que ainda é simulado
 

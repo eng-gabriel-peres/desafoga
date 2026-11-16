@@ -14,6 +14,7 @@ import { aoMudar, esperar, obterBanco, recomecarBanco, salvar } from "./banco";
 
 const copia = <T>(x: T): T => structuredClone(x);
 const b = obterBanco;
+const pedidosLocais = new Map<string, { telefone: string; codigo: string }>();
 
 /** Aplica uma mudança e avisa as telas. */
 function mudar<T>(f: () => T): Promise<T> {
@@ -34,11 +35,16 @@ export const servicosLocais: Servicos = {
     async conectarWhatsapp(id, telefone) {
       const numero = normalizarTelefone(telefone);
       if (!numero) throw new Error("Número inválido. Use DDD e número, por exemplo (11) 99999-8888.");
-      // Sem servidor não há WhatsApp: a versão local só guarda o número.
-      return mudar(() => {
-        b().telefones[id] = numero;
-        return { telefone: numero, codigo: null };
-      });
+      // Sem servidor não há WhatsApp para mandar o código: ele aparece na tela.
+      const codigo = String(Math.floor(Math.random() * 1e6)).padStart(6, "0");
+      pedidosLocais.set(id, { telefone: numero, codigo });
+      return { telefone: numero, codigoDeTeste: codigo };
+    },
+    async confirmarWhatsapp(id, codigo) {
+      const pedido = pedidosLocais.get(id);
+      if (!pedido || pedido.codigo !== codigo.trim()) throw new Error("Código não confere.");
+      pedidosLocais.delete(id);
+      return mudar(() => (b().telefones[id] = pedido.telefone));
     },
     desconectarWhatsapp: (id) => mudar(() => void (b().telefones[id] = null)),
   },

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { consumir, redeDe } from "@/lib/limite";
 import { usuarioValido } from "@/lib/luana/usuario";
 import { ArquivoRecusado, lerFatura, receberArquivoNoChat, receberAudioNoChat } from "@/lib/desafoga/servidor/acoes";
+import { PedidoRecusado } from "@/lib/desafoga/servidor/armazem";
 import { acaoExiste, ErroDeEntrada, executar, recursoDa } from "@/lib/desafoga/servidor/rotas";
 
 /** Leitura de fatura e de áudio pela IA pode levar algumas dezenas de segundos. */
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
     const corpo = (await request.json().catch(() => ({}))) as { args?: unknown };
     return NextResponse.json({ dados: (await executar(acao, visitante, corpo.args)) ?? null });
   } catch (e) {
-    if (e instanceof ErroDeEntrada || e instanceof ArquivoRecusado) return erro(e.message, 400);
+    if (e instanceof ErroDeEntrada || e instanceof ArquivoRecusado || e instanceof PedidoRecusado) return erro(e.message, 400);
     if (e instanceof Error && e.message.startsWith("Pessoa não encontrada")) return erro(e.message, 404);
     console.error("Desafoga API:", acao, e instanceof Error ? e.message.slice(0, 300) : "erro");
     return erro("Não consegui fazer isso agora. Tente de novo.", 500);

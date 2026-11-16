@@ -21,7 +21,8 @@ import {
 } from "@/services/nucleo";
 import type { Fatura } from "@/services/tipos";
 import { responderTexto, testarResposta } from "./acoes";
-import { comBanco, desvincularTelefone, pedirTelefone, recomecarBanco } from "./armazem";
+import { cancelarPedido, comBanco, confirmarTelefone, desvincularTelefone, PedidoRecusado, pedirTelefone, recomecarBanco } from "./armazem";
+import { enviarPeloWhatsapp, whatsappConfigurado } from "./enviar";
 
 /** Ids só com letras minúsculas, números e hífen: nada de "__proto__" e afins. */
 const id = z.string().regex(/^[a-z0-9-]{1,40}$/);
@@ -61,7 +62,29 @@ const ACOES = {
     await comBanco(v, (b) => pessoa(b, p), false);
     const pedido = await pedirTelefone(v, p, tel);
     if (!pedido) throw new ErroDeEntrada("Número inválido. Use DDD e número, por exemplo (11) 99999-8888.");
-    return pedido;
+    const mensagem = `Seu código do Desafoga é ${pedido.codigo}. Digite no app para conectar este WhatsApp. Se não foi você, ignore esta mensagem.`;
+    if (!whatsappConfigurado() && process.env.NODE_ENV !== "production") {
+      // Desenvolvimento sem WhatsApp configurado: o código aparece na tela.
+      return { telefone: pedido.telefone, codigoDeTeste: pedido.codigo };
+    }
+    try {
+      await enviarPeloWhatsapp(pedido.telefone, mensagem);
+    } catch (e) {
+      await cancelarPedido(v, p, pedido.telefone);
+      console.error("Desafoga: código não enviado,", e instanceof Error ? e.message.slice(0, 200) : "erro");
+      throw new ErroDeEntrada(
+        "Não consegui mandar o código para esse WhatsApp. No sandbox da Twilio, mande antes a mensagem de entrada (join) para o número da Luana e tente de novo.",
+      );
+    }
+    return { telefone: pedido.telefone, codigoDeTeste: null };
+  }, "texto"),
+  "pessoas.confirmarWhatsapp": acao(z.tuple([id, z.string().regex(/^\s*\d{6}\s*$/)]), async (v, [p, codigo]) => {
+    try {
+      return await confirmarTelefone(v, p, codigo);
+    } catch (e) {
+      if (e instanceof PedidoRecusado) throw new ErroDeEntrada(e.message);
+      throw e;
+    }
   }),
   "pessoas.desconectarWhatsapp": acao(z.tuple([id]), (v, [p]) => desvincularTelefone(v, p)),
 

@@ -1,10 +1,11 @@
 /**
- * Mensagens do WhatsApp de quem cadastrou o número no Desafoga. Usa a mesma
- * Luana do app (mesmas regras, memória e números), na conversa do WhatsApp.
+ * Mensagens que chegam ao WhatsApp da Luana. Número conectado a uma conta:
+ * a mesma Luana do app responde, com os dados da pessoa, na conversa do
+ * WhatsApp. Número sem conta: a Luana explica e manda o link para se cadastrar.
  */
 import { paraWhatsapp } from "../conversar";
 import { receberArquivoNoChat, receberAudioNoChat, responderTexto } from "./acoes";
-import { codigoDaMensagem, confirmarTelefone, donoDoTelefone } from "./armazem";
+import { donoDoTelefone } from "./armazem";
 
 export interface MensagemRecebida {
   de: string;
@@ -13,24 +14,19 @@ export interface MensagemRecebida {
   baixar?: () => Promise<{ bytes: Uint8Array; mime: string }>;
 }
 
-/**
- * Responde a mensagem se o número está cadastrado no Desafoga. Devolve os
- * textos a enviar, ou null quando o número não é de ninguém (segue a Luana antiga).
- */
-export async function atenderNoDesafoga(m: MensagemRecebida, avisarLeitura: () => Promise<void>): Promise<string[] | null> {
-  // Código do cadastro ("DESAFOGA 123456") vindo do próprio número: confirma a ligação.
-  const codigo = m.tipo === "text" && m.texto ? codigoDaMensagem(m.texto) : null;
-  if (codigo) {
-    const confirmado = await confirmarTelefone(m.de, codigo);
-    return [
-      confirmado
-        ? "Pronto, seu WhatsApp está ligado ao Desafoga. Pode me contar suas compras, mandar a fatura ou um áudio por aqui."
-        : "Esse código não confere ou já venceu. Gere um novo em Conectar WhatsApp, no app.",
-    ];
-  }
+/** Resposta para quem ainda não conectou o WhatsApp a uma conta do Desafoga. */
+export function mensagemSemConta(origem: string): string {
+  return [
+    "Oi! Eu sou a Luana, assistente do Desafoga.",
+    "Este número ainda não está conectado a nenhuma conta, então não consigo anotar nada por aqui.",
+    `Para começar, crie sua conta em ${origem} e, no app, toque em Conectar WhatsApp. Eu mando um código para este número e você confirma por lá.`,
+  ].join("\n\n");
+}
 
+/** Textos a enviar de volta para quem mandou a mensagem. */
+export async function atenderNoWhatsapp(m: MensagemRecebida, origem: string, avisarLeitura: () => Promise<void>): Promise<string[]> {
   const dono = await donoDoTelefone(m.de);
-  if (!dono) return null;
+  if (!dono) return [mensagemSemConta(origem)];
   const { visitante, pessoaId } = dono;
 
   if (m.tipo === "text" && m.texto) {

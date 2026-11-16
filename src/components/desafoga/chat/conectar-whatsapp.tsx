@@ -21,10 +21,11 @@ export function BotaoWhatsapp({ pessoaId }: { pessoaId: string }) {
         type="button"
         onClick={() => setAberto(true)}
         aria-haspopup="dialog"
+        aria-label={numero ? "WhatsApp conectado. Trocar número" : "Conectar WhatsApp"}
         className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface2 px-3 text-[0.85rem] font-bold hover:border-primary"
       >
         <MessageCircle aria-hidden="true" className="size-4" />
-        {numero ? "WhatsApp conectado" : "Conectar WhatsApp"}
+        {numero ? "WhatsApp" : "Conectar WhatsApp"}
         {numero && <Check aria-hidden="true" className="size-4 text-good" />}
       </button>
       {aberto && <DialogoWhatsapp pessoaId={pessoaId} atual={numero ?? null} fechar={() => setAberto(false)} />}
@@ -32,28 +33,61 @@ export function BotaoWhatsapp({ pessoaId }: { pessoaId: string }) {
   );
 }
 
+type Etapa =
+  | { tipo: "numero" }
+  | { tipo: "codigo"; telefone: string; codigoDeTeste: string | null }
+  | { tipo: "pronto"; telefone: string };
+
+const CAMPO = "min-h-12 w-full rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 outline-none focus:border-primary";
+
+/**
+ * Conectar o WhatsApp: a pessoa informa o número, a Luana manda um código
+ * para esse WhatsApp e a pessoa digita o código aqui. Assim só quem tem o
+ * celular na mão liga o número à conta.
+ */
 function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual: string | null; fechar: () => void }) {
-  const [texto, setTexto] = useState(atual ? telefoneLegivel(atual) : "");
+  const [etapa, setEtapa] = useState<Etapa>({ tipo: "numero" });
+  const [numero, setNumero] = useState(atual ? telefoneLegivel(atual) : "");
+  const [codigo, setCodigo] = useState("");
   const [erro, setErro] = useState("");
-  const [pedido, setPedido] = useState<{ telefone: string; codigo: string | null } | null>(null);
-  // Enquanto espera o código chegar pelo WhatsApp, a consulta do número se atualiza sozinha.
-  const confirmado = pedido && atual === pedido.telefone;
+  const [enviando, setEnviando] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    caixa.current?.querySelector("input")?.focus();
     const esc = (e: KeyboardEvent) => e.key === "Escape" && fechar();
     document.addEventListener("keydown", esc);
     return () => document.removeEventListener("keydown", esc);
   }, [fechar]);
 
-  async function salvar(e: React.FormEvent) {
+  useEffect(() => {
+    caixa.current?.querySelector<HTMLInputElement>("input")?.focus();
+  }, [etapa.tipo]);
+
+  async function pedirCodigo(e?: React.FormEvent) {
+    e?.preventDefault();
+    setErro("");
+    setEnviando(true);
+    try {
+      const r = await servicos.pessoas.conectarWhatsapp(pessoaId, numero);
+      setCodigo("");
+      setEtapa({ tipo: "codigo", telefone: r.telefone, codigoDeTeste: r.codigoDeTeste });
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "Não consegui mandar o código.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  async function confirmar(e: React.FormEvent) {
     e.preventDefault();
     setErro("");
+    setEnviando(true);
     try {
-      setPedido(await servicos.pessoas.conectarWhatsapp(pessoaId, texto));
+      setEtapa({ tipo: "pronto", telefone: await servicos.pessoas.confirmarWhatsapp(pessoaId, codigo) });
     } catch (falha) {
-      setErro(falha instanceof Error ? falha.message : "Não consegui salvar o número.");
+      setErro(falha instanceof Error ? falha.message : "Não consegui confirmar.");
+    } finally {
+      setEnviando(false);
     }
   }
 
@@ -68,64 +102,105 @@ function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual:
             <X aria-hidden="true" className="size-5" />
           </button>
         </div>
-        <p className="text-muted">
-          O que você contar pelo WhatsApp (compras, faturas, áudios) entra aqui no app. As conversas são separadas: o WhatsApp tem a dele e o app tem a sua.
-        </p>
-        <form onSubmit={salvar} className="mt-4">
-          <label className="block">
-            <span className="mb-1.5 block font-bold">Seu número de WhatsApp</span>
-            <input
-              value={texto}
-              onChange={(e) => {
-                setTexto(e.target.value);
-                setPedido(null);
-              }}
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="(11) 99999-8888"
-              aria-describedby="whatsapp-ajuda"
-              className="min-h-12 w-full rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 outline-none focus:border-primary"
-            />
-          </label>
-          <p id="whatsapp-ajuda" className="mt-1 text-[0.85rem] text-muted">
-            Com DDD. No cadastro, este é o número que a pessoa informa.
-          </p>
-          {erro && (
-            <p role="alert" className="mt-2 font-bold text-bad">
-              {erro}
+
+        {etapa.tipo === "numero" && (
+          <>
+            <p className="text-muted">
+              O que você contar pelo WhatsApp (compras, faturas, áudios) entra aqui no app. As conversas são separadas: o WhatsApp tem a dele e o app tem a sua.
             </p>
-          )}
-          <div role="status" aria-live="polite">
-            {pedido && (confirmado || !pedido.codigo) && (
-              <p className="mt-2 rounded-xl bg-good-soft px-3 py-2 font-bold text-good">Pronto: {telefoneLegivel(pedido.telefone)} está ligado à sua conta.</p>
-            )}
-            {pedido?.codigo && !confirmado && (
-              <div className="mt-3 rounded-xl border-2 border-primary bg-primary-soft p-3.5">
-                <p>Para provar que o número é seu, mande esta mensagem para a Luana pelo WhatsApp de {telefoneLegivel(pedido.telefone)}:</p>
-                <p className="mt-2 text-center text-[1.4rem] font-bold tracking-wider">DESAFOGA {pedido.codigo}</p>
-                <p className="mt-1 text-[0.85rem] text-muted">O código vale por 30 minutos. Esta tela avisa quando a ligação for confirmada.</p>
+            {atual && <p className="mt-2 font-bold">Conectado agora: {telefoneLegivel(atual)}</p>}
+            <form onSubmit={pedirCodigo} className="mt-4">
+              <label className="block">
+                <span className="mb-1.5 block font-bold">Seu número de WhatsApp</span>
+                <input
+                  value={numero}
+                  onChange={(e) => setNumero(e.target.value)}
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="(11) 99999-8888"
+                  aria-describedby="whatsapp-ajuda"
+                  className={CAMPO}
+                />
+              </label>
+              <p id="whatsapp-ajuda" className="mt-1 text-[0.85rem] text-muted">
+                Com DDD. Vamos mandar um código para esse WhatsApp.
+              </p>
+              {erro && (
+                <p role="alert" className="mt-2 font-bold text-bad">
+                  {erro}
+                </p>
+              )}
+              <Botao type="submit" bloco className="mt-4" disabled={enviando}>
+                {enviando ? "Enviando…" : "Enviar código"}
+              </Botao>
+            </form>
+            {(NUMERO_DA_LUANA || CODIGO_DE_ENTRADA) && (
+              <div className="mt-5 rounded-2xl bg-surface p-4 text-[0.95rem]">
+                <b className="block">Antes, no seu WhatsApp</b>
+                <ol className="mt-1.5 list-decimal space-y-1 pl-5">
+                  {NUMERO_DA_LUANA && <li>Salve o número da Luana: {NUMERO_DA_LUANA}.</li>}
+                  {CODIGO_DE_ENTRADA && (
+                    <li>
+                      Mande <b>join {CODIGO_DE_ENTRADA}</b> para ele (é o sandbox da Twilio; sem isso o código não chega).
+                    </li>
+                  )}
+                </ol>
               </div>
             )}
-          </div>
-          {!pedido?.codigo && (
-            <Botao type="submit" bloco className="mt-4">
-              {atual ? "Trocar número" : "Conectar"}
-            </Botao>
-          )}
-        </form>
-        <div className="mt-5 rounded-2xl bg-surface p-4 text-[0.95rem]">
-          <b className="block">No seu WhatsApp</b>
-          <ol className="mt-1.5 list-decimal space-y-1 pl-5">
-            <li>Salve o número da Luana{NUMERO_DA_LUANA ? `: ${NUMERO_DA_LUANA}` : ""}.</li>
-            {CODIGO_DE_ENTRADA && (
-              <li>
-                Mande <b>join {CODIGO_DE_ENTRADA}</b> uma vez, para liberar a conversa (é o sandbox da Twilio).
-              </li>
+          </>
+        )}
+
+        {etapa.tipo === "codigo" && (
+          <form onSubmit={confirmar}>
+            <p>
+              Mandamos um código para o WhatsApp <b>{telefoneLegivel(etapa.telefone)}</b>. Digite aqui para confirmar que o número é seu.
+            </p>
+            {etapa.codigoDeTeste && (
+              <p className="mt-2 rounded-xl bg-maybe-soft px-3 py-2 text-[0.9rem] text-maybe">
+                Ambiente de desenvolvimento sem WhatsApp configurado: o código é <b>{etapa.codigoDeTeste}</b>.
+              </p>
             )}
-            <li>Mande o código que aparece aqui depois de informar o número.</li>
-            <li>Converse como aqui: “comprei pão 12”, um áudio ou a foto da fatura.</li>
-          </ol>
-        </div>
+            <label className="mt-4 block">
+              <span className="mb-1.5 block font-bold">Código</span>
+              <input
+                value={codigo}
+                onChange={(e) => setCodigo(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                className={`${CAMPO} text-center text-[1.4rem] font-bold tracking-[0.4em]`}
+              />
+            </label>
+            {erro && (
+              <p role="alert" className="mt-2 font-bold text-bad">
+                {erro}
+              </p>
+            )}
+            <Botao type="submit" bloco className="mt-4" disabled={enviando || codigo.length !== 6}>
+              {enviando ? "Confirmando…" : "Confirmar"}
+            </Botao>
+            <div className="mt-2 flex flex-wrap justify-between gap-2">
+              <Botao variante="link" onClick={() => setEtapa({ tipo: "numero" })}>
+                Trocar número
+              </Botao>
+              <Botao variante="link" onClick={() => pedirCodigo()} disabled={enviando}>
+                Mandar outro código
+              </Botao>
+            </div>
+          </form>
+        )}
+
+        {etapa.tipo === "pronto" && (
+          <div role="status">
+            <p className="rounded-xl bg-good-soft px-3 py-2.5 font-bold text-good">
+              Pronto: {telefoneLegivel(etapa.telefone)} está conectado à sua conta.
+            </p>
+            <p className="mt-3">Agora é só conversar com a Luana pelo WhatsApp: “comprei pão 12”, um áudio ou a foto da fatura.</p>
+            <Botao bloco className="mt-4" onClick={fechar}>
+              Fechar
+            </Botao>
+          </div>
+        )}
       </div>
     </div>
   );

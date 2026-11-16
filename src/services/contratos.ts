@@ -27,11 +27,13 @@ export interface PessoasService {
   /** Número de WhatsApp cadastrado pela pessoa (só dígitos), ou null. */
   whatsapp(pessoaId: string): Promise<string | null>;
   /**
-   * Começa o cadastro do WhatsApp. Devolve o número normalizado e o código que
-   * a pessoa manda pelo WhatsApp para provar que o número é dela; só depois
-   * disso as mensagens caem na conta. `codigo` é null quando não precisa (versão local).
+   * Começa o cadastro do WhatsApp: manda um código para o número. Devolve o
+   * número normalizado. `codigoDeTeste` só vem em desenvolvimento, quando não
+   * há WhatsApp configurado para enviar.
    */
-  conectarWhatsapp(pessoaId: string, telefone: string): Promise<{ telefone: string; codigo: string | null }>;
+  conectarWhatsapp(pessoaId: string, telefone: string): Promise<{ telefone: string; codigoDeTeste: string | null }>;
+  /** Confirma com o código recebido no WhatsApp. Devolve o número ligado. */
+  confirmarWhatsapp(pessoaId: string, codigo: string): Promise<string>;
   desconectarWhatsapp(pessoaId: string): Promise<void>;
 }
 

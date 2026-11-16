@@ -137,52 +137,79 @@ interface Vinculo {
   pessoaId: string;
 }
 
-interface Pedido extends Vinculo {
+interface Pedido {
+  telefone: string;
   codigo: string;
   expira: number;
+  tentativas: number;
 }
 
-/** Tempo para mandar o código pelo WhatsApp. */
-const VALIDADE_DO_CODIGO_MS = 30 * 60_000;
+/** Tempo para digitar o código recebido no WhatsApp. */
+const VALIDADE_DO_CODIGO_MS = 15 * 60_000;
+/** Tentativas de código por envio: 6 dígitos não dão para adivinhar em 5. */
+const MAXIMO_DE_TENTATIVAS = 5;
+/** Intervalo mínimo entre dois códigos para o mesmo número, para não virar spam. */
+const INTERVALO_ENTRE_ENVIOS_MS = 60_000;
+
+export class PedidoRecusado extends Error {}
 
 /**
- * Primeiro passo do cadastro do WhatsApp: gera um código de 6 dígitos. A
- * ligação só vale depois que esse código chega pelo próprio número
- * (`confirmarTelefone`), para ninguém cadastrar o número de outra pessoa e
- * passar a receber as mensagens dela.
+ * Primeiro passo do cadastro do WhatsApp: gera um código de 6 dígitos para
+ * mandar ao número. A ligação só vale quando a pessoa digita esse código no
+ * app (`confirmarTelefone`): ninguém liga à própria conta o número de outra
+ * pessoa sem ter o celular dela na mão.
  */
-export async function pedirTelefone(visitante: string, pessoaId: string, texto: string): Promise<{ telefone: string; codigo: string } | null> {
+export async function pedirTelefone(
+  visitante: string,
+  pessoaId: string,
+  texto: string,
+  agora = Date.now(),
+): Promise<{ telefone: string; codigo: string } | null> {
   const telefone = normalizarTelefone(texto);
   if (!telefone) return null;
+  const ultimoEnvio = (await armazem().ler(`envio:${telefone}`)) as number | null;
+  if (ultimoEnvio && agora - ultimoEnvio < INTERVALO_ENTRE_ENVIOS_MS) {
+    throw new PedidoRecusado("Acabamos de mandar um código para esse número. Espere um minuto para pedir outro.");
+  }
   const codigo = String(randomInt(0, 1_000_000)).padStart(6, "0");
-  const pedido: Pedido = { visitante, pessoaId, codigo, expira: Date.now() + VALIDADE_DO_CODIGO_MS };
-  await armazem().gravar(`pedido:${telefone}`, pedido);
+  const pedido: Pedido = { telefone, codigo, expira: agora + VALIDADE_DO_CODIGO_MS, tentativas: 0 };
+  await armazem().gravar(`pedido:${visitante}:${pessoaId}`, pedido);
+  await armazem().gravar(`envio:${telefone}`, agora);
   return { telefone, codigo };
 }
 
-/** "DESAFOGA 123456", com ou sem espaço, em qualquer caixa. */
-export function codigoDaMensagem(texto: string): string | null {
-  return texto.trim().match(/^desafoga\s*(\d{6})$/i)?.[1] ?? null;
+/** Desfaz o pedido quando o código não pôde ser enviado. */
+export async function cancelarPedido(visitante: string, pessoaId: string, telefone: string): Promise<void> {
+  await armazem().apagar(`pedido:${visitante}:${pessoaId}`);
+  await armazem().apagar(`envio:${telefone}`);
 }
 
 /**
- * Segundo passo: a mensagem com o código chegou do número. Liga o número à
- * pessoa (desfazendo a ligação anterior dela, se houver) e devolve o vínculo.
+ * Segundo passo: a pessoa digitou no app o código que recebeu. Liga o número
+ * a ela (desfazendo a ligação anterior, se houver) e devolve o número.
  */
-export async function confirmarTelefone(numero: string, codigo: string, agora = Date.now()): Promise<Vinculo | null> {
-  const telefone = normalizarTelefone(numero);
-  if (!telefone) return null;
-  const pedido = (await armazem().ler(`pedido:${telefone}`)) as Pedido | null;
-  if (!pedido || pedido.expira < agora || !iguais(pedido.codigo, codigo)) return null;
-  const { visitante, pessoaId } = pedido;
+export async function confirmarTelefone(visitante: string, pessoaId: string, codigo: string, agora = Date.now()): Promise<string> {
+  const chave = `pedido:${visitante}:${pessoaId}`;
+  const pedido = (await armazem().ler(chave)) as Pedido | null;
+  if (!pedido || pedido.expira < agora) throw new PedidoRecusado("O código venceu. Peça um novo.");
+  if (!iguais(pedido.codigo, codigo.trim())) {
+    pedido.tentativas += 1;
+    if (pedido.tentativas >= MAXIMO_DE_TENTATIVAS) {
+      await armazem().apagar(chave);
+      throw new PedidoRecusado("Código errado muitas vezes. Peça um novo.");
+    }
+    await armazem().gravar(chave, pedido);
+    throw new PedidoRecusado("Código não confere. Confira a mensagem no WhatsApp.");
+  }
+  const { telefone } = pedido;
   await comBanco(visitante, async (banco) => {
     const anterior = banco.telefones[pessoaId];
     if (anterior && anterior !== telefone) await apagarSeFor(anterior, visitante, pessoaId);
     banco.telefones[pessoaId] = telefone;
   });
   await armazem().gravar(`telefone:${telefone}`, { visitante, pessoaId } satisfies Vinculo);
-  await armazem().apagar(`pedido:${telefone}`);
-  return { visitante, pessoaId };
+  await armazem().apagar(chave);
+  return telefone;
 }
 
 function iguais(a: string, b: string): boolean {
