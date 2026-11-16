@@ -18,6 +18,7 @@ import {
   simularQuitacao,
   somaDosMinimos,
   somaDosValores,
+  type Categoria,
   type Compra,
   type Divida,
   type Emocao,
@@ -56,13 +57,22 @@ export interface ContextoAssistente {
   plano: Plano;
   faturas: Fatura[];
   agora: Date;
+  /** Por onde a conversa acontece: a compra registrada guarda a origem. */
+  canal: "app" | "whatsapp";
+}
+
+/** Compra que a pessoa contou e ainda falta classificar. */
+export interface CompraContada {
+  item: string;
+  valor: number;
+  categoria?: Categoria;
 }
 
 export type EstadoConversa =
   | { etapa: "livre" }
   | { etapa: "valor"; item: string }
-  | { etapa: "emocao"; item: string; valor: number }
-  | { etapa: "necessidade"; item: string; valor: number; emocao: Emocao };
+  | { etapa: "emocao"; compras: CompraContada[] }
+  | { etapa: "necessidade"; compras: CompraContada[]; emocao: Emocao };
 
 export const ESTADO_INICIAL: EstadoConversa = { etapa: "livre" };
 
@@ -235,15 +245,24 @@ function respostaSofrimento(ctx: ContextoAssistente): Resultado {
   };
 }
 
-function registrar(ctx: ContextoAssistente, item: string, valor: number, emocao: Emocao, necessidade: Necessidade): Resultado {
-  const compra: NovaCompra = { item, categoria: adivinharCategoria(item), valor, emocao, necessidade, via: "whatsapp" };
-  const agora: Compra = { ...compra, id: "nova", quando: ctx.agora.toISOString(), avaliacaoProfissional: null };
-  const hoje = comprasDoDia([...ctx.compras, agora], chaveDoDia(ctx.agora));
+function registrar(ctx: ContextoAssistente, contadas: CompraContada[], emocao: Emocao, necessidade: Necessidade): Resultado {
+  const novas: NovaCompra[] = contadas.map((c) => ({
+    item: c.item,
+    categoria: c.categoria ?? adivinharCategoria(c.item),
+    valor: c.valor,
+    emocao,
+    necessidade,
+    via: ctx.canal,
+  }));
+  const registradas: Compra[] = novas.map((c, i) => ({ ...c, id: `nova-${i}`, quando: ctx.agora.toISOString(), avaliacaoProfissional: null }));
+  const hoje = comprasDoDia([...ctx.compras, ...registradas], chaveDoDia(ctx.agora));
   const nota = notaMedia(hoje) ?? emocao;
   const linhas = [
-    `Anotado: ${item}, ${reais(valor)}.`,
+    novas.length === 1
+      ? `Anotado: ${novas[0].item}, ${reais(novas[0].valor)}.`
+      : `Anotado:\n${novas.map((c) => `• ${c.item}, ${reais(c.valor)}`).join("\n")}`,
     `Você estava: ${NOME_DA_EMOCAO[emocao]}`,
-    `Era necessária: ${RESPOSTA_DA_NECESSIDADE[necessidade]}`,
+    `${novas.length === 1 ? "Era necessária" : "Eram necessárias"}: ${RESPOSTA_DA_NECESSIDADE[necessidade]}`,
     "",
     `Sua nota de hoje agora é ${umaCasa(nota)} (${rotuloDaNota(nota)}).`,
   ];
@@ -253,8 +272,17 @@ function registrar(ctx: ContextoAssistente, item: string, valor: number, emocao:
   return {
     estado: ESTADO_INICIAL,
     respostas: [{ texto: linhas.join("\n") }],
-    efeitos: [{ tipo: "registrar-compra", compra }],
+    efeitos: novas.map((compra) => ({ tipo: "registrar-compra" as const, compra })),
   };
+}
+
+/** Começa o registro de compras já com valor: pergunta a emoção. */
+export function iniciarRegistro(compras: CompraContada[]): Resultado {
+  const texto =
+    compras.length === 1
+      ? PERGUNTA_EMOCAO
+      : `Anotei ${compras.length} compras: ${compras.map((c) => `${c.item} (${reais(c.valor)})`).join(", ")}. Como você estava quando fez essas compras? Toque numa carinha ou responda de 1 (muito triste) a 5 (muito feliz).`;
+  return so({ etapa: "emocao", compras }, { texto, respostasRapidas: RAPIDAS_EMOCAO });
 }
 
 /** Continua o registro de uma compra começado numa mensagem anterior. */
@@ -262,16 +290,17 @@ function continuarCompra(estado: Exclude<EstadoConversa, { etapa: "livre" }>, te
   if (estado.etapa === "valor") {
     const valor = lerValorEmReais(texto);
     if (!valor) return so(estado, { texto: "Não entendi o valor. Escreva só o número, por exemplo: 49,90" });
-    return so({ etapa: "emocao", item: estado.item, valor }, { texto: PERGUNTA_EMOCAO, respostasRapidas: RAPIDAS_EMOCAO });
+    return iniciarRegistro([{ item: estado.item, valor }]);
   }
   if (estado.etapa === "emocao") {
     const emocao = lerEmocao(texto);
     if (!emocao) return so(estado, { texto: "Responda com um número de 1 a 5, ou toque numa carinha.", respostasRapidas: RAPIDAS_EMOCAO });
-    return so({ ...estado, etapa: "necessidade", emocao }, { texto: "Essa compra era necessária?", respostasRapidas: RAPIDAS_NECESSIDADE });
+    const pergunta = estado.compras.length === 1 ? "Essa compra era necessária?" : "Essas compras eram necessárias?";
+    return so({ ...estado, etapa: "necessidade", emocao }, { texto: pergunta, respostasRapidas: RAPIDAS_NECESSIDADE });
   }
   const necessidade = lerNecessidade(texto);
   if (!necessidade) return so(estado, { texto: "Responda Sim, Não ou Não sei.", respostasRapidas: RAPIDAS_NECESSIDADE });
-  return registrar(ctx, estado.item, estado.valor, estado.emocao, necessidade);
+  return registrar(ctx, estado.compras, estado.emocao, necessidade);
 }
 
 export function responder(estado: EstadoConversa, texto: string, ctx: ContextoAssistente): Resultado {
@@ -292,10 +321,7 @@ export function responder(estado: EstadoConversa, texto: string, ctx: ContextoAs
       if (intencao.valor === null) {
         return so({ etapa: "valor", item: intencao.item }, { texto: `Quanto custou ${intencao.item.toLowerCase()}?` });
       }
-      return so(
-        { etapa: "emocao", item: intencao.item, valor: intencao.valor },
-        { texto: PERGUNTA_EMOCAO, respostasRapidas: RAPIDAS_EMOCAO },
-      );
+      return iniciarRegistro([{ item: intencao.item, valor: intencao.valor }]);
     case "vontade-de-comprar":
       return so(estado, { texto: respostaVontade(ctx) });
     default:

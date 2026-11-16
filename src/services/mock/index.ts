@@ -1,183 +1,117 @@
 /**
- * Implementação simulada dos serviços, sobre os dados fictícios. Nada sai do
- * navegador. Para ligar no backend, basta outra implementação de `Servicos`.
+ * Versão local dos serviços: tudo no navegador, sem IA e sem WhatsApp.
+ * A Luana responde pelas regras locais. Usada quando
+ * NEXT_PUBLIC_DESAFOGA_DADOS=local.
  */
-import { FATURA_DE_EXEMPLO, materializarFatura, PROFISSIONAIS, RESPONSAVEL_DA_DEMO } from "@/fixtures/desafoga";
+import { FATURA_DE_EXEMPLO, materializarFatura, PROFISSIONAIS } from "@/fixtures/desafoga";
 import { montarContexto } from "@/lib/assistente/contexto";
-import { ESTADO_INICIAL, responder, type ContextoAssistente, type Efeito } from "@/lib/assistente/conversa";
-import { reais } from "@/lib/assistente/textos";
+import { conversar } from "@/lib/desafoga/conversar";
+import { respostaDaFatura } from "@/lib/desafoga/fatura-lida";
+import { normalizarTelefone } from "@/lib/desafoga/telefone";
 import type { Servicos } from "../contratos";
-import type { Aviso, Compra, Mensagem, NovaCompra, Profissional } from "../tipos";
-import { aoMudar, esperar, novoId, obterBanco, pessoa, recomecarBanco, salvar } from "./banco";
+import * as n from "../nucleo";
+import { aoMudar, esperar, obterBanco, recomecarBanco, salvar } from "./banco";
 
-/** A partir deste valor, o responsável recebe um aviso de compra alta. */
-const COMPRA_ALTA = 20000;
-
-const responsavel = (): Profissional => PROFISSIONAIS.find((p) => p.id === RESPONSAVEL_DA_DEMO) ?? PROFISSIONAIS[0];
 const copia = <T>(x: T): T => structuredClone(x);
+const b = obterBanco;
 
-function avisar(pessoaId: string, tipo: Aviso["tipo"], texto: string) {
-  pessoa(pessoaId).avisos.unshift({ id: novoId("aviso"), pessoaId, tipo, texto, quando: new Date().toISOString() });
+/** Aplica uma mudança e avisa as telas. */
+function mudar<T>(f: () => T): Promise<T> {
+  const r = f();
+  salvar();
+  return Promise.resolve(copia(r));
 }
 
-function guardarCompra(pessoaId: string, nova: NovaCompra, quando = new Date().toISOString()): Compra {
-  const dados = pessoa(pessoaId);
-  const compra: Compra = { ...nova, id: novoId("compra"), quando, avaliacaoProfissional: null };
-  dados.compras.push(compra);
-  if (compra.valor >= COMPRA_ALTA) {
-    avisar(pessoaId, "gasto-alto", `${dados.persona.apelido} registrou uma compra de ${reais(compra.valor)} (${compra.item}).`);
-  }
-  return compra;
-}
+const extratoDeExemplo = () => ({ ...materializarFatura(FATURA_DE_EXEMPLO, new Date()), id: n.novoId("fatura") });
 
-function mensagem(de: Mensagem["de"], texto: string, extra: Partial<Mensagem> = {}): Mensagem {
-  return { id: novoId("msg"), de, texto, quando: new Date().toISOString(), ...extra };
-}
-
-function contexto(pessoaId: string): ContextoAssistente {
-  const d = pessoa(pessoaId);
-  return {
-    pessoa: d.persona,
-    memoria: d.memoria,
-    profissionais: PROFISSIONAIS,
-    responsavel: responsavel(),
-    compras: d.compras,
-    dividas: d.dividas,
-    plano: d.plano,
-    faturas: d.faturas,
-    agora: new Date(),
-  };
-}
-
-function aplicar(pessoaId: string, efeito: Efeito) {
-  if (efeito.tipo === "registrar-compra") guardarCompra(pessoaId, efeito.compra);
-  else avisar(pessoaId, efeito.aviso.tipo, efeito.aviso.texto);
-}
-
-export const servicosSimulados: Servicos = {
+export const servicosLocais: Servicos = {
   pessoas: {
-    listar: async () => copia(Object.values(obterBanco().pessoas).map((d) => d.persona)),
-    obter: async (id) => copia(obterBanco().pessoas[id]?.persona ?? null),
+    listar: async () => copia(Object.values(b().pessoas).map((d) => d.persona)),
+    obter: async (id) => copia(b().pessoas[id]?.persona ?? null),
     profissionais: async () => copia(PROFISSIONAIS),
-    responsavel: async () => copia(responsavel()),
+    responsavel: async () => copia(n.responsavel()),
+    whatsapp: async (id) => b().telefones[id] ?? null,
+    async conectarWhatsapp(id, telefone) {
+      const numero = normalizarTelefone(telefone);
+      if (!numero) throw new Error("Número inválido. Use DDD e número, por exemplo (11) 99999-8888.");
+      return mudar(() => (b().telefones[id] = numero));
+    },
+    desconectarWhatsapp: (id) => mudar(() => void (b().telefones[id] = null)),
   },
 
   compras: {
-    listar: async (id) => copia(pessoa(id).compras),
-    async registrar(id, nova) {
-      const compra = guardarCompra(id, nova);
-      salvar();
-      return copia(compra);
-    },
+    listar: async (id) => copia(n.pessoa(b(), id).compras),
+    registrar: (id, nova) => mudar(() => n.registrarCompra(b(), id, nova)),
   },
 
   dividas: {
-    listar: async (id) => copia(pessoa(id).dividas),
-    plano: async (id) => copia(pessoa(id).plano),
-    async salvarPlano(id, mudancas) {
-      const dados = pessoa(id);
-      dados.plano = { ...dados.plano, ...mudancas };
-      salvar();
-      return copia(dados.plano);
-    },
+    listar: async (id) => copia(n.pessoa(b(), id).dividas),
+    plano: async (id) => copia(n.pessoa(b(), id).plano),
+    salvarPlano: (id, m) => mudar(() => n.salvarPlano(b(), id, m)),
     async sugerirValor(id, valor) {
       await esperar(400);
-      const dados = pessoa(id);
-      dados.plano.valorSugerido = valor;
-      avisar(id, "sugestao", `${responsavel().nome} sugeriu pagar ${reais(valor)} por mês nas dívidas.`);
-      dados.conversa.push(
-        mensagem(
-          "assistente",
-          `${responsavel().nome} sugeriu pagar ${reais(valor)} por mês nas dívidas. Quer ver como fica? Abra Dívidas ou me escreva: plano.`,
-        ),
-      );
-      salvar();
+      await mudar(() => n.sugerirValor(b(), id, valor));
     },
   },
 
   faturas: {
-    listar: async (id) => copia(pessoa(id).faturas),
+    listar: async (id) => copia(n.pessoa(b(), id).faturas),
     async ler() {
       await esperar(300);
-      return { ...materializarFatura(FATURA_DE_EXEMPLO, new Date()), id: novoId("fatura") };
+      return { fatura: extratoDeExemplo(), deExemplo: true };
     },
-    async salvar(id, fatura, classificacoes) {
-      const dados = pessoa(id);
-      const lancamentos = fatura.lancamentos.map((l) => {
-        const c = classificacoes[l.id];
-        if (l.tipo !== "compra" || l.compraId || !c?.emocao || !c.necessidade) return l;
-        const compra = guardarCompra(
-          id,
-          {
-            item: l.descricao.charAt(0) + l.descricao.slice(1).toLowerCase(),
-            categoria: l.categoria ?? "Outro",
-            valor: l.valor,
-            emocao: c.emocao,
-            necessidade: c.necessidade,
-            via: "fatura",
-          },
-          new Date(`${l.data}T12:00:00`).toISOString(),
-        );
-        return { ...l, compraId: compra.id };
-      });
-      dados.faturas.push({ ...fatura, lancamentos });
-      salvar();
-    },
+    salvar: (id, fatura, c) => mudar(() => n.salvarFatura(b(), id, fatura, c)),
   },
 
   memoria: {
-    obter: async (id) => copia(pessoa(id).memoria),
-    async salvar(id, mudancas) {
-      const dados = pessoa(id);
-      dados.memoria = { ...dados.memoria, ...mudancas };
-      salvar();
-      return copia(dados.memoria);
-    },
-    async anotar(id, nova) {
-      const anotacao = { ...nova, id: novoId("nota"), quando: new Date().toISOString() };
-      pessoa(id).memoria.anotacoes.push(anotacao);
-      salvar();
-      return copia(anotacao);
-    },
-    async apagarAnotacao(id, anotacaoId) {
-      const memoria = pessoa(id).memoria;
-      memoria.anotacoes = memoria.anotacoes.filter((a) => a.id !== anotacaoId);
-      salvar();
-    },
+    obter: async (id) => copia(n.pessoa(b(), id).memoria),
+    salvar: (id, m) => mudar(() => n.salvarMemoria(b(), id, m)),
+    anotar: (id, nova) => mudar(() => n.anotar(b(), id, nova)),
+    apagarAnotacao: (id, notaId) => mudar(() => n.apagarAnotacao(b(), id, notaId)),
   },
 
   assistente: {
-    conversa: async (id) => copia(pessoa(id).conversa),
+    conversa: async (id) => copia(n.pessoa(b(), id).conversa),
     async enviar(id, texto) {
-      const banco = obterBanco();
-      const dados = pessoa(id);
-      dados.conversa.forEach((m) => delete m.respostasRapidas);
-      dados.conversa.push(mensagem("pessoa", texto));
+      n.guardarMensagemDoApp(b(), id, texto);
       salvar();
-
       await esperar(900);
-      const resultado = responder(banco.conversas[id] ?? ESTADO_INICIAL, texto, contexto(id));
-      banco.conversas[id] = resultado.estado;
-      resultado.efeitos.forEach((e) => aplicar(id, e));
-      const respostas = resultado.respostas.map((r) =>
-        mensagem("assistente", r.texto, r.respostasRapidas ? { respostasRapidas: r.respostasRapidas } : {}),
-      );
-      dados.conversa.push(...respostas);
+      const respostas = await conversar(b(), id, "app", texto);
       salvar();
       return copia(respostas);
     },
+    async enviarArquivo(id, arquivo) {
+      n.pessoa(b(), id).conversa.push(n.mensagem("pessoa", `Arquivo: ${arquivo.name}`));
+      salvar();
+      await esperar(1200);
+      const fatura = extratoDeExemplo();
+      n.salvarFatura(b(), id, fatura);
+      const dela = n.mensagem(
+        "assistente",
+        `${respostaDaFatura(fatura, "app")}\n(Demonstração sem IA: li um extrato de exemplo no lugar do arquivo.)`,
+      );
+      n.pessoa(b(), id).conversa.push(dela);
+      salvar();
+      return [copia(dela)];
+    },
+    async enviarAudio(id) {
+      await esperar(600);
+      const dela = n.mensagem("assistente", "Nesta demonstração estou sem a IA que transcreve áudio. Pode escrever a mensagem?");
+      n.pessoa(b(), id).conversa.push(dela);
+      salvar();
+      return { transcricao: "", respostas: [copia(dela)] };
+    },
     async testar(id, texto) {
       await esperar(700);
-      return responder(ESTADO_INICIAL, texto, contexto(id)).respostas.map((r) => r.texto).join("\n\n");
+      const rascunho = copia(b());
+      rascunho.estados[id] = { ...rascunho.estados[id], app: { etapa: "livre" } };
+      return (await conversar(rascunho, id, "app", texto)).map((r) => r.texto).join("\n\n");
     },
-    contexto: async (id) => montarContexto(contexto(id)),
+    contexto: async (id) => montarContexto(n.contextoDoAssistente(b(), id, "app")),
   },
 
   avisos: {
-    async listar(id) {
-      const todas = id ? [pessoa(id)] : Object.values(obterBanco().pessoas);
-      return copia(todas.flatMap((d) => d.avisos).sort((a, b) => b.quando.localeCompare(a.quando)));
-    },
+    listar: async (id) => copia(n.avisosDe(b(), id)),
   },
 
   aoMudar,

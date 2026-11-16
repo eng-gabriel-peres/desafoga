@@ -24,6 +24,11 @@ export interface PessoasService {
   profissionais(): Promise<Profissional[]>;
   /** Profissional que está usando o modo "Responsável". */
   responsavel(): Promise<Profissional>;
+  /** Número de WhatsApp cadastrado pela pessoa (só dígitos), ou null. */
+  whatsapp(pessoaId: string): Promise<string | null>;
+  /** Cadastra o WhatsApp: mensagens desse número caem na conta da pessoa. Devolve o número normalizado. */
+  conectarWhatsapp(pessoaId: string, telefone: string): Promise<string>;
+  desconectarWhatsapp(pessoaId: string): Promise<void>;
 }
 
 export interface ComprasService {
@@ -41,8 +46,8 @@ export interface DividasService {
 
 export interface FaturasService {
   listar(pessoaId: string): Promise<Fatura[]>;
-  /** Lê o arquivo enviado. Na demonstração, devolve sempre o documento de exemplo. */
-  ler(pessoaId: string, arquivo: File | null): Promise<Fatura>;
+  /** Lê o arquivo enviado com a IA. Sem IA ou sem arquivo, lê um documento de exemplo. */
+  ler(pessoaId: string, arquivo: File | null): Promise<{ fatura: Fatura; deExemplo: boolean }>;
   /** Guarda a fatura lida e registra as compras novas classificadas. */
   salvar(pessoaId: string, fatura: Fatura, classificacoes: Record<string, Classificacao>): Promise<void>;
 }
@@ -58,6 +63,10 @@ export interface AssistenteService {
   conversa(pessoaId: string): Promise<Mensagem[]>;
   /** Envia uma mensagem da pessoa e devolve as respostas da assistente. */
   enviar(pessoaId: string, texto: string): Promise<Mensagem[]>;
+  /** Fatura, extrato ou print mandado no chat: a Luana lê e responde com o resumo. */
+  enviarArquivo(pessoaId: string, arquivo: File): Promise<Mensagem[]>;
+  /** Mensagem de voz: a Luana transcreve e responde. */
+  enviarAudio(pessoaId: string, audio: Blob): Promise<{ transcricao: string; respostas: Mensagem[] }>;
   /** Simula a resposta sem gravar nada (área "Testar o assistente"). */
   testar(pessoaId: string, texto: string): Promise<string>;
   /** Texto de contexto montado a partir da memória e dos números do sistema. */

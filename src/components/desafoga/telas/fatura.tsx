@@ -16,9 +16,9 @@ const ETAPAS_DE_LEITURA = ["Lendo os lançamentos", "Separando juros, IOF e tari
 const TEMPO_POR_ETAPA = 900;
 
 type Estado =
-  | { etapa: "envio" }
+  | { etapa: "envio"; erro?: string }
   | { etapa: "lendo"; arquivo: string; feitas: number }
-  | { etapa: "resultado"; fatura: Fatura };
+  | { etapa: "resultado"; fatura: Fatura; deExemplo: boolean };
 
 const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -42,11 +42,19 @@ export function TelaFatura() {
     const nome = arquivo?.name ?? "a fatura de exemplo";
     setEstado({ etapa: "lendo", arquivo: nome, feitas: 0 });
     const leitura = servicos.faturas.ler(PESSOA_DA_DEMO, arquivo);
-    for (let i = 1; i <= ETAPAS_DE_LEITURA.length; i++) {
+    // A animação anda enquanto a IA lê; a última etapa espera a leitura terminar.
+    for (let i = 1; i < ETAPAS_DE_LEITURA.length; i++) {
       await espera(TEMPO_POR_ETAPA);
       setEstado({ etapa: "lendo", arquivo: nome, feitas: i });
     }
-    setEstado({ etapa: "resultado", fatura: await leitura });
+    try {
+      const { fatura, deExemplo } = await leitura;
+      setEstado({ etapa: "lendo", arquivo: nome, feitas: ETAPAS_DE_LEITURA.length });
+      await espera(TEMPO_POR_ETAPA / 2);
+      setEstado({ etapa: "resultado", fatura, deExemplo });
+    } catch (e) {
+      setEstado({ etapa: "envio", erro: e instanceof Error ? e.message : "Não consegui ler o arquivo. Tente de novo." });
+    }
   }
 
   async function salvar(fatura: Fatura) {
@@ -99,8 +107,13 @@ export function TelaFatura() {
           </Botao>
           <p className="mt-3 flex items-start gap-2 text-[0.88rem] text-muted">
             <Lock aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-            Na demonstração, o arquivo não sai do seu aparelho: um documento de exemplo é lido no lugar dele.
+            A Luana lê o arquivo e guarda só os lançamentos; o arquivo em si não fica salvo.
           </p>
+          {estado.erro && (
+            <p role="alert" className="mt-3 font-bold text-bad">
+              {estado.erro}
+            </p>
+          )}
         </Painel>
       </div>
     );
@@ -136,7 +149,7 @@ export function TelaFatura() {
     );
   }
 
-  const { fatura } = estado;
+  const { fatura, deExemplo } = estado;
   const s = separarFatura(fatura);
   const classificar = (id: string, m: Classificacao) => setClassificacoes((c) => ({ ...c, [id]: { ...c[id], ...m } }));
 
@@ -153,6 +166,9 @@ export function TelaFatura() {
             <ScanLine aria-hidden="true" className="size-5" />
             {fatura.origem}
           </p>
+          {deExemplo && (
+            <p className="mt-1 text-[0.88rem] text-muted">Demonstração sem IA: este é um extrato de exemplo, lido no lugar do arquivo.</p>
+          )}
           <p className="mt-2 text-[1.25rem]">
             Encontramos <b className="text-[1.5rem]">{reais(s.totalEncargos)}</b> em juros, IOF e tarifas.
           </p>

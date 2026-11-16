@@ -3,7 +3,7 @@ import { materializar, PROFISSIONAIS, SEMENTES } from "@/fixtures/desafoga";
 import { compararExtra } from "@/lib/finance";
 import { formatarReais } from "@/lib/dinheiro";
 import { montarContexto } from "./contexto";
-import { ESTADO_INICIAL, responder, type ContextoAssistente, type EstadoConversa } from "./conversa";
+import { ESTADO_INICIAL, iniciarRegistro, responder, type ContextoAssistente, type EstadoConversa } from "./conversa";
 import { adivinharCategoria, entender, indicaSofrimentoIntenso, lerEmocao, lerNecessidade, nomeDaCompra } from "./entender";
 
 const AGORA = new Date(2026, 10, 16, 15, 0);
@@ -18,6 +18,7 @@ const ctx: ContextoAssistente = {
   plano: ana.plano,
   faturas: ana.faturas,
   agora: AGORA,
+  canal: "whatsapp",
 };
 
 describe("entender a mensagem", () => {
@@ -90,11 +91,25 @@ describe("conversa da Luana", () => {
     expect(estado).toEqual(ESTADO_INICIAL);
   });
 
+  it("registra várias compras contadas de uma vez com a mesma emoção", () => {
+    const inicio = iniciarRegistro([
+      { item: "Almoço", valor: 3500, categoria: "Comida pronta" },
+      { item: "Uber", valor: 1850 },
+    ]);
+    expect(inicio.respostas[0].texto).toContain("Anotei 2 compras");
+    const emocao = responder(inicio.estado, "4", ctx);
+    expect(emocao.respostas[0].texto).toBe("Essas compras eram necessárias?");
+    const fim = responder(emocao.estado, "sim", ctx);
+    expect(fim.efeitos).toHaveLength(2);
+    expect(fim.efeitos[0]).toMatchObject({ compra: { item: "Almoço", categoria: "Comida pronta", emocao: 4, via: "whatsapp" } });
+    expect(fim.respostas[0].texto).toContain("• Uber, R$ 18,50");
+  });
+
   it("pergunta o valor quando faltar e insiste se não entender", () => {
     const { resultados } = conversar("comprei um tênis", "não sei", "199,90");
     expect(resultados[0].respostas[0].texto).toBe("Quanto custou tênis?");
     expect(resultados[1].respostas[0].texto).toContain("Não entendi o valor");
-    expect(resultados[2].estado).toMatchObject({ etapa: "emocao", valor: 19990 });
+    expect(resultados[2].estado).toMatchObject({ etapa: "emocao", compras: [{ item: "Tênis", valor: 19990 }] });
   });
 
   it("responde a simulação com os números calculados pelo código", () => {

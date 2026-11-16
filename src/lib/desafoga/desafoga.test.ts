@@ -1,0 +1,147 @@
+import { describe, expect, it } from "vitest";
+import type { MensagemLida } from "@/lib/luana/ler";
+import type { DocumentoLido } from "@/lib/luana/ler";
+import { novoBanco, pessoa } from "@/services/nucleo";
+import { conversar, paraWhatsapp, type IaDaConversa } from "./conversar";
+import { paraFatura, respostaDaFatura } from "./fatura-lida";
+import { normalizarTelefone, telefoneLegivel } from "./telefone";
+
+const AGORA = new Date(2026, 10, 16, 15, 0);
+
+const leitura = (m: Partial<MensagemLida>): MensagemLida => ({
+  intencao: "outro",
+  lancamentos: [],
+  rendaMensal: null,
+  saldoEmConta: null,
+  reserva: null,
+  despesasMensais: [],
+  compra: null,
+  compromissosCitados: [],
+  transcricao: null,
+  ...m,
+});
+
+function iaFalsa(lida: MensagemLida, texto = "Resposta da IA"): IaDaConversa & { sistemas: string[] } {
+  const sistemas: string[] = [];
+  return {
+    sistemas,
+    lerMensagem: async () => lida,
+    redigir: async (sistema) => {
+      sistemas.push(sistema);
+      return texto;
+    },
+  };
+}
+
+describe("telefone do cadastro", () => {
+  it("guarda só dígitos, com 55 e nono dígito", () => {
+    expect(normalizarTelefone("(11) 99999-8888")).toBe("5511999998888");
+    expect(normalizarTelefone("+55 11 9999-8888")).toBe("5511999998888");
+    expect(normalizarTelefone("5511999998888")).toBe("5511999998888");
+    expect(normalizarTelefone("123")).toBeNull();
+    expect(telefoneLegivel("5511999998888")).toBe("(11) 99999-8888");
+  });
+});
+
+describe("conversa da Luana com IA", () => {
+  it("usa a IA para ler vários gastos e pergunta a emoção uma vez", async () => {
+    const banco = novoBanco(AGORA);
+    const ia = iaFalsa(
+      leitura({
+        intencao: "registrar_gasto",
+        lancamentos: [
+          { data: null, descricao: "almoço", valor: "35", natureza: "compra", categoria: "alimentacao", parcela: null },
+          { data: null, descricao: "uber", valor: "18,50", natureza: "compra", categoria: "transporte", parcela: null },
+        ],
+      }),
+    );
+    const antes = pessoa(banco, "ana").compras.length;
+    const [pergunta] = await conversar(banco, "ana", "whatsapp", "almoço 35 e uber 18,50", { ia, agora: AGORA });
+    expect(pergunta.texto).toContain("Anotei 2 compras");
+    await conversar(banco, "ana", "whatsapp", "2", { ia, agora: AGORA });
+    const [fim] = await conversar(banco, "ana", "whatsapp", "não", { ia, agora: AGORA });
+    expect(fim.texto).toContain("• Almoço, R$ 35,00");
+    const novas = pessoa(banco, "ana").compras.slice(antes);
+    expect(novas.map((c) => [c.item, c.categoria, c.emocao, c.necessidade, c.via])).toEqual([
+      ["Almoço", "Comida pronta", 2, "nao", "whatsapp"],
+      ["Uber", "Outro", 2, "nao", "whatsapp"],
+    ]);
+  });
+
+  it("conversa livre vai para a IA com a memória e os números do sistema", async () => {
+    const banco = novoBanco(AGORA);
+    const ia = iaFalsa(leitura({ intencao: "outro" }), "Tô aqui com você.");
+    const [r] = await conversar(banco, "ana", "app", "tô me sentindo pra baixo", { ia, agora: AGORA });
+    expect(r.texto).toBe("Tô aqui com você.");
+    expect(ia.sistemas[0]).toContain("Compra quando está triste");
+    expect(ia.sistemas[0]).toContain("NÚMEROS DO SISTEMA");
+    expect(pessoa(banco, "ana").conversa.at(-1)?.texto).toBe("Tô aqui com você.");
+  });
+
+  it("simulação e sofrimento não passam pela IA", async () => {
+    const banco = novoBanco(AGORA);
+    const ia = iaFalsa(leitura({}));
+    const [sim] = await conversar(banco, "ana", "app", "e se eu pagar 200 a mais?", { ia, agora: AGORA });
+    expect(sim.texto).toContain("Simulação educativa");
+    const [crise] = await conversar(banco, "ana", "whatsapp", "não quero mais viver", { ia, agora: AGORA });
+    expect(crise.texto).toContain("188");
+    expect(pessoa(banco, "ana").avisos[0].tipo).toBe("sofrimento");
+    expect(ia.sistemas).toHaveLength(0);
+  });
+
+  it("sem IA, ou com a IA fora do ar, as regras respondem", async () => {
+    const banco = novoBanco(AGORA);
+    const quebrada: IaDaConversa = {
+      lerMensagem: async () => {
+        throw new Error("fora do ar");
+      },
+      redigir: async () => "",
+    };
+    const [r] = await conversar(banco, "ana", "app", "comprei pão 12", { ia: quebrada, agora: AGORA });
+    expect(r.respostasRapidas).toHaveLength(5);
+  });
+
+  it("as conversas do app e do WhatsApp são separadas", async () => {
+    const banco = novoBanco(AGORA);
+    await conversar(banco, "ana", "whatsapp", "comprei pão 12", { agora: AGORA });
+    const [noApp] = await conversar(banco, "ana", "app", "2", { agora: AGORA });
+    expect(noApp.texto).not.toContain("Essa compra era necessária");
+    expect(banco.estados.ana.whatsapp.etapa).toBe("emocao");
+  });
+
+  it("no WhatsApp as respostas rápidas viram opções numeradas", () => {
+    expect(paraWhatsapp({ texto: "Como estava?", respostasRapidas: [{ rotulo: "Triste", emocao: 2 }] })).toBe("Como estava?\n\n2 - Triste");
+  });
+});
+
+describe("fatura lida pela IA", () => {
+  const doc: DocumentoLido = {
+    legivel: true,
+    tipo: "fatura_cartao",
+    emissor: "Banco Exemplo",
+    vencimento: null,
+    total: null,
+    pagamentoMinimo: null,
+    taxaRotativoMensal: null,
+    saldoEmConta: null,
+    lancamentos: [
+      { data: "2026-11-12", descricao: "LOJA ONLINE MODA", valor: "320,00", natureza: "compra", categoria: "compras", parcela: null },
+      { data: "2026-11-10", descricao: "PERFUMARIA", valor: "189,90", natureza: "compra", categoria: "compras", parcela: null },
+      { data: "2026-11-09", descricao: "STREAMING", valor: "39,90", natureza: "compra", categoria: "assinaturas", parcela: null },
+      { data: null, descricao: "ENCARGOS ROTATIVO", valor: "187,44", natureza: "juros", categoria: "outros", parcela: null },
+      { data: null, descricao: "IOF", valor: "9,12", natureza: "iof", categoria: "outros", parcela: null },
+      { data: null, descricao: "SALDO ANTERIOR", valor: "1.000,00", natureza: "saldo_anterior", categoria: "outros", parcela: null },
+    ],
+  };
+
+  it("converte valores, separa assinaturas e liga compras já registradas", () => {
+    const banco = novoBanco(AGORA);
+    const compras = pessoa(banco, "ana").compras;
+    const f = paraFatura(doc, compras, AGORA, "f1");
+    expect(f.tipo).toBe("fatura");
+    expect(f.lancamentos.map((l) => l.tipo)).toEqual(["compra", "compra", "assinatura", "juros", "iof"]);
+    expect(f.lancamentos[0].compraId).toBe("ana-c4");
+    expect(f.lancamentos[1].compraId).toBeNull();
+    expect(respostaDaFatura(f, "whatsapp")).toContain("*R$ 196,56*");
+  });
+});
