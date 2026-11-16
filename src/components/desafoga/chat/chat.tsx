@@ -129,7 +129,7 @@ export function Chat({ mensagens, ocupada, enviar, enviarArquivo, enviarAudio, a
   const status = ocupada === "lendo" ? "lendo o arquivo…" : ocupada === "ouvindo" ? "ouvindo o áudio…" : ocupada ? "digitando…" : "online";
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden border-line bg-chat-bg desk:rounded-[var(--radius-card)] desk:border">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-chat-bg">
       <div className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-3.5 py-2.5">
         <AvatarLuana />
         <div className="min-w-0">

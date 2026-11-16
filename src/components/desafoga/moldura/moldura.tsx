@@ -100,7 +100,8 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
 
       <div className="min-w-0 desk:flex desk:flex-col">
         {/* Desktop: cabeçalho com o título da tela */}
-        <header className="sticky top-0 z-15 hidden items-center gap-3.5 border-b border-line bg-bg px-9 pt-5 pb-4 desk:flex">
+        {/* No chat, o cabeçalho da Luana faz o papel de título: a conversa ocupa a tela toda. */}
+        <header className={`sticky top-0 z-15 hidden items-center gap-3.5 border-b border-line bg-bg px-9 pt-5 pb-4 ${telaCheia ? "" : "desk:flex"}`}>
           <div>
             <h1 className="text-[1.55rem] leading-tight font-bold">{titulo}</h1>
             {subtitulo && <p className="mt-0.5 text-[0.92rem] text-muted">{subtitulo}</p>}
@@ -115,10 +116,10 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
         <main
           id="conteudo"
           tabIndex={-1}
-          className={`mx-auto w-full outline-none desk:max-w-[1280px] desk:px-9 ${
+          className={`mx-auto w-full outline-none ${
             telaCheia
-              ? "pb-[calc(5.5rem+env(safe-area-inset-bottom))] desk:pt-5 desk:pb-5"
-              : "max-w-[620px] px-4 pt-4.5 pb-32 desk:pt-7 desk:pb-14"
+              ? "pb-[calc(5.5rem+env(safe-area-inset-bottom))] desk:pb-0"
+              : "max-w-[620px] px-4 pt-4.5 pb-32 desk:max-w-[1280px] desk:px-9 desk:pt-7 desk:pb-14"
           }`}
         >
           {comPaciente && pessoas && (
