@@ -176,13 +176,14 @@ const ACOES = {
   "pessoas.confirmarWhatsapp": acao(
     z.tuple([id, z.string().regex(/^\s*\d{6}\s*$/)]),
     async ([p, codigo], { sessao, rede }) => {
-      const s = exigirAPropriaPessoa(sessao, p);
+      exigirAPropriaPessoa(sessao, p);
       const telefone = await comRecusa(() => confirmarCodigo({ pessoaId: p, rede }, codigo));
-      // O dono do número fica sabendo a qual conta ele foi ligado, e pode desfazer pelo próprio WhatsApp.
+      // O dono do número fica sabendo da conexão e pode desfazer pelo próprio WhatsApp.
+      // Texto fixo: aviso de segurança não leva nada digitado por usuário.
       if (whatsappConfigurado()) {
         await enviarPeloWhatsapp(
           telefone,
-          `Pronto! Este WhatsApp foi conectado à conta de ${s.pessoa?.apelido ?? "você"} no Desafoga. Se não foi você, responda: desconectar`,
+          "Pronto! Este WhatsApp foi conectado a uma conta do Desafoga. Se não foi você que pediu, responda: desconectar",
         ).catch((e: unknown) => console.error("Desafoga: aviso de conexão não enviado,", e instanceof Error ? e.message.slice(0, 200) : "erro"));
       }
       return telefone;
