@@ -5,7 +5,7 @@ type Variante = "primario" | "secundario" | "link";
 type Tamanho = "normal" | "pequeno" | "grande";
 
 const BASE =
-  "inline-flex items-center justify-center gap-2 font-bold no-underline transition-colors disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:size-[1.15em] [&_svg]:shrink-0";
+  "inline-flex items-center justify-center gap-2 font-bold no-underline active:scale-[0.98] disabled:cursor-not-allowed disabled:active:scale-100 disabled:opacity-50 [&_svg]:size-[1.15em] [&_svg]:shrink-0";
 
 const VARIANTES: Record<Variante, string> = {
   primario: "bg-primary text-primary-ink border-2 border-primary hover:brightness-110",

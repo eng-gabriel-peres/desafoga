@@ -95,7 +95,7 @@ export function MenuDoPerfil({
       {aberto && (
         <div
           id={id}
-          className={`absolute z-40 w-[min(300px,calc(100vw-24px))] ${paraCima ? "bottom-full left-0 mb-2" : "top-13 right-0"} rounded-2xl border border-line bg-surface p-2 shadow-[0_12px_32px_rgb(0_0_0/0.18)]`}
+          className={`absolute z-40 w-[min(300px,calc(100vw-24px))] ${paraCima ? "surgir-de-baixo bottom-full left-0 mb-2" : "surgir top-13 right-0"} rounded-2xl border border-line bg-surface p-2 shadow-[0_12px_32px_rgb(0_0_0/0.18)]`}
         >
           <div className="flex items-center gap-2.5 border-b border-line px-2 pt-1.5 pb-3">
             <Avatar nome={quem.nome} cor={quem.cor} />

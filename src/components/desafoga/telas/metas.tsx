@@ -16,7 +16,7 @@ import { BotaoLink } from "../ui/botao";
 /** Aviso curto depois de guardar ou incentivar, lido pelo leitor de tela. */
 export function Recado({ texto }: { texto: string }) {
   return (
-    <p role="status" className={texto ? "mb-3.5 rounded-2xl bg-good-soft px-4 py-3 font-bold text-good" : "sr-only"}>
+    <p role="status" className={texto ? "entrar mb-3.5 rounded-2xl bg-good-soft px-4 py-3 font-bold text-good" : "sr-only"}>
       {texto}
     </p>
   );
@@ -63,7 +63,7 @@ export function TelaMetas({ area = "pessoa", pessoaId: doPainel }: { area?: Area
   return (
     <>
       {!profissional && <TituloCelular titulo="Metas" subtitulo="Junte dinheiro para o que importa" />}
-      <div className="my-4 flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 desk:mt-0">
+      <div className="entrar my-4 flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 desk:mt-0">
         <div className="flex flex-col">
           <span className="text-[0.92rem] text-muted">{profissional ? `${persona.apelido} já guardou` : "Você já guardou"}</span>
           <b className="text-[1.5rem] text-good">{reaisCurto(total)}</b>

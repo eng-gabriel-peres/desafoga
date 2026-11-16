@@ -29,7 +29,7 @@ export function TelaOrcamento() {
       {situacoes.length > 0 && (
         <section
           aria-label={`Resumo de ${mes}`}
-          className="mb-4 flex flex-wrap items-center gap-4.5 rounded-[20px] border border-line bg-surface p-4 desk:flex-nowrap desk:gap-6 desk:px-5"
+          className="entrar mb-4 flex flex-wrap items-center gap-4.5 rounded-[20px] border border-line bg-surface p-4 desk:flex-nowrap desk:gap-6 desk:px-5"
         >
           <Anel
             fracao={Math.min(1, resumo.usado)}

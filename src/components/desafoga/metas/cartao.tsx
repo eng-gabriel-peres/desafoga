@@ -33,7 +33,7 @@ export function CartaoDaMeta({
 
   return (
     <article
-      className={`rounded-[20px] border bg-surface p-4 ${s.concluida ? "border-[color-mix(in_srgb,var(--good)_45%,var(--line))]" : "border-line"}`}
+      className={`entrar rounded-[20px] border bg-surface p-4 ${s.concluida ? "border-[color-mix(in_srgb,var(--good)_45%,var(--line))]" : "border-line"}`}
     >
       <header className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
         <IconeDaMetaBadge icone={meta.icone} cor={cor} />

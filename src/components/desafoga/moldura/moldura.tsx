@@ -46,7 +46,7 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
       : tituloDaRota(caminho);
 
   return (
-    <div className={`desk:grid desk:min-h-dvh ${recolhida ? "desk:grid-cols-[76px_minmax(0,1fr)]" : "desk:grid-cols-[264px_minmax(0,1fr)]"}`}>
+    <div className={`desk:grid desk:min-h-dvh desk:transition-[grid-template-columns] desk:duration-300 desk:ease-out ${recolhida ? "desk:grid-cols-[76px_minmax(0,1fr)]" : "desk:grid-cols-[264px_minmax(0,1fr)]"}`}>
       <a
         href="#conteudo"
         className="sr-only z-50 rounded-lg bg-primary px-4 py-2 text-primary-ink focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
@@ -71,14 +71,14 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
         className={`sticky top-0 z-30 hidden h-dvh flex-col gap-5 border-r border-line bg-surface py-5 desk:flex ${recolhida ? "items-center px-2.5" : "px-3.5"}`}
       >
         {recolhida ? (
-          <div className="grid justify-items-center gap-3">
+          <div key="recolhida" className="aparecer grid justify-items-center gap-3">
             <Marca comNome={false} />
             <BotaoIcone leve aria-label="Abrir o menu" aria-expanded={false} title="Abrir o menu" onClick={alternarBarra}>
               <PanelLeftOpen aria-hidden="true" />
             </BotaoIcone>
           </div>
         ) : (
-          <div className="flex items-start gap-2 pl-2">
+          <div key="aberta" className="aparecer flex items-start gap-2 pl-2">
             <div className="min-w-0 flex-1">
               <Marca />
               <p className="mt-1 text-[0.85rem] text-muted">{NOME_DA_AREA[area]}</p>
@@ -89,7 +89,7 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
           </div>
         )}
         {/* Recolhida, a lista não rola: os rótulos aparecem ao lado e não podem ser cortados. */}
-        <div className={recolhida ? "flex-1" : "min-h-0 flex-1 overflow-auto"}>
+        <div key={recolhida ? "menu-recolhido" : "menu-aberto"} className={`aparecer ${recolhida ? "flex-1" : "min-h-0 flex-1 overflow-auto"}`}>
           <MenuLateral itens={itens} caminho={caminho} recolhida={recolhida} />
         </div>
         <div className={`flex border-t border-line pt-3 ${recolhida ? "flex-col items-center gap-1.5" : "items-center gap-0.5"}`}>

@@ -63,7 +63,7 @@ export function Anel({
   tamanho,
   espessura,
   centro,
-  animar = false,
+  animar = true,
 }: {
   fracao: number;
   cor: string;

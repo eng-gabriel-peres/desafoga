@@ -19,7 +19,7 @@ export function Painel({
   rotulo?: string;
 }) {
   return (
-    <section aria-label={rotulo} className={`rounded-[var(--radius-card)] border border-line bg-surface p-[1.1rem] ${className}`}>
+    <section aria-label={rotulo} className={`entrar rounded-[var(--radius-card)] border border-line bg-surface p-[1.1rem] ${className}`}>
       {(titulo || acao) && (
         <div className="mb-2.5 flex items-center justify-between gap-2.5">
           {titulo && <h2 className="text-[1.12rem] leading-tight font-bold">{titulo}</h2>}

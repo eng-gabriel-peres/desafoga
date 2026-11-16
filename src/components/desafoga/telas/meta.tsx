@@ -83,7 +83,7 @@ export function TelaDaMeta({ metaId, area = "pessoa", pessoaId: doPainel }: { me
       <Recado texto={recado} />
       <div className="mt-2 grid grid-cols-[minmax(0,1fr)] items-start gap-4 desk:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] desk:gap-5">
         <section
-          className={`rounded-[var(--radius-card)] border bg-surface p-[1.1rem] text-center ${s.concluida ? "border-[color-mix(in_srgb,var(--good)_45%,var(--line))]" : "border-line"}`}
+          className={`entrar rounded-[var(--radius-card)] border bg-surface p-[1.1rem] text-center ${s.concluida ? "border-[color-mix(in_srgb,var(--good)_45%,var(--line))]" : "border-line"}`}
         >
           <header className="flex items-center gap-2.5 text-left">
             <IconeDaMetaBadge icone={meta.icone} cor={cor} />

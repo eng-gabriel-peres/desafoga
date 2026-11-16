@@ -186,7 +186,7 @@ export function CartaoDoOrcamento({ pessoaId, situacao: s }: { pessoaId: string;
   const cor = COR_DO_ESTADO[s.estado];
   const corDoAnel = COR_DO_ANEL[s.estado];
   return (
-    <article className="rounded-[20px] border border-line bg-surface p-4">
+    <article className="entrar rounded-[20px] border border-line bg-surface p-4">
       <header className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
         <IconeDaCategoria categoria={s.categoria} cor={corDoAnel} />
         <h3 className="min-w-0 flex-1 text-[1.08rem] leading-tight font-bold">{s.categoria}</h3>

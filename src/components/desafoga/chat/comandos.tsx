@@ -58,7 +58,7 @@ export function MenuDeComandos({ id, fechar, escolher }: { id: string; fechar: (
       id={id}
       role="dialog"
       aria-labelledby={tituloId}
-      className="absolute bottom-full left-0 z-30 mb-2 max-h-[60dvh] w-[min(360px,calc(100vw-2rem))] overflow-auto rounded-2xl border border-line bg-surface p-2 shadow-[0_12px_32px_rgb(0_0_0/0.2)]"
+      className="surgir-de-baixo absolute bottom-full left-0 z-30 mb-2 max-h-[60dvh] w-[min(360px,calc(100vw-2rem))] overflow-auto rounded-2xl border border-line bg-surface p-2 shadow-[0_12px_32px_rgb(0_0_0/0.2)]"
     >
       <p id={tituloId} className="px-2.5 pt-1.5 pb-1 text-[0.85rem] font-bold text-muted">
         O que a Luana entende
