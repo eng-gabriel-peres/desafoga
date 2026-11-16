@@ -1,0 +1,42 @@
+import type { Metadata, Viewport } from "next";
+import { Atkinson_Hyperlegible } from "next/font/google";
+import { Moldura } from "@/components/pausa/moldura/moldura";
+import "./pausa.css";
+
+const atkinson = Atkinson_Hyperlegible({
+  variable: "--font-atkinson",
+  subsets: ["latin"],
+  weight: ["400", "700"],
+});
+
+export const metadata: Metadata = {
+  title: "Pausa",
+  description:
+    "Finanças pessoais para quem compra por impulso: a emoção em cada compra, o raio-x das dívidas e um profissional acompanhando.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#172030" },
+  ],
+};
+
+/** Aplica "Letra maior" antes da primeira pintura, para a tela não pular. */
+const APLICAR_LETRA = `try{if(localStorage.getItem("pausa-letra-maior")==="1")document.documentElement.classList.add("letra-maior")}catch(e){}`;
+
+export default function PausaLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="pt-BR" className={atkinson.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: APLICAR_LETRA }} />
+      </head>
+      <body className="min-h-dvh antialiased">
+        <Moldura>{children}</Moldura>
+      </body>
+    </html>
+  );
+}

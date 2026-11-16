@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 /** Lê tema e cor guardados no navegador e marca o <html>, para a tela não piscar na cor errada. */
 const APLICAR_PREFERENCIAS = `try{var d=document.documentElement,t=localStorage.getItem("luana-tema"),c=localStorage.getItem("luana-cor");if(t)d.dataset.tema=t;if(c)d.dataset.cor=c}catch(e){}`;
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="pt-BR"

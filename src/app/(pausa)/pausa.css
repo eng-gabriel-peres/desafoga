@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+/* Desktop a partir de 1000px: barra lateral e conteúdo em colunas. */
+@custom-variant desk (@media (min-width: 1000px));
+
+/*
+ * Tokens do Pausa. Claro por padrão; escuro segue o sistema.
+ * Cores conferidas para contraste AA de texto sobre bg, surface e surface2.
+ */
+:root {
+  color-scheme: light;
+  --bg: #eef2f8;
+  --surface: #ffffff;
+  --surface2: #f5f7fb;
+  --ink: #17202e;
+  --muted: #4f5b70;
+  --line: #d3dbe7;
+  --primary: #2350c8;
+  --primary-ink: #ffffff;
+  --primary-soft: #e2e9fb;
+  --good: #17804f;
+  --good-soft: #dcf2e6;
+  --bad: #b4380e;
+  --bad-soft: #fbe4d9;
+  --maybe: #735600;
+  --maybe-soft: #faefcb;
+  /* Escala de emoção: 1 muito triste … 5 muito feliz. */
+  --e1: #4b5bd6;
+  --e2: #6f9be3;
+  --e3: #98a2b3;
+  --e4: #efb23a;
+  --e5: #ec8a1c;
+  --chat-bg: #e4ece3;
+  --chat-me: #d4f1c6;
+  --chat-bot: #ffffff;
+  --scrim: rgb(14 20 30 / 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0e141e;
+    --surface: #172030;
+    --surface2: #1c2738;
+    --ink: #eef2f8;
+    --muted: #a9b3c4;
+    --line: #2b374b;
+    --primary: #86a6ff;
+    --primary-ink: #0e141e;
+    --primary-soft: #22345c;
+    --good: #5fd39a;
+    --good-soft: #163a2a;
+    --bad: #ff9a70;
+    --bad-soft: #43261b;
+    --maybe: #f2cf6b;
+    --maybe-soft: #3d3416;
+    --e1: #7e8bff;
+    --e2: #86b1f2;
+    --e3: #a3acbb;
+    --e4: #f4c25a;
+    --e5: #f59e3d;
+    --chat-bg: #111a22;
+    --chat-me: #1e4a37;
+    --chat-bot: #1e2a39;
+    --scrim: rgb(0 0 0 / 0.6);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-primary-soft: var(--primary-soft);
+  --color-good: var(--good);
+  --color-good-soft: var(--good-soft);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-maybe: var(--maybe);
+  --color-maybe-soft: var(--maybe-soft);
+  --color-e1: var(--e1);
+  --color-e2: var(--e2);
+  --color-e3: var(--e3);
+  --color-e4: var(--e4);
+  --color-e5: var(--e5);
+  --color-chat-bg: var(--chat-bg);
+  --color-chat-me: var(--chat-me);
+  --color-chat-bot: var(--chat-bot);
+  --color-scrim: var(--scrim);
+  --font-sans: var(--font-atkinson), system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --radius-card: 18px;
+  --radius-ctl: 14px;
+}
+
+/*
+ * Escala da letra. Tudo usa rem, então "Letra maior" aumenta o app inteiro.
+ * No desktop a base é menor porque a tela é vista de mais longe.
+ */
+html {
+  font-size: 18px;
+  -webkit-text-size-adjust: 100%;
+}
+html.letra-maior {
+  font-size: 21px;
+}
+@media (min-width: 1000px) {
+  html {
+    font-size: 16px;
+  }
+  html.letra-maior {
+    font-size: 19px;
+  }
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  line-height: 1.45;
+}
+
+:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Bolinhas do "digitando…" do chat. */
+@keyframes pausa-digitando {
+  0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+.digitando i {
+  animation: pausa-digitando 1.2s infinite;
+}
+.digitando i:nth-child(2) { animation-delay: 0.15s; }
+.digitando i:nth-child(3) { animation-delay: 0.3s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
