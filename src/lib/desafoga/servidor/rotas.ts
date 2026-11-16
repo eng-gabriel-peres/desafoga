@@ -25,6 +25,7 @@ import {
   cancelarPedido,
   comBanco,
   confirmarTelefone,
+  conectarPorLink,
   desvincularTelefone,
   PedidoRecusado,
   pedirTelefone,
@@ -96,6 +97,19 @@ const ACOES = {
     async (v, [p, codigo], { rede }) => {
       try {
         return await confirmarTelefone({ visitante: v, rede }, p, codigo);
+      } catch (e) {
+        if (e instanceof PedidoRecusado) throw new ErroDeEntrada(e.message);
+        throw e;
+      }
+    },
+    "codigo",
+  ),
+  "pessoas.conectarWhatsappPorLink": acao(
+    z.tuple([id, z.string().min(10).max(600)]),
+    async (v, [p, codigo]) => {
+      await comBanco(v, (b) => pessoa(b, p), false);
+      try {
+        return await conectarPorLink(v, p, codigo);
       } catch (e) {
         if (e instanceof PedidoRecusado) throw new ErroDeEntrada(e.message);
         throw e;

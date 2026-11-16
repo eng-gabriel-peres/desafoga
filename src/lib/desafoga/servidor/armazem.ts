@@ -13,6 +13,7 @@ import { Pool } from "pg";
 import { devolverHoje, somarHoje } from "@/lib/limite";
 import { novoBanco, type Banco } from "@/services/nucleo";
 import { normalizarTelefone } from "../telefone";
+import { lerCodigoDeConexao } from "./link-de-conexao";
 
 interface Armazem {
   ler(chave: string): Promise<unknown | null>;
@@ -285,6 +286,19 @@ export async function confirmarTelefone(
   await ligarTelefone(visitante, pessoaId, telefone);
   await armazem().apagar(chave);
   return telefone;
+}
+
+/**
+ * Conecta pelo link assinado que a Luana mandou ao número. O link vale uma vez:
+ * o uso é marcado com soma atômica, e um segundo uso é recusado.
+ */
+export async function conectarPorLink(visitante: string, pessoaId: string, codigo: string): Promise<string> {
+  const lido = lerCodigoDeConexao(codigo);
+  if (!lido) throw new PedidoRecusado("Esse link venceu ou não é válido. Mande uma mensagem para a Luana no WhatsApp para receber outro.");
+  const usos = (await somarHoje([`link-usado:${lido.uso}`])).get(`link-usado:${lido.uso}`) ?? 0;
+  if (usos > 1) throw new PedidoRecusado("Esse link já foi usado. Mande uma mensagem para a Luana no WhatsApp para receber outro.");
+  await ligarTelefone(visitante, pessoaId, lido.telefone);
+  return lido.telefone;
 }
 
 /** Liga o número à pessoa, desfazendo a ligação anterior dela, se houver. */

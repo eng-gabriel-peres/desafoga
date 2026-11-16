@@ -34,6 +34,8 @@ export interface PessoasService {
   conectarWhatsapp(pessoaId: string, telefone: string): Promise<{ telefone: string; codigoDeTeste: string | null }>;
   /** Confirma com o código recebido no WhatsApp. Devolve o número ligado. */
   confirmarWhatsapp(pessoaId: string, codigo: string): Promise<string>;
+  /** Conecta pelo link assinado que a Luana mandou no WhatsApp. Devolve o número ligado. */
+  conectarWhatsappPorLink(pessoaId: string, codigoDoLink: string): Promise<string>;
   desconectarWhatsapp(pessoaId: string): Promise<void>;
 }
 

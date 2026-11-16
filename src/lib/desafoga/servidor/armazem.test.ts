@@ -152,3 +152,27 @@ describe("ids de pessoa", () => {
     expect(({} as Record<string, unknown>).plano).toBeUndefined();
   });
 });
+
+describe("conectar pelo link assinado", () => {
+  it("liga o número uma vez só e recusa link adulterado ou vencido", async () => {
+    const { criarCodigoDeConexao } = await import("./link-de-conexao");
+    const { conectarPorLink } = await import("./armazem");
+    const codigo = criarCodigoDeConexao("5511987650000")!;
+    expect(await conectarPorLink("visitante-link", "ana", codigo)).toBe("5511987650000");
+    expect(await donoDoTelefone("5511987650000")).toEqual({ visitante: "visitante-link", pessoaId: "ana" });
+    await expect(conectarPorLink("visitante-outro", "ana", codigo)).rejects.toThrow("já foi usado");
+
+    const [dados, assinatura] = criarCodigoDeConexao("5511987650001")!.split(".");
+    const outroNumero = Buffer.from(JSON.stringify({ t: "5511900000000", e: Date.now() + 60_000, n: "x" })).toString("base64url");
+    await expect(conectarPorLink("visitante-link", "ana", `${outroNumero}.${assinatura}`)).rejects.toThrow("não é válido");
+    expect(dados).toBeTruthy();
+
+    const vencido = criarCodigoDeConexao("5511987650002", Date.now() - 31 * 60_000)!;
+    await expect(conectarPorLink("visitante-link", "ana", vencido)).rejects.toThrow("venceu");
+  });
+
+  it("a resposta para número sem conta traz o link de conexão", async () => {
+    const [resposta] = await atenderNoWhatsapp({ de: "5511912340000", tipo: "text", texto: "oi" }, "https://desafoga.app", async () => {});
+    expect(resposta).toMatch(/https:\/\/desafoga\.app\/app\/conectar#[\w-]+\.[\w-]+/);
+  });
+});

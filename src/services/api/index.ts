@@ -66,6 +66,7 @@ export const servicosDaApi: Servicos = {
     whatsapp: (id) => chamar("pessoas.whatsapp", [id]),
     conectarWhatsapp: (id, telefone) => chamar("pessoas.conectarWhatsapp", [id, telefone]),
     confirmarWhatsapp: (id, codigo) => chamar("pessoas.confirmarWhatsapp", [id, codigo], true),
+    conectarWhatsappPorLink: (id, codigo) => chamar("pessoas.conectarWhatsappPorLink", [id, codigo], true),
     desconectarWhatsapp: (id) => chamar("pessoas.desconectarWhatsapp", [id], true),
   },
   compras: {

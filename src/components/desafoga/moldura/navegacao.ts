@@ -46,6 +46,7 @@ export function tituloDaRota(caminho: string): Titulo {
   if (caminho === "/app/registrar") return { titulo: "Registrar compra", subtitulo: "Leva menos de 30 segundos" };
   if (caminho === "/app/assistente") return { titulo: "Assistente", subtitulo: "Converse com a Luana como no WhatsApp" };
   if (caminho === "/app/dividas/fatura") return { titulo: "Enviar fatura", subtitulo: "A Luana lê os lançamentos e separa juros e tarifas" };
+  if (caminho === "/app/conectar") return { titulo: "Conectar WhatsApp", subtitulo: "Pelo link que a Luana mandou" };
   if (caminho === "/app/dividas") return { titulo: "Dívidas", subtitulo: "Quanto suas dívidas custam e como sair delas" };
   if (caminho === "/painel") return { titulo: "Pacientes", subtitulo: "Quem você acompanha, nos últimos 7 dias" };
   if (/^\/painel\/[^/]+\/dividas$/.test(caminho)) return { titulo: "Dívidas do paciente", subtitulo: "Só leitura. Você pode sugerir um valor mensal." };

@@ -46,6 +46,9 @@ export const servicosLocais: Servicos = {
       pedidosLocais.delete(id);
       return mudar(() => (b().telefones[id] = pedido.telefone));
     },
+    async conectarWhatsappPorLink() {
+      throw new Error("Na versão local, sem servidor, não há WhatsApp para conectar.");
+    },
     desconectarWhatsapp: (id) => mudar(() => void (b().telefones[id] = null)),
   },
 
