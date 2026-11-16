@@ -123,7 +123,7 @@ export function TelaRegistrar() {
           </label>
           <label className="mt-4 block">
             <span className="mb-1.5 block font-bold">Quanto custou?</span>
-            <span className="flex items-center rounded-2xl border-2 border-line bg-surface px-4 focus-within:border-primary">
+            <span className="flex items-center rounded-2xl border-2 border-line bg-surface px-4 caixa-de-campo focus-within:border-primary">
               <b aria-hidden="true" className="text-[1.6rem] text-muted">
                 R$
               </b>

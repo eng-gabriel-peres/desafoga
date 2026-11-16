@@ -126,7 +126,7 @@ export function EditorDeLimite({
     >
       <label>
         <span className="mb-1 block font-bold">Quanto quer gastar com {categoria.toLowerCase()} por mês?</span>
-        <span className="flex items-center rounded-2xl border-2 border-line bg-surface px-4 focus-within:border-primary">
+        <span className="flex items-center rounded-2xl border-2 border-line bg-surface px-4 caixa-de-campo focus-within:border-primary">
           <b aria-hidden="true" className="text-[1.3rem] text-muted">
             R$
           </b>

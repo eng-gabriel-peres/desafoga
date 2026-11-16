@@ -163,7 +163,7 @@ export function PlanoLeitura({
       <form onSubmit={enviar} className="mt-3 flex flex-wrap items-end gap-2.5">
         <label className="min-w-[10rem] flex-1">
           <span className="mb-1 block text-[0.92rem] font-bold">Sugerir valor mensal</span>
-          <span className="flex min-h-12 items-center rounded-xl border-2 border-line bg-surface px-3 focus-within:border-primary">
+          <span className="flex min-h-12 items-center rounded-xl border-2 border-line bg-surface px-3 caixa-de-campo focus-within:border-primary">
             <span aria-hidden="true" className="font-bold text-muted">
               R$
             </span>

@@ -122,6 +122,15 @@ body {
   outline-offset: 2px;
 }
 
+/* Campo com "R$" ou "%" ao lado: o contorno de foco vai na caixa inteira, não só no texto de dentro. */
+.caixa-de-campo:focus-within {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+.caixa-de-campo :focus-visible {
+  outline: none;
+}
+
 button {
   cursor: pointer;
 }

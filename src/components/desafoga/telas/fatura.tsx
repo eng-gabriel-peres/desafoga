@@ -90,7 +90,7 @@ export function TelaFatura() {
               setArrastando(false);
               ler(e.dataTransfer.files[0] ?? null);
             }}
-            className={`mt-4 flex min-h-44 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[var(--radius-card)] border-2 border-dashed p-5 text-center focus-within:border-primary hover:border-primary ${arrastando ? "border-primary bg-primary-soft" : "border-line bg-surface2"}`}
+            className={`mt-4 flex min-h-44 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[var(--radius-card)] border-2 border-dashed p-5 text-center caixa-de-campo focus-within:border-primary hover:border-primary ${arrastando ? "border-primary bg-primary-soft" : "border-line bg-surface2"}`}
           >
             <input
               type="file"

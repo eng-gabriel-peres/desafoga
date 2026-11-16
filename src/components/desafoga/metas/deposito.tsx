@@ -50,7 +50,7 @@ export function CaixaDeDeposito({
     <form onSubmit={guardar} className="mt-3.5 border-t border-line pt-3.5" noValidate>
       <label>
         <span className="mb-1 block font-bold">Quanto você guardou?</span>
-        <span className="flex items-center rounded-2xl border-2 border-line bg-surface px-4 focus-within:border-primary">
+        <span className="flex items-center rounded-2xl border-2 border-line bg-surface px-4 caixa-de-campo focus-within:border-primary">
           <b aria-hidden="true" className="text-[1.3rem] text-muted">
             R$
           </b>

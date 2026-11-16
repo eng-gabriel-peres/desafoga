@@ -108,21 +108,21 @@ export function FormularioDeDivida({ pessoaId, divida, fechar }: { pessoaId: str
         <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
           <label>
             <span className="mb-1 block font-bold">Quanto deve hoje</span>
-            <span className="flex items-center rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 focus-within:border-primary">
+            <span className="flex items-center rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 caixa-de-campo focus-within:border-primary">
               <span aria-hidden="true" className="font-bold text-muted">R$</span>
               <input value={saldo} onChange={(e) => setSaldo(e.target.value)} inputMode="decimal" placeholder="0,00" className="min-h-11 w-full border-0 bg-transparent pl-2 outline-none" />
             </span>
           </label>
           <label>
             <span className="mb-1 block font-bold">Juros ao mês</span>
-            <span className="flex items-center rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 focus-within:border-primary">
+            <span className="flex items-center rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 caixa-de-campo focus-within:border-primary">
               <input value={taxa} onChange={(e) => setTaxa(e.target.value)} inputMode="decimal" placeholder="Ex.: 14,2" className="min-h-11 w-full border-0 bg-transparent outline-none" />
               <span aria-hidden="true" className="font-bold text-muted">%</span>
             </span>
           </label>
           <label>
             <span className="mb-1 block font-bold">Parcela mínima</span>
-            <span className="flex items-center rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 focus-within:border-primary">
+            <span className="flex items-center rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 caixa-de-campo focus-within:border-primary">
               <span aria-hidden="true" className="font-bold text-muted">R$</span>
               <input value={minima} onChange={(e) => setMinima(e.target.value)} inputMode="decimal" placeholder="0,00" className="min-h-11 w-full border-0 bg-transparent pl-2 outline-none" />
             </span>

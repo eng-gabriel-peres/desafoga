@@ -8,7 +8,7 @@ export function CampoReais({ rotulo, className = "", ...props }: { rotulo: strin
   return (
     <label className={className}>
       <span className="mb-1 block font-bold">{rotulo}</span>
-      <span className="flex items-center rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 focus-within:border-primary">
+      <span className="flex items-center rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 caixa-de-campo focus-within:border-primary">
         <span aria-hidden="true" className="font-bold text-muted">
           R$
         </span>
