@@ -126,7 +126,7 @@ export function TelaRegistrar() {
               />
             </span>
           </label>
-          <fieldset className="mt-4">
+          <fieldset className="mt-4 min-w-0">
             <legend className="mb-1.5 font-bold">Tipo de compra</legend>
             <div role="radiogroup" aria-label="Tipo de compra" className="grid grid-cols-4 gap-2">
               {CATEGORIAS.map((c) => {

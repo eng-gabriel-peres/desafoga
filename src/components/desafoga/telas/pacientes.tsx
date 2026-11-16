@@ -64,24 +64,24 @@ export function TelaPacientes() {
       </div>
 
       {/* Desktop: tabela */}
-      <div className="hidden overflow-x-auto rounded-[var(--radius-card)] border border-line bg-surface desk:block">
+      <div className="relative hidden overflow-x-auto rounded-[var(--radius-card)] border border-line bg-surface desk:block">
         <table className="w-full border-collapse">
           <caption className="sr-only">Pacientes e indicadores dos últimos 7 dias</caption>
           <thead>
             <tr className="bg-surface2 text-left text-[0.82rem] text-muted">
               {["Paciente", "Situação", "Nota da semana", "Gasto da semana", "Não necessárias", "Para avaliar"].map((t) => (
-                <th key={t} scope="col" className={`border-b border-line px-3.5 py-3 font-bold whitespace-nowrap ${t === "Gasto da semana" ? "text-right" : ""}`}>
+                <th key={t} scope="col" className={`border-b border-line px-3 py-3 font-bold ${t === "Gasto da semana" ? "text-right" : ""}`}>
                   {t}
                 </th>
               ))}
-              <th scope="col" className="border-b border-line px-3.5 py-3">
+              <th scope="col" className="border-b border-line px-3 py-3">
                 <span className="sr-only">Abrir</span>
               </th>
             </tr>
           </thead>
           <tbody>
             {linhas.map(({ persona, semana, situacao }) => (
-              <tr key={persona.id} className="hover:bg-surface2 [&>td]:border-b [&>td]:border-line [&>td]:px-3.5 [&>td]:py-3 last:[&>td]:border-0">
+              <tr key={persona.id} className="hover:bg-surface2 [&>td]:border-b [&>td]:border-line [&>td]:px-3 [&>td]:py-3 last:[&>td]:border-0">
                 <td>
                   <span className="flex items-center gap-2.5">
                     <Avatar nome={persona.nome} cor={persona.cor} />

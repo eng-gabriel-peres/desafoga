@@ -92,7 +92,7 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
     <>
       {daPessoa && <TituloCelular titulo="Dívidas" subtitulo="Quanto suas dívidas custam e como sair delas" />}
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 desk:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] desk:gap-5">
-        <div className="grid gap-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           {raioX}
           {kpis}
           {daPessoa ? (
@@ -107,7 +107,7 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
             </>
           )}
         </div>
-        <div className="grid gap-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           {custo && <PainelCustoEmocional custo={custo} sujeito={daPessoa ? "você estava" : `${persona.apelido} estava`} />}
           <PainelFaturas faturas={faturas} podeEnviar={daPessoa} />
         </div>

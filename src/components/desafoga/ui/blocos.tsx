@@ -60,7 +60,7 @@ export function Etiqueta({ children, tom = "neutra" }: { children: ReactNode; to
     neutra: "bg-surface2 text-muted border border-line",
     primaria: "bg-primary-soft text-primary",
   }[tom];
-  return <span className={`inline-block rounded-full px-2.5 py-0.5 text-[0.8rem] font-bold whitespace-nowrap ${cor}`}>{children}</span>;
+  return <span className={`inline-block rounded-full px-2.5 py-0.5 text-[0.8rem] font-bold ${cor}`}>{children}</span>;
 }
 
 export function EtiquetaNecessidade({ necessidade }: { necessidade: Necessidade }) {

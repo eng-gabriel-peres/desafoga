@@ -46,7 +46,7 @@ function Divisao({ sim, nao, talvez }: { sim: number; nao: number; talvez: numbe
       </div>
       <ul className="grid gap-1.5">
         {partes.map((p) => (
-          <li key={p.rotulo} className="flex items-center gap-2">
+          <li key={p.rotulo} className="flex flex-wrap items-center gap-x-2">
             <i aria-hidden="true" className={`inline-block size-3.5 rounded ${p.cor}`} />
             {p.rotulo}
             <b className="ml-auto">{reais(p.valor)}</b>
@@ -68,7 +68,7 @@ export function TelaResumo({ pessoaId }: { pessoaId: string }) {
   const sujeito = `${persona.apelido} estava`;
 
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
       <div className="flex flex-wrap items-center gap-2.5">
         <h2 className="text-[1.25rem] font-bold">{persona.nome}</h2>
         <EtiquetaSituacao situacao={situacaoDoPaciente(semana)} />
@@ -81,7 +81,7 @@ export function TelaResumo({ pessoaId }: { pessoaId: string }) {
         <Kpi rotulo="Marcou como não necessárias" valor={`${semana.naoNecessarias} de ${semana.total}`} />
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 desk:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] desk:gap-5">
-        <div className="grid gap-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <Painel titulo="Humor e gasto por dia">
             <FaixaDaSemana dias={semana.dias} agora={agora} sujeito={sujeito} />
           </Painel>
@@ -89,7 +89,7 @@ export function TelaResumo({ pessoaId }: { pessoaId: string }) {
             <Divisao {...divisaoPorNecessidade(semana.compras)} />
           </Painel>
         </div>
-        <div className="grid gap-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <Painel titulo="Padrões encontrados">
             <ListaDePadroes padroes={padroesDeCompra(compras, agora)} sujeito={sujeito} />
           </Painel>

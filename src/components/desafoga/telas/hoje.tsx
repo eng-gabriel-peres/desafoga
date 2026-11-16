@@ -73,7 +73,7 @@ export function TelaHoje() {
       </div>
 
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 desk:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] desk:gap-5">
-        <div className="grid gap-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <NotaDoDia nota={notaMedia(deHoje)} quantidade={deHoje.length} sujeito="você estava" />
           <div className="grid gap-4 desk:hidden">
             {registrar}
@@ -85,7 +85,7 @@ export function TelaHoje() {
           </Painel>
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <Painel titulo="Comprou algo agora?" className="hidden desk:block">
             <Sub className="mb-3.5">Leva menos de 30 segundos. Também dá para mandar para a Luana pelo WhatsApp.</Sub>
             {registrar}

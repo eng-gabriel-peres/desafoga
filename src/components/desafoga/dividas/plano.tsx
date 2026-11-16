@@ -23,7 +23,7 @@ function Resultado({ dividas, valor, estrategia, agora }: { dividas: Divida[]; v
 
   return (
     <div aria-live="polite">
-      <dl className="mt-4 grid grid-cols-3 gap-2 rounded-2xl bg-surface2 p-3.5 text-center">
+      <dl className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-3 rounded-2xl bg-surface2 p-3.5 text-center">
         <div>
           <dt className="text-[0.82rem] text-muted">Livre das dívidas em</dt>
           <dd className="mt-1 text-[1.2rem] leading-tight font-bold">{r.quitavel ? meses(r.meses) : "mais de 30 anos"}</dd>
@@ -85,14 +85,14 @@ export function PlanoEditavel({
           </button>
         </p>
       )}
-      <fieldset>
+      <fieldset className="min-w-0">
         <legend className="mb-1.5 font-bold">Quanto você consegue pagar por mês, somando todas?</legend>
         <div className="flex items-center gap-3">
           <BotaoIcone aria-label="Diminuir R$ 50" onClick={() => aoMudar({ valorMensal: Math.max(minimo, valor - PASSO) })} disabled={valor <= minimo}>
             <Minus aria-hidden="true" />
           </BotaoIcone>
-          <div className="flex-1 text-center">
-            <b className="block text-[1.6rem] leading-tight" aria-live="polite">
+          <div className="min-w-0 flex-1 text-center">
+            <b className="block text-[1.4rem] leading-tight desk:text-[1.6rem]" aria-live="polite">
               {reais(valor)}
             </b>
             <Sub>{extra > 0 ? `${reais(extra)} a mais que o mínimo` : "só o mínimo"}</Sub>
@@ -176,7 +176,7 @@ export function PlanoLeitura({
               inputMode="decimal"
               autoComplete="off"
               aria-describedby="sugestao-ajuda"
-              className="w-full border-0 bg-transparent pl-2 font-bold outline-none"
+              className="min-h-11 w-full border-0 bg-transparent pl-2 font-bold outline-none"
             />
           </span>
         </label>

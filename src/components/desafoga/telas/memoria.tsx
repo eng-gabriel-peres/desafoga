@@ -45,12 +45,12 @@ export function TelaMemoria({ pessoaId }: { pessoaId: string }) {
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 desk:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] desk:gap-5">
-      <div className="grid gap-4">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
         {/* key: ao trocar de paciente, os campos recomeçam com a memória dele. */}
         <JeitoDeSer key={persona.id} persona={persona} memoria={memoria} />
         <Anotacoes key={`n-${persona.id}`} persona={persona} memoria={memoria} profissionais={profissionais} />
       </div>
-      <div className="grid gap-4 desk:sticky desk:top-28">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 desk:sticky desk:top-28">
         <Testar key={persona.id} persona={persona} />
       </div>
     </div>
