@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { consumir, redeDe } from "@/lib/limite";
+import { randomUUID } from "node:crypto";
+import { consumir, redeConfiavel } from "@/lib/limite";
 import { exigirAPropriaPessoa, SemPermissao, SemSessao } from "@/lib/desafoga/servidor/acesso";
 import { ArquivoRecusado, lerFatura, receberArquivoNoChat, receberAudioNoChat } from "@/lib/desafoga/servidor/acoes";
 import { acaoExiste, ErroDeEntrada, executar, recursoDa, type Contexto } from "@/lib/desafoga/servidor/rotas";
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   if (request.headers.get("x-desafoga") !== "1") return erro("Cabeçalho x-desafoga ausente.", 400);
 
   const sessao = await lerSessao(request.cookies.get(COOKIE_DA_SESSAO)?.value);
-  const rede = redeDe(request.headers);
+  const rede = redeConfiavel(request.headers);
   let novaSessao: NovaSessao | null | undefined;
   const contexto: Contexto = { rede, sessao, definirSessao: (nova) => (novaSessao = nova) };
 
@@ -37,7 +38,9 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
       const recurso = recursoDa(acao);
       if (recurso) {
         // Criar conta ou demo conta pela rede: uma conta nova não ganha cota nova.
-        const quem = recurso === "conta" ? (rede ?? "anonimo") : (sessao?.id ?? rede ?? "anonimo");
+        // Sem rede confiável, nada de balde compartilhado (um travaria todos):
+        // vale o teto global próprio desse recurso.
+        const quem = recurso === "conta" ? (rede ?? `sem-rede:${randomUUID()}`) : (sessao?.id ?? rede ?? `sem-rede:${randomUUID()}`);
         const uso = await consumir(recurso, `desafoga:${quem}`, rede);
         if (!uso.permitido) return erro(uso.mensagem ?? "Limite de uso de hoje atingido.", 429);
       }
@@ -79,7 +82,7 @@ async function comArquivo(acao: ComArquivo, sessao: SessaoAtual | null, request:
   exigirAPropriaPessoa(sessao, pessoaId);
 
   if (arquivo instanceof File) {
-    const uso = await consumir(COM_ARQUIVO[acao], `desafoga:${pessoaId}`, redeDe(request.headers));
+    const uso = await consumir(COM_ARQUIVO[acao], `desafoga:${pessoaId}`, redeConfiavel(request.headers));
     if (!uso.permitido) throw new ErroDeEntrada(uso.mensagem ?? "Limite de uso de hoje atingido.");
   }
   const lido = arquivo instanceof File ? { bytes: new Uint8Array(await arquivo.arrayBuffer()), mime: arquivo.type, nome: arquivo.name } : null;

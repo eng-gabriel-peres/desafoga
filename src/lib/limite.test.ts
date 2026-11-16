@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type Contador, contadorEmMemoria, criarLimitador, FOLGA_POR_REDE, LIMITE_POR_VISITANTE, redeDe } from "./limite";
+import { type Contador, contadorEmMemoria, criarLimitador, FOLGA_POR_REDE, LIMITE_POR_VISITANTE, redeConfiavel, redeDe, TETO_GLOBAL_POR_RECURSO } from "./limite";
 
 async function repetir(vezes: number, acao: () => Promise<unknown>) {
   for (let i = 0; i < vezes; i++) await acao();
@@ -70,5 +70,28 @@ describe("limite de uso", () => {
     expect(rede).toBe(redeDe(new Headers({ "x-forwarded-for": "203.0.113.7" })));
     expect(rede).not.toBe(redeDe(new Headers({ "x-forwarded-for": "203.0.113.8" })));
     expect(redeDe(new Headers())).toBeNull();
+  });
+
+  it("criar conta tem teto global próprio, que não divide a cota das conversas", async () => {
+    const consumir = criarLimitador(contadorEmMemoria(), 5);
+    const teto = TETO_GLOBAL_POR_RECURSO.conta!;
+    let ultima;
+    for (let i = 0; i <= teto; i++) ultima = await consumir("conta", `rede-${i}`, null);
+    expect(ultima?.permitido).toBe(false);
+    // As conversas seguem com o próprio teto (5 neste teste), sem contar as contas criadas.
+    expect((await consumir("texto", "alguem", null)).permitido).toBe(true);
+  });
+
+  it("só confia no endereço de rede na Vercel ou atrás de proxy declarado", () => {
+    const cabecalhos = new Headers({ "x-forwarded-for": "203.0.113.7" });
+    const antes = { vercel: process.env.VERCEL, proxy: process.env.CONFIAR_NO_PROXY };
+    delete process.env.VERCEL;
+    delete process.env.CONFIAR_NO_PROXY;
+    expect(redeConfiavel(cabecalhos)).toBeNull();
+    process.env.VERCEL = "1";
+    expect(redeConfiavel(cabecalhos)).toBe(redeDe(cabecalhos));
+    if (antes.vercel === undefined) delete process.env.VERCEL;
+    else process.env.VERCEL = antes.vercel;
+    if (antes.proxy !== undefined) process.env.CONFIAR_NO_PROXY = antes.proxy;
   });
 });

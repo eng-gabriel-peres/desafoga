@@ -32,11 +32,19 @@ export type Contador = ((chaves: string[], dia: string) => Promise<Map<string, n
 
 const NOME: Record<Recurso, string> = { texto: "mensagens", arquivo: "arquivos", audio: "áudios", codigo: "tentativas de código", conta: "contas e demonstrações novas" };
 
+/**
+ * Tetos do site inteiro por recurso, além do teto geral. Criar conta e demo
+ * tem o seu: não consome a cota das conversas nem é consumido por elas.
+ */
+export const TETO_GLOBAL_POR_RECURSO: Partial<Record<Recurso, number>> = { conta: 1000 };
+
 export function criarLimitador(contar: Contador, limiteGlobal = LIMITE_GLOBAL_PADRAO) {
   return async function consumir(recurso: Recurso, visitante: string, rede: string | null): Promise<Veredito> {
     const chaveDoVisitante = `v:${recurso}:${visitante}`;
     const chaveDaRede = rede ? `r:${recurso}:${rede}` : null;
-    const chaves = [chaveDoVisitante, "global", ...(chaveDaRede ? [chaveDaRede] : [])];
+    const tetoDoRecurso = TETO_GLOBAL_POR_RECURSO[recurso];
+    const chaveDoRecurso = tetoDoRecurso ? `g:${recurso}` : null;
+    const chaves = [chaveDoVisitante, ...(chaveDoRecurso ? [chaveDoRecurso] : ["global"]), ...(chaveDaRede ? [chaveDaRede] : [])];
 
     let totais: Map<string, number>;
     try {
@@ -59,6 +67,9 @@ export function criarLimitador(contar: Contador, limiteGlobal = LIMITE_GLOBAL_PA
         permitido: false,
         mensagem: "Recebi pedidos demais da sua rede hoje e precisei pausar. Tente de novo amanhã.",
       };
+    }
+    if (chaveDoRecurso && tetoDoRecurso && (totais.get(chaveDoRecurso) ?? 0) > tetoDoRecurso) {
+      return { permitido: false, mensagem: "Muitas contas novas hoje no Desafoga. Tente de novo amanhã." };
     }
     if ((totais.get("global") ?? 0) > limiteGlobal) {
       return {
@@ -234,6 +245,17 @@ export async function usoDeHoje(visitante: string): Promise<UsoDeHoje | null> {
  * Identificador da rede de quem chamou. É um resumo (hash) do endereço que a
  * hospedagem informa: serve para contar, sem guardar o endereço em si.
  */
+/**
+ * Rede de quem chamou, só quando o endereço vem de quem não pode ser enganado:
+ * na Vercel, a própria plataforma preenche x-forwarded-for (descarta o valor
+ * do cliente); fora dela, só atrás de um proxy declarado (CONFIAR_NO_PROXY=1).
+ * Sem isso, o cliente poderia inventar o cabeçalho e escapar do limite.
+ */
+export function redeConfiavel(cabecalhos: Headers): string | null {
+  if (!process.env.VERCEL && process.env.CONFIAR_NO_PROXY !== "1") return null;
+  return redeDe(cabecalhos);
+}
+
 export function redeDe(cabecalhos: Headers): string | null {
   const endereco = cabecalhos.get("x-forwarded-for")?.split(",")[0]?.trim();
   return endereco ? createHash("sha256").update(endereco).digest("hex").slice(0, 16) : null;
