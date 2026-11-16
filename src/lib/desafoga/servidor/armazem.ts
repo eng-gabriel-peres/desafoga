@@ -10,7 +10,7 @@
 import { randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { Pool } from "pg";
-import { somarHoje } from "@/lib/limite";
+import { lerHoje, somarHoje } from "@/lib/limite";
 import { novoBanco, type Banco } from "@/services/nucleo";
 import { normalizarTelefone } from "../telefone";
 
@@ -150,11 +150,16 @@ interface Pedido {
 const VALIDADE_DO_CODIGO_MS = 15 * 60_000;
 /** Tentativas por código: 6 dígitos não dão para adivinhar em 5. */
 const TENTATIVAS_POR_CODIGO = 5;
-/** Tentativas por número no dia, somando todos os códigos: pedir código novo não zera a conta. */
-const TENTATIVAS_POR_NUMERO_NO_DIA = 10;
-/** Códigos enviados para o mesmo número no dia. */
-const CODIGOS_POR_NUMERO_NO_DIA = 5;
-/** Intervalo mínimo entre dois códigos para o mesmo número. */
+/**
+ * Limites do dia em dois níveis. Por navegador e número, rígidos: valem para
+ * quem está tentando. Por número, um teto alto contra quem tenta de vários
+ * navegadores; alto o bastante para outra pessoa não conseguir travar o dono.
+ */
+const TENTATIVAS_POR_NAVEGADOR_E_NUMERO = 10;
+const TENTATIVAS_POR_NUMERO = 50;
+const CODIGOS_POR_NAVEGADOR_E_NUMERO = 5;
+const CODIGOS_POR_NUMERO = 20;
+/** Intervalo mínimo entre dois códigos pedidos pelo mesmo navegador para o mesmo número. */
 const INTERVALO_ENTRE_ENVIOS_MS = 60_000;
 /** Só mandamos código para quem falou com a Luana no WhatsApp nesse período (é também a janela do WhatsApp). */
 const JANELA_DE_CONTATO_MS = 24 * 60 * 60_000;
@@ -190,25 +195,32 @@ export async function pedirTelefone(
       throw new PedidoRecusado("Mande antes um “oi” para a Luana no WhatsApp desse número. Depois peça o código de novo.");
     }
   }
-  const ultimoEnvio = (await armazem().ler(`envio:${telefone}`)) as number | null;
+  const ultimoEnvio = (await armazem().ler(`envio:${visitante}:${telefone}`)) as number | null;
   if (ultimoEnvio && agora - ultimoEnvio < INTERVALO_ENTRE_ENVIOS_MS) {
     throw new PedidoRecusado("Acabamos de mandar um código para esse número. Espere um minuto para pedir outro.");
   }
-  const envios = (await somarHoje([`codigo-enviado:${telefone}`])).get(`codigo-enviado:${telefone}`) ?? 0;
-  if (envios > CODIGOS_POR_NUMERO_NO_DIA) {
+  const enviados = await lerHoje([`codigo-enviado:${visitante}:${telefone}`, `codigo-enviado:${telefone}`]);
+  if (
+    (enviados.get(`codigo-enviado:${visitante}:${telefone}`) ?? 0) >= CODIGOS_POR_NAVEGADOR_E_NUMERO ||
+    (enviados.get(`codigo-enviado:${telefone}`) ?? 0) >= CODIGOS_POR_NUMERO
+  ) {
     throw new PedidoRecusado("Esse número já recebeu códigos demais hoje. Tente de novo amanhã.");
   }
   const codigo = String(randomInt(0, 1_000_000)).padStart(6, "0");
   const pedido: Pedido = { id: randomUUID(), telefone, codigo, expira: agora + VALIDADE_DO_CODIGO_MS };
   await armazem().gravar(`pedido:${visitante}:${pessoaId}`, pedido);
-  await armazem().gravar(`envio:${telefone}`, agora);
   return { telefone, codigo };
 }
 
-/** Desfaz o pedido quando o código não pôde ser enviado. */
-export async function cancelarPedido(visitante: string, pessoaId: string, telefone: string): Promise<void> {
+/** Conta o código como enviado; só depois de o WhatsApp aceitar a mensagem. */
+export async function registrarEnvio(visitante: string, telefone: string, agora = Date.now()): Promise<void> {
+  await armazem().gravar(`envio:${visitante}:${telefone}`, agora);
+  await somarHoje([`codigo-enviado:${visitante}:${telefone}`, `codigo-enviado:${telefone}`]);
+}
+
+/** Desfaz o pedido quando o código não pôde ser enviado (e ele não conta no limite). */
+export async function cancelarPedido(visitante: string, pessoaId: string): Promise<void> {
   await armazem().apagar(`pedido:${visitante}:${pessoaId}`);
-  await armazem().apagar(`envio:${telefone}`);
 }
 
 /**
@@ -222,9 +234,10 @@ export async function confirmarTelefone(visitante: string, pessoaId: string, cod
   if (!pedido || pedido.expira < agora) throw new PedidoRecusado("O código venceu. Peça um novo.");
 
   const doPedido = `codigo-tentativa:${pedido.id}`;
+  const doPar = `codigo-tentativa:${visitante}:${pedido.telefone}`;
   const doNumero = `codigo-tentativa-numero:${pedido.telefone}`;
-  const totais = await somarHoje([doPedido, doNumero]);
-  if ((totais.get(doNumero) ?? 0) > TENTATIVAS_POR_NUMERO_NO_DIA) {
+  const totais = await somarHoje([doPedido, doPar, doNumero]);
+  if ((totais.get(doPar) ?? 0) > TENTATIVAS_POR_NAVEGADOR_E_NUMERO || (totais.get(doNumero) ?? 0) > TENTATIVAS_POR_NUMERO) {
     await armazem().apagar(chave);
     throw new PedidoRecusado("Muitas tentativas para esse número hoje. Tente de novo amanhã.");
   }

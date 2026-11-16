@@ -156,6 +156,13 @@ export function somarHoje(chaves: string[]): Promise<Map<string, number>> {
   return contadorAtual()(chaves, hojeEmBrasilia());
 }
 
+/** Lê os totais de hoje, sem somar. Chave que não existe fica de fora do mapa. */
+export async function lerHoje(chaves: string[]): Promise<Map<string, number>> {
+  const contar = contadorAtual();
+  // Prefixo que nenhuma chave tem: só as chaves pedidas voltam.
+  return contar.ler ? contar.ler(hojeEmBrasilia(), chaves, "\u0000") : new Map();
+}
+
 /** Conta um pedido e diz se ele pode ser atendido. */
 export function consumir(recurso: Recurso, visitante: string, rede: string | null): Promise<Veredito> {
   atual ??= criarLimitador(contadorAtual(), limiteGlobal());

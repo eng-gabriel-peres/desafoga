@@ -1,15 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { novoBanco, pessoa, salvarPlano } from "@/services/nucleo";
-import { comBanco, confirmarTelefone, desvincularTelefone, donoDoTelefone, pedirTelefone as pedirComContato, registrarContato } from "./armazem";
+import {
+  comBanco,
+  confirmarTelefone,
+  desvincularTelefone,
+  donoDoTelefone,
+  pedirTelefone as pedirComContato,
+  registrarContato,
+  registrarEnvio,
+} from "./armazem";
 import { executar } from "./rotas";
 import { atenderNoWhatsapp } from "./whatsapp";
 
 const outroCodigo = (c: string) => (c === "000000" ? "111111" : "000000");
 
 /** Nos testes, o número já escreveu para a Luana antes de pedir o código. */
-async function pedirTelefone(visitante: string, pessoaId: string, numero: string) {
+async function pedirTelefone(visitante: string, pessoaId: string, numero: string, agora = Date.now()) {
   await registrarContato(numero);
-  return pedirComContato(visitante, pessoaId, numero);
+  const pedido = await pedirComContato(visitante, pessoaId, numero, { agora });
+  if (pedido) await registrarEnvio(visitante, pedido.telefone, agora);
+  return pedido;
 }
 
 describe("conectar o WhatsApp com código", () => {
@@ -51,23 +61,27 @@ describe("conectar o WhatsApp com código", () => {
     expect(naoConfere.length).toBeLessThanOrEqual(5);
   });
 
-  it("pedir código novo não zera as tentativas do número no dia", async () => {
-    const numero = "11911110000";
-    await registrarContato(numero);
+  it("pedir código novo não zera as tentativas do navegador no dia", async () => {
     let total = 0;
-    let rodadas = 0;
     for (let rodada = 0; rodada < 3; rodada++) {
-      // Cada rodada, um navegador diferente pede um código novo e erra.
-      const p = await pedirComContato(`visitante-k${rodada}kkk`, "ana", numero, { agora: Date.now() + rodada * 61_000 }).catch(() => null);
+      const p = await pedirTelefone("visitante-kkkk", "ana", "11911110000", Date.now() + rodada * 61_000).catch(() => null);
       if (!p) break;
-      rodadas++;
       for (let i = 0; i < 5; i++) {
-        const r = await confirmarTelefone(`visitante-k${rodada}kkk`, "ana", outroCodigo(p.codigo)).catch((e: Error) => e.message);
+        const r = await confirmarTelefone("visitante-kkkk", "ana", outroCodigo(p.codigo)).catch((e: Error) => e.message);
         if (String(r).includes("não confere")) total++;
       }
     }
-    expect(rodadas).toBe(3);
     expect(total).toBeLessThanOrEqual(10);
+  });
+
+  it("outra sessão que erra o código não trava o dono do número", async () => {
+    const numero = "11988880000";
+    for (let rodada = 0; rodada < 2; rodada++) {
+      const p = await pedirTelefone("visitante-atacante", "ana", numero, Date.now() + rodada * 61_000);
+      for (let i = 0; i < 6; i++) await confirmarTelefone("visitante-atacante", "ana", outroCodigo(p!.codigo)).catch(() => {});
+    }
+    const meu = await pedirTelefone("visitante-dono1", "ana", numero);
+    expect(await confirmarTelefone("visitante-dono1", "ana", meu!.codigo)).toBe("5511988880000");
   });
 
   it("só manda código para quem falou com a Luana no WhatsApp", async () => {
@@ -76,16 +90,28 @@ describe("conectar o WhatsApp com código", () => {
     expect(await pedirComContato("visitante-llll", "ana", "11900009999")).not.toBeNull();
   });
 
-  it("não manda dois códigos seguidos para o mesmo número", async () => {
+  it("limita códigos por navegador sem deixar outro navegador travar o número", async () => {
     await pedirTelefone("visitante-hhhh", "ana", "11933332222");
-    await expect(pedirTelefone("visitante-iiii", "ana", "11933332222")).rejects.toThrow("Espere um minuto");
-    // E no máximo 5 por dia, mesmo respeitando o intervalo.
+    await expect(pedirTelefone("visitante-hhhh", "ana", "11933332222")).rejects.toThrow("Espere um minuto");
+    // Outro navegador não é afetado pelo intervalo de quem pediu antes.
+    expect(await pedirTelefone("visitante-iiii", "ana", "11933332222")).not.toBeNull();
+
     const vezes = [];
-    for (let i = 1; i <= 8; i++) {
-      vezes.push(await pedirComContato("visitante-hhhh", "ana", "11933332222", { agora: Date.now() + i * 61_000 }).then(() => "ok", (e: Error) => e.message));
+    for (let i = 1; i <= 7; i++) {
+      vezes.push(await pedirTelefone("visitante-hhhh", "ana", "11933332222", Date.now() + i * 61_000).then(() => "ok", (e: Error) => e.message));
     }
-    expect(vezes.filter((v) => v === "ok").length).toBeLessThanOrEqual(5);
+    expect(vezes.filter((v) => v === "ok").length).toBe(4);
     expect(vezes.at(-1)).toContain("demais hoje");
+    // O dono, em outro navegador, ainda recebe código.
+    expect(await pedirTelefone("visitante-dono2", "ana", "11933332222")).not.toBeNull();
+  });
+
+  it("envio que falhou não conta no limite", async () => {
+    await registrarContato("11922220000");
+    for (let i = 0; i < 8; i++) {
+      // Pediu e não registrou o envio (o WhatsApp recusou): o próximo pedido ainda passa.
+      expect(await pedirComContato("visitante-mmmm", "ana", "11922220000", { agora: Date.now() + i * 61_000 })).not.toBeNull();
+    }
   });
 
   it("outro navegador não apaga a ligação de quem confirmou", async () => {

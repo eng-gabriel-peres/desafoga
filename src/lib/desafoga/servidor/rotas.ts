@@ -21,7 +21,16 @@ import {
 } from "@/services/nucleo";
 import type { Fatura } from "@/services/tipos";
 import { responderTexto, testarResposta } from "./acoes";
-import { cancelarPedido, comBanco, confirmarTelefone, desvincularTelefone, PedidoRecusado, pedirTelefone, recomecarBanco } from "./armazem";
+import {
+  cancelarPedido,
+  comBanco,
+  confirmarTelefone,
+  desvincularTelefone,
+  PedidoRecusado,
+  pedirTelefone,
+  recomecarBanco,
+  registrarEnvio,
+} from "./armazem";
 import { enviarPeloWhatsapp, whatsappConfigurado } from "./enviar";
 
 /** Ids só com letras minúsculas, números e hífen: nada de "__proto__" e afins. */
@@ -66,12 +75,14 @@ const ACOES = {
     if (!pedido) throw new ErroDeEntrada("Número inválido. Use DDD e número, por exemplo (11) 99999-8888.");
     const mensagem = `Seu código do Desafoga é ${pedido.codigo}. Digite no app para conectar este WhatsApp. Se não foi você, ignore esta mensagem.`;
     if (semWhatsapp) {
+      await registrarEnvio(v, pedido.telefone);
       return { telefone: pedido.telefone, codigoDeTeste: pedido.codigo };
     }
     try {
       await enviarPeloWhatsapp(pedido.telefone, mensagem);
+      await registrarEnvio(v, pedido.telefone);
     } catch (e) {
-      await cancelarPedido(v, p, pedido.telefone);
+      await cancelarPedido(v, p);
       console.error("Desafoga: código não enviado,", e instanceof Error ? e.message.slice(0, 200) : "erro");
       throw new ErroDeEntrada(
         "Não consegui mandar o código para esse WhatsApp. Confira o número e mande antes um “oi” para a Luana por ele (no sandbox da Twilio, a mensagem de entrada “join”).",
