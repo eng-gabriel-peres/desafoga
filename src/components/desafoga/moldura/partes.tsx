@@ -97,7 +97,7 @@ export function MenuLateral({ itens, caminho }: { itens: ItemDoMenu[]; caminho: 
   return (
     <nav aria-label="Menu">
       <ul className="grid gap-1">
-        {itens.map(({ href, rotulo, Icone, ativo }) => (
+        {itens.filter((i) => !i.soCelular).map(({ href, rotulo, Icone, ativo }) => (
           <li key={href}>
             <Link
               href={href}
