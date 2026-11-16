@@ -1,9 +1,10 @@
 "use client";
 
 import { Bell } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 import { useAgora } from "@/hooks/use-agora";
 import { useConsulta } from "@/hooks/use-consulta";
+import { useFecharFora } from "@/hooks/use-fechar-fora";
 import { chaveDoDia, ultimosDias } from "@/lib/finance";
 import { servicos } from "@/services";
 import { ListaDeAvisos } from "../avisos";
@@ -25,19 +26,8 @@ export function Sino({ area }: { area: Area }) {
     ? avisos.filter((a) => ultimosDias(agora, 2).includes(chaveDoDia(new Date(a.quando)))).length
     : 0;
 
-  useEffect(() => {
-    if (!aberto) return;
-    const fecharFora = (e: PointerEvent) => {
-      if (!caixa.current?.contains(e.target as Node)) setAberto(false);
-    };
-    const fecharEsc = (e: KeyboardEvent) => e.key === "Escape" && setAberto(false);
-    document.addEventListener("pointerdown", fecharFora);
-    document.addEventListener("keydown", fecharEsc);
-    return () => {
-      document.removeEventListener("pointerdown", fecharFora);
-      document.removeEventListener("keydown", fecharEsc);
-    };
-  }, [aberto]);
+  const fechar = useCallback(() => setAberto(false), []);
+  useFecharFora(aberto, fechar, caixa);
 
   return (
     <div ref={caixa} className="relative">

@@ -1,7 +1,6 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useAgora } from "@/hooks/use-agora";
 import { useConsulta } from "@/hooks/use-consulta";
@@ -9,9 +8,9 @@ import { usePacienteAtual } from "@/hooks/use-paciente-atual";
 import { dataPorExtenso } from "@/lib/formatar";
 import { servicos } from "@/services";
 import { useEu } from "../sessao";
-import { Avatar } from "../ui/blocos";
 import { itensDoMenu, temPaciente, tituloDaRota, type Area } from "./navegacao";
-import { BotaoLetraMaior, LinkSair, Marca, MenuInferior, MenuLateral, SeletorDePaciente } from "./partes";
+import { MenuDoPerfil } from "./menu-do-perfil";
+import { BotaoLetraMaior, Marca, MenuInferior, MenuLateral, SeletorDePaciente } from "./partes";
 import { Sino } from "./sino";
 
 const NOME_DA_AREA: Record<Area, string> = { pessoa: "Meu Desafoga", responsavel: "Painel do responsável" };
@@ -19,11 +18,11 @@ const NOME_CURTO: Record<Area, string> = { pessoa: "Desafoga", responsavel: "Pai
 
 /**
  * Moldura de cada área. No celular: topo e menu inferior. No desktop (1000px
- * ou mais): barra lateral, cabeçalho com título e sino.
+ * ou mais): barra lateral, cabeçalho com título e sino. Nos dois, a bolinha
+ * do perfil abre o menu com perfil e sair.
  */
 export function Moldura({ area, children }: { area: Area; children: ReactNode }) {
   const caminho = usePathname();
-  const router = useRouter();
   const eu = useEu();
   const pessoas = useConsulta(area === "responsavel" ? "pessoas" : "sem-pessoas", () =>
     area === "responsavel" ? servicos.pessoas.listar() : Promise.resolve([]),
@@ -33,21 +32,6 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
   const pacienteId = guardado || pessoas?.[0]?.id || "";
   const itens = itensDoMenu(area, pacienteId);
   const agora = useAgora();
-  const quem =
-    area === "responsavel" && eu.profissional
-      ? { nome: eu.profissional.nome, cor: eu.profissional.cor, detalhe: eu.profissional.papel }
-      : eu.pessoa
-        ? {
-            nome: eu.pessoa.nome,
-            cor: eu.pessoa.cor,
-            detalhe: eu.acompanhantes.length ? `Acompanhada por ${eu.acompanhantes[0].nome}` : "Sem acompanhamento ainda",
-          }
-        : null;
-
-  async function recomecar() {
-    await servicos.sessao.recomecar();
-    router.refresh();
-  }
   const comPaciente = temPaciente(caminho);
   /** O chat ocupa a altura toda, como no WhatsApp. */
   const telaCheia = caminho === "/app/assistente";
@@ -75,7 +59,7 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
           </div>
           <BotaoLetraMaior />
           <Sino area={area} />
-          <LinkSair compacto demo={eu.demo} />
+          <MenuDoPerfil area={area} />
         </div>
       </header>
 
@@ -88,26 +72,6 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
         <MenuLateral itens={itens} caminho={caminho} />
         <div className="mt-auto grid gap-2.5">
           <BotaoLetraMaior comTexto />
-          {eu.demo && (
-            <button
-              type="button"
-              onClick={recomecar}
-              className="flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-surface2 px-3 text-left text-[0.9rem] font-bold hover:border-primary"
-            >
-              <RotateCcw aria-hidden="true" className="size-5" />
-              Recomeçar demonstração
-            </button>
-          )}
-          <LinkSair demo={eu.demo} />
-          {quem && (
-            <div className="flex items-center gap-2.5 rounded-2xl border border-line bg-surface2 p-2.5">
-              <Avatar nome={quem.nome} cor={quem.cor} />
-              <div>
-                <b className="block text-[0.95rem]">{quem.nome}</b>
-                <span className="text-[0.85rem] text-muted">{quem.detalhe}</span>
-              </div>
-            </div>
-          )}
         </div>
       </aside>
 
@@ -121,6 +85,7 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
           <div className="ml-auto flex items-center gap-2.5">
             {comPaciente && pessoas && <SeletorDePaciente pessoas={pessoas} atual={pacienteId} caminho={caminho} />}
             <Sino area={area} />
+            <MenuDoPerfil area={area} />
           </div>
         </header>
 
