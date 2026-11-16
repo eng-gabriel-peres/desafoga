@@ -99,12 +99,12 @@ Valores em centavos e taxas como fração ao mês. Cada função tem teste.
 
 A Luana é a mesma nos dois canais: mesmo código no servidor (`src/lib/desafoga`), mesma memória do profissional e mesmos números.
 
-- **Dados unificados:** no cadastro, a pessoa informa o número de WhatsApp (hoje, em "Conectar WhatsApp", no chat do app). Tudo o que ela manda por esse número (compras, faturas, áudios) cai na conta dela e aparece no app e no painel do responsável.
+- **Dados unificados:** no cadastro, a pessoa informa o número de WhatsApp (hoje, em "Conectar WhatsApp", no chat do app) e manda pelo WhatsApp o código que aparece na tela (`DESAFOGA 123456`). Só depois disso o número fica ligado à conta, para ninguém cadastrar o número de outra pessoa. A partir daí, tudo o que ela manda por esse número (compras, faturas, áudios) cai na conta dela e aparece no app e no painel do responsável.
 - **Conversas separadas:** o chat do app e o do WhatsApp são conversas diferentes. Uma pergunta em aberto num canal não se mistura com o outro.
 - **IA lê, código calcula:** o Gemini lê gastos escritos do jeito da pessoa ("almoço 35 e uber 18,50"), faturas, prints e áudios, e conversa usando a memória. Plano, simulações, juros, o registro de compras (com emoção e necessidade) e a resposta a sofrimento intenso seguem por regras, com os números de `src/lib/finance`. Sem `GEMINI_API_KEY`, ou com a IA fora do ar, as regras respondem tudo.
 - **Webhooks:** `/api/twilio/webhook` (sandbox da Twilio) e `/api/whatsapp/webhook` (Meta). Número cadastrado vai para o Desafoga; número sem cadastro segue com a Luana de antes.
 
-Para a demonstração com o sandbox da Twilio: preencha `NEXT_PUBLIC_WHATSAPP_NUMERO` e `NEXT_PUBLIC_WHATSAPP_CODIGO` (código do "join"), conecte o seu número na conta da Ana e converse com a Luana pelo WhatsApp.
+Para a demonstração com o sandbox da Twilio: preencha `NEXT_PUBLIC_WHATSAPP_NUMERO` e `NEXT_PUBLIC_WHATSAPP_CODIGO` (código do "join"), conecte o seu número na conta da Ana, mande o código pelo WhatsApp e converse com a Luana pelo WhatsApp.
 
 ## O que ainda é simulado
 
