@@ -470,7 +470,8 @@ export async function guardarMensagens(
     });
   }
   const criadas = [];
-  for (const m of mensagens) {
+  const agora = Date.now();
+  for (const [i, m] of mensagens.entries()) {
     criadas.push(
       await prisma().mensagem.create({
         data: {
@@ -478,7 +479,8 @@ export async function guardarMensagens(
           canal,
           de: m.de,
           texto: m.texto,
-          quando: m.quando ?? new Date(),
+          // +1 ms por mensagem: gravadas juntas, continuam na ordem em que foram ditas.
+          quando: new Date((m.quando?.getTime() ?? agora) + i),
           respostasRapidas: (m.respostasRapidas ?? undefined) as Prisma.InputJsonValue | undefined,
         },
       }),
