@@ -1,5 +1,5 @@
 /**
- * Contratos da camada de dados do Pausa. As telas só conhecem estas
+ * Contratos da camada de dados do Desafoga. As telas só conhecem estas
  * interfaces. Hoje a implementação é simulada (`mock/`); depois ela troca por
  * chamadas à API sem mexer nas telas.
  */

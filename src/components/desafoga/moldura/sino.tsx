@@ -8,21 +8,21 @@ import { chaveDoDia, ultimosDias } from "@/lib/finance";
 import { servicos } from "@/services";
 import { ListaDeAvisos } from "../avisos";
 import { BotaoIcone } from "../ui/botao";
-import { PESSOA_DA_DEMO, type Modo } from "./navegacao";
+import { PESSOA_DA_DEMO, type Area } from "./navegacao";
 
 /**
  * Sino de avisos. O responsável vê os avisos de todos os pacientes; a pessoa
  * vê as sugestões que os profissionais mandaram para ela.
  */
-export function Sino({ modo }: { modo: Modo }) {
+export function Sino({ area }: { area: Area }) {
   const [aberto, setAberto] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
   const id = useId();
   const agora = useAgora();
-  const todos = useConsulta(`avisos:${modo}`, () =>
-    servicos.avisos.listar(modo === "pessoa" ? PESSOA_DA_DEMO : undefined),
+  const todos = useConsulta(`avisos:${area}`, () =>
+    servicos.avisos.listar(area === "pessoa" ? PESSOA_DA_DEMO : undefined),
   );
-  const avisos = (todos ?? []).filter((a) => (modo === "pessoa" ? a.tipo === "sugestao" : a.tipo !== "sugestao"));
+  const avisos = (todos ?? []).filter((a) => (area === "pessoa" ? a.tipo === "sugestao" : a.tipo !== "sugestao"));
   const recentes = agora
     ? avisos.filter((a) => ultimosDias(agora, 2).includes(chaveDoDia(new Date(a.quando)))).length
     : 0;

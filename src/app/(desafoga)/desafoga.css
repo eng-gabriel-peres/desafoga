@@ -4,7 +4,7 @@
 @custom-variant desk (@media (min-width: 1000px));
 
 /*
- * Tokens do Pausa. Claro por padrão; escuro segue o sistema.
+ * Tokens do Desafoga. Claro por padrão; escuro segue o sistema.
  * Cores conferidas para contraste AA de texto sobre bg, surface e surface2.
  */
 :root {
@@ -133,12 +133,12 @@ button {
 }
 
 /* Bolinhas do "digitando…" do chat. */
-@keyframes pausa-digitando {
+@keyframes desafoga-digitando {
   0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
   30% { opacity: 1; transform: translateY(-3px); }
 }
 .digitando i {
-  animation: pausa-digitando 1.2s infinite;
+  animation: desafoga-digitando 1.2s infinite;
 }
 .digitando i:nth-child(2) { animation-delay: 0.15s; }
 .digitando i:nth-child(3) { animation-delay: 0.3s; }

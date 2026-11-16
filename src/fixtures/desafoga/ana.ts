@@ -99,7 +99,7 @@ export const ana: SementePessoa = {
     { id: "ana-a3", dias: 4, hora: "23:11", tipo: "gasto-alto", texto: "Ana registrou uma compra de R$ 320,00 (Blusa e calça da loja online)." },
   ],
   conversa: [
-    { dias: 6, hora: "09:00", de: "assistente", texto: "Oi, Ana! Eu sou a Luana, assistente do Pausa.\nComprou alguma coisa? É só me mandar, do seu jeito.\nExemplo: comprei pão 12" },
+    { dias: 6, hora: "09:00", de: "assistente", texto: "Oi, Ana! Eu sou a Luana, assistente do Desafoga.\nComprou alguma coisa? É só me mandar, do seu jeito.\nExemplo: comprei pão 12" },
     { dias: 1, hora: "21:00", de: "assistente", texto: "Lembrete das 21h\nComo foi o seu dia? Se comprou algo e ainda não anotou, é só me mandar." },
     { dias: 1, hora: "21:19", de: "pessoa", texto: "comprei um tênis de corrida 399" },
     { dias: 1, hora: "21:20", de: "assistente", texto: "Anotado: Tênis de corrida, R$ 399,00.\nVocê estava: Triste\nEra necessária: Não" },

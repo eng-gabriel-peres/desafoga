@@ -1,47 +1,47 @@
 "use client";
 
-import { ALargeSmall } from "lucide-react";
+import { ALargeSmall, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLetraMaior } from "@/hooks/use-letra-maior";
 import { BotaoIcone } from "../ui/botao";
-import { rotaDeOutroPaciente, type ItemDoMenu, type Modo } from "./navegacao";
+import { rotaDeOutroPaciente, type ItemDoMenu } from "./navegacao";
 import type { Persona } from "@/services";
 
-/** Logo: círculo com o símbolo de pausa. */
+/** Logo: círculo com uma onda, a ideia de respirar e aliviar o peso. */
 export function Marca({ comNome = true }: { comNome?: boolean }) {
   return (
     <span className="flex items-center gap-2 text-[1.2rem] font-bold">
-      <span aria-hidden="true" className="relative grid size-[30px] shrink-0 place-items-center rounded-full bg-primary">
-        <span className="flex gap-1">
-          <i className="block h-3.5 w-1 rounded-sm bg-primary-ink" />
-          <i className="block h-3.5 w-1 rounded-sm bg-primary-ink" />
-        </span>
-      </span>
-      {comNome && <span>Pausa</span>}
+      <svg aria-hidden="true" viewBox="0 0 30 30" className="size-[30px] shrink-0">
+        <circle cx="15" cy="15" r="15" fill="var(--primary)" />
+        <path
+          d="M7 13.5c2.7-3 5.3-3 8 0s5.3 3 8 0M7 18.5c2.7-3 5.3-3 8 0s5.3 3 8 0"
+          fill="none"
+          stroke="var(--primary-ink)"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+        />
+      </svg>
+      {comNome && <span>Desafoga</span>}
     </span>
   );
 }
 
-/** Alterna a demonstração entre a visão da pessoa e a do responsável. */
-export function SeletorDeModo({ modo }: { modo: Modo }) {
-  const opcoes: [Modo, string, string][] = [
-    ["pessoa", "Pessoa", "/hoje"],
-    ["responsavel", "Responsável", `/pacientes`],
-  ];
+/** Volta à tela de entrada da demonstração (no futuro, "Sair"). */
+export function LinkSair({ compacto = false }: { compacto?: boolean }) {
   return (
-    <nav aria-label="Ver o app como" className="flex rounded-xl border border-line bg-surface2 p-[3px]">
-      {opcoes.map(([valor, rotulo, href]) => (
-        <Link
-          key={valor}
-          href={href}
-          aria-current={modo === valor ? "page" : undefined}
-          className="flex min-h-11 flex-1 items-center justify-center rounded-[9px] px-3 text-[0.85rem] font-bold text-muted no-underline aria-[current=page]:bg-surface aria-[current=page]:text-ink aria-[current=page]:shadow-[0_0_0_1px_var(--line)]"
-        >
-          {rotulo}
-        </Link>
-      ))}
-    </nav>
+    <Link
+      href="/"
+      aria-label={compacto ? "Trocar de perfil" : undefined}
+      className={
+        compacto
+          ? "inline-grid size-11 shrink-0 place-items-center rounded-[10px] border border-line bg-surface2 hover:border-primary"
+          : "flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-surface2 px-3 text-[0.9rem] font-bold no-underline hover:border-primary"
+      }
+    >
+      <LogOut aria-hidden="true" className="size-5" />
+      {!compacto && "Trocar de perfil"}
+    </Link>
   );
 }
 

@@ -1,5 +1,5 @@
 /**
- * Tipos do motor financeiro do Pausa.
+ * Tipos do motor financeiro do Desafoga.
  *
  * Regra do projeto: a IA lê, o código calcula. Valores em centavos (inteiros)
  * e taxas como fração ao mês (0.142 = 14,2% a.m.).

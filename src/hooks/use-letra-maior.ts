@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 
-const CHAVE = "pausa-letra-maior";
+const CHAVE = "desafoga-letra-maior";
 const CLASSE = "letra-maior";
 const ouvintes = new Set<() => void>();
 

@@ -2,7 +2,7 @@
  * Implementação simulada dos serviços, sobre os dados fictícios. Nada sai do
  * navegador. Para ligar no backend, basta outra implementação de `Servicos`.
  */
-import { FATURA_DE_EXEMPLO, materializarFatura, PROFISSIONAIS, RESPONSAVEL_DA_DEMO } from "@/fixtures/pausa";
+import { FATURA_DE_EXEMPLO, materializarFatura, PROFISSIONAIS, RESPONSAVEL_DA_DEMO } from "@/fixtures/desafoga";
 import { montarContexto } from "@/lib/assistente/contexto";
 import { ESTADO_INICIAL, responder, type ContextoAssistente, type Efeito } from "@/lib/assistente/conversa";
 import { reais } from "@/lib/assistente/textos";

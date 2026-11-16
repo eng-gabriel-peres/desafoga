@@ -9,28 +9,37 @@ import { usePacienteAtual } from "@/hooks/use-paciente-atual";
 import { dataPorExtenso } from "@/lib/formatar";
 import { servicos } from "@/services";
 import { Avatar } from "../ui/blocos";
-import { itensDoMenu, modoDaRota, PESSOA_DA_DEMO, tituloDaRota } from "./navegacao";
-import { BotaoLetraMaior, Marca, MenuInferior, MenuLateral, SeletorDeModo, SeletorDePaciente } from "./partes";
+import { itensDoMenu, PESSOA_DA_DEMO, temPaciente, tituloDaRota, type Area } from "./navegacao";
+import { BotaoLetraMaior, LinkSair, Marca, MenuInferior, MenuLateral, SeletorDePaciente } from "./partes";
 import { Sino } from "./sino";
 
+const NOME_DA_AREA: Record<Area, string> = { pessoa: "Meu Desafoga", responsavel: "Painel do responsável" };
+
 /**
- * Moldura do app. No celular: topo com o seletor de modo e menu inferior.
- * No desktop (1000px ou mais): barra lateral, cabeçalho com título e sino.
+ * Moldura de cada área. No celular: topo e menu inferior. No desktop (1000px
+ * ou mais): barra lateral, cabeçalho com título e sino.
  */
-export function Moldura({ children }: { children: ReactNode }) {
+export function Moldura({ area, children }: { area: Area; children: ReactNode }) {
   const caminho = usePathname();
-  const modo = modoDaRota(caminho);
   const pacienteId = usePacienteAtual();
-  const itens = itensDoMenu(modo, pacienteId);
+  const itens = itensDoMenu(area, pacienteId);
   const agora = useAgora();
-  const pessoas = useConsulta("pessoas", () => servicos.pessoas.listar());
-  const responsavel = useConsulta("responsavel", () => servicos.pessoas.responsavel());
-  const ana = pessoas?.find((p) => p.id === PESSOA_DA_DEMO);
-  const comPaciente = /^\/pacientes\/[^/]+/.test(caminho);
+  const pessoas = useConsulta(area === "responsavel" ? "pessoas" : "sem-pessoas", () =>
+    area === "responsavel" ? servicos.pessoas.listar() : Promise.resolve([]),
+  );
+  const eu = useConsulta(`eu:${area}`, async () => {
+    if (area === "responsavel") {
+      const r = await servicos.pessoas.responsavel();
+      return { nome: r.nome, cor: r.cor, detalhe: r.papel };
+    }
+    const [p, r] = await Promise.all([servicos.pessoas.obter(PESSOA_DA_DEMO), servicos.pessoas.responsavel()]);
+    return p ? { nome: p.nome, apelido: p.apelido, cor: p.cor, detalhe: `Acompanhada por ${r.nome}` } : null;
+  });
+  const comPaciente = temPaciente(caminho);
 
   const { titulo, subtitulo } =
-    caminho === "/hoje" && ana
-      ? { titulo: `Oi, ${ana.apelido}`, subtitulo: agora ? dataPorExtenso(agora) : undefined }
+    caminho === "/app/hoje" && eu && "apelido" in eu
+      ? { titulo: `Oi, ${eu.apelido}`, subtitulo: agora ? dataPorExtenso(agora) : undefined }
       : tituloDaRota(caminho);
 
   return (
@@ -45,13 +54,13 @@ export function Moldura({ children }: { children: ReactNode }) {
       {/* Celular */}
       <header className="sticky top-0 z-20 border-b border-line bg-surface pt-[env(safe-area-inset-top)] desk:hidden">
         <div className="mx-auto flex max-w-[620px] items-center gap-2 px-3 py-2.5">
-          <span className="mr-auto">
+          <div className="mr-auto flex min-w-0 items-center gap-2">
             <Marca comNome={false} />
-            <span className="sr-only">Pausa</span>
-          </span>
-          <SeletorDeModo modo={modo} />
+            <span className="truncate font-bold">{NOME_DA_AREA[area]}</span>
+          </div>
           <BotaoLetraMaior />
-          <Sino modo={modo} />
+          <Sino area={area} />
+          <LinkSair compacto />
         </div>
       </header>
 
@@ -59,10 +68,7 @@ export function Moldura({ children }: { children: ReactNode }) {
       <aside className="sticky top-0 hidden h-dvh flex-col gap-5 overflow-auto border-r border-line bg-surface px-3.5 py-5 desk:flex">
         <div className="px-2">
           <Marca />
-        </div>
-        <div>
-          <p className="mb-1.5 px-2 text-[0.8rem] text-muted">Ver o app como</p>
-          <SeletorDeModo modo={modo} />
+          <p className="mt-1 text-[0.85rem] text-muted">{NOME_DA_AREA[area]}</p>
         </div>
         <MenuLateral itens={itens} caminho={caminho} />
         <div className="mt-auto grid gap-2.5">
@@ -70,26 +76,18 @@ export function Moldura({ children }: { children: ReactNode }) {
           <button
             type="button"
             onClick={() => servicos.recomecar()}
-            className="flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-surface2 px-3 text-[0.9rem] font-bold"
+            className="flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-surface2 px-3 text-[0.9rem] font-bold hover:border-primary"
           >
             <RotateCcw aria-hidden="true" className="size-5" />
             Recomeçar demonstração
           </button>
-          {modo === "pessoa" && ana && responsavel && (
+          <LinkSair />
+          {eu && (
             <div className="flex items-center gap-2.5 rounded-2xl border border-line bg-surface2 p-2.5">
-              <Avatar nome={ana.nome} cor={ana.cor} />
+              <Avatar nome={eu.nome} cor={eu.cor} />
               <div>
-                <b className="block text-[0.95rem]">{ana.nome}</b>
-                <span className="text-[0.85rem] text-muted">Acompanhada por {responsavel.nome}</span>
-              </div>
-            </div>
-          )}
-          {modo === "responsavel" && responsavel && (
-            <div className="flex items-center gap-2.5 rounded-2xl border border-line bg-surface2 p-2.5">
-              <Avatar nome={responsavel.nome} cor={responsavel.cor} />
-              <div>
-                <b className="block text-[0.95rem]">{responsavel.nome}</b>
-                <span className="text-[0.85rem] text-muted">{responsavel.papel}</span>
+                <b className="block text-[0.95rem]">{eu.nome}</b>
+                <span className="text-[0.85rem] text-muted">{eu.detalhe}</span>
               </div>
             </div>
           )}
@@ -105,7 +103,7 @@ export function Moldura({ children }: { children: ReactNode }) {
           </div>
           <div className="ml-auto flex items-center gap-2.5">
             {comPaciente && pessoas && <SeletorDePaciente pessoas={pessoas} atual={pacienteId} caminho={caminho} />}
-            <Sino modo={modo} />
+            <Sino area={area} />
           </div>
         </header>
 

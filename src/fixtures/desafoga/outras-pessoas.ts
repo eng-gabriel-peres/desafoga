@@ -16,7 +16,7 @@ export const carlos: SementePessoa = {
     apelido: "Carlos",
     idade: 41,
     cor: "#17804F",
-    perfil: "Motorista de aplicativo. Usa o Pausa para manter o controle depois de quitar o cartão.",
+    perfil: "Motorista de aplicativo. Usa o Desafoga para manter o controle depois de quitar o cartão.",
   },
   compras: [
     { id: "carlos-c1", dias: 6, hora: "08:30", item: "Feira", categoria: "Mercado", valor: 8400, emocao: 4, necessidade: "sim", avaliacao: "sim" },
@@ -38,7 +38,7 @@ export const carlos: SementePessoa = {
   },
   avisos: [],
   conversa: [
-    { dias: 6, hora: "09:00", de: "assistente", texto: "Oi, Carlos! Eu sou a Luana, assistente do Pausa.\nComprou alguma coisa? É só me mandar.\nExemplo: comprei pão 12" },
+    { dias: 6, hora: "09:00", de: "assistente", texto: "Oi, Carlos! Eu sou a Luana, assistente do Desafoga.\nComprou alguma coisa? É só me mandar.\nExemplo: comprei pão 12" },
   ],
 };
 
@@ -76,7 +76,7 @@ export const lucia: SementePessoa = {
     { id: "lucia-a1", dias: 2, hora: "14:46", tipo: "gasto-alto", texto: "Lúcia registrou uma compra de R$ 279,00 (Panela elétrica)." },
   ],
   conversa: [
-    { dias: 6, hora: "09:00", de: "assistente", texto: "Oi, Lúcia! Eu sou a Luana, assistente do Pausa.\nComprou alguma coisa? É só me mandar.\nExemplo: comprei pão 12" },
+    { dias: 6, hora: "09:00", de: "assistente", texto: "Oi, Lúcia! Eu sou a Luana, assistente do Desafoga.\nComprou alguma coisa? É só me mandar.\nExemplo: comprei pão 12" },
   ],
 };
 
@@ -117,6 +117,6 @@ export const rafael: SementePessoa = {
     { id: "rafael-a2", dias: 5, hora: "01:16", tipo: "gasto-alto", texto: "Rafael registrou uma compra de R$ 349,90 (Tênis)." },
   ],
   conversa: [
-    { dias: 6, hora: "09:00", de: "assistente", texto: "Oi, Rafael! Eu sou a Luana, assistente do Pausa.\nComprou alguma coisa? É só me mandar.\nExemplo: comprei pão 12" },
+    { dias: 6, hora: "09:00", de: "assistente", texto: "Oi, Rafael! Eu sou a Luana, assistente do Desafoga.\nComprou alguma coisa? É só me mandar.\nExemplo: comprei pão 12" },
   ],
 };

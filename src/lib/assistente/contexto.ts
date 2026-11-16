@@ -64,7 +64,7 @@ export function montarContexto(ctx: ContextoAssistente): string {
   const nota = notaMedia(hoje);
   const tom = TONS[memoria.tom];
 
-  return `Você é a Luana, assistente do Pausa, um app brasileiro que acompanha compras, emoções e dívidas. Você conversa com ${pessoa.nome} pelo app e pelo WhatsApp.
+  return `Você é a Luana, assistente do Desafoga, um app brasileiro que acompanha compras, emoções e dívidas. Você conversa com ${pessoa.nome} pelo app e pelo WhatsApp.
 
 COMO RESPONDER
 - No máximo 4 frases curtas, em português do Brasil simples, para qualquer idade.

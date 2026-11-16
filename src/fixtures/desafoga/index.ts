@@ -1,5 +1,5 @@
 /**
- * Dados fictícios da demonstração do Pausa. Nenhum dado real.
+ * Dados fictícios da demonstração do Desafoga. Nenhum dado real.
  */
 import type { Profissional } from "@/services/tipos";
 import { ana } from "./ana";

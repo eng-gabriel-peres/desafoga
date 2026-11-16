@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 
-const CHAVE = "pausa-paciente";
+const CHAVE = "desafoga-paciente";
 const PADRAO = "ana";
 const ouvintes = new Set<() => void>();
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { materializar, PROFISSIONAIS, SEMENTES } from "@/fixtures/pausa";
+import { materializar, PROFISSIONAIS, SEMENTES } from "@/fixtures/desafoga";
 import { compararExtra } from "@/lib/finance";
 import { formatarReais } from "@/lib/dinheiro";
 import { montarContexto } from "./contexto";

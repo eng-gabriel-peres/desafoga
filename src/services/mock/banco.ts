@@ -3,11 +3,11 @@
  * navegador para sobreviver a um recarregamento. Quando o dia muda, volta ao
  * início, porque as datas da demonstração são relativas a hoje.
  */
-import { materializar, SEMENTES, type DadosDaPessoa } from "@/fixtures/pausa";
+import { materializar, SEMENTES, type DadosDaPessoa } from "@/fixtures/desafoga";
 import { chaveDoDia } from "@/lib/finance";
 import { ESTADO_INICIAL, type EstadoConversa } from "@/lib/assistente/conversa";
 
-const CHAVE = "pausa-demo-v1";
+const CHAVE = "desafoga-demo-v1";
 
 export interface Banco {
   dia: string;

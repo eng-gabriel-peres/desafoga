@@ -1,5 +1,5 @@
 /**
- * Conversa da Luana, a assistente do Pausa, por regras locais.
+ * Conversa da Luana, a assistente do Desafoga, por regras locais.
  *
  * `responder` é pura: recebe o estado da conversa, a mensagem e o contexto, e
  * devolve o novo estado, as respostas e os efeitos (registrar compra, avisar o
