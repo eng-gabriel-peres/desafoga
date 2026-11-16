@@ -10,10 +10,20 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gerar:faturas": "node scripts/gerar-faturas.mjs"
+    "gerar:faturas": "node scripts/gerar-faturas.mjs",
+    "postinstall": "prisma generate",
+    "db:up": "docker compose up -d --wait banco",
+    "db:down": "docker compose down",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset --force",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@google/genai": "^3.1.0",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
     "lucide-react": "^1.73.0",
     "next": "16.4.6",
     "pg": "^8.23.1",
@@ -30,7 +40,9 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
     "pdf-lib": "^1.17.1",
+    "prisma": "7.10.1",
     "tailwindcss": "4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.1.0"
   },

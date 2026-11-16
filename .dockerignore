@@ -1,0 +1,10 @@
+node_modules
+.next
+.data
+.git
+.vercel
+.playwright-mcp
+src/generated
+.env*
+!.env.example
+coverage

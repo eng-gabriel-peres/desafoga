@@ -1,0 +1,259 @@
+// Banco do Desafoga. Valores em centavos (Int) e taxas como fração ao mês.
+// As contas são feitas em src/lib/finance; o banco só guarda.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Um "mundo" de dados. DEMO: cópia dos dados fictícios para quem entra como
+/// Ana ou Paula (cada visita ganha a sua). REAL: as contas criadas de verdade.
+model Espaco {
+  id            String         @id @default(uuid())
+  tipo          TipoDeEspaco
+  criadoEm      DateTime       @default(now())
+  pessoas       Pessoa[]
+  profissionais Profissional[]
+  sessoes       Sessao[]
+
+  @@map("espacos")
+}
+
+enum TipoDeEspaco {
+  DEMO
+  REAL
+}
+
+/// Quem está usando o app neste navegador. O cookie guarda um token
+/// aleatório; aqui fica só o hash dele.
+model Sessao {
+  id             String        @id
+  espacoId       String
+  espaco         Espaco        @relation(fields: [espacoId], references: [id], onDelete: Cascade)
+  pessoaId       String?
+  pessoa         Pessoa?       @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  profissionalId String?
+  profissional   Profissional? @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  criadaEm       DateTime      @default(now())
+  expiraEm       DateTime
+
+  @@index([espacoId])
+  @@map("sessoes")
+}
+
+model Pessoa {
+  id              String           @id @default(uuid())
+  espacoId        String
+  espaco          Espaco           @relation(fields: [espacoId], references: [id], onDelete: Cascade)
+  /// Id curto dos dados fictícios ("ana"), para a demo achar a persona.
+  slug            String?
+  nome            String
+  apelido         String
+  idade           Int?
+  cor             String
+  perfil          String           @default("")
+  /// WhatsApp confirmado (só dígitos, com 55).
+  telefone        String?          @unique
+  criadaEm        DateTime         @default(now())
+  compras         Compra[]
+  dividas         Divida[]
+  plano           Plano?
+  faturas         Fatura[]
+  memoria         Memoria?
+  anotacoes       Anotacao[]
+  avisos          Aviso[]
+  mensagens       Mensagem[]
+  estados         EstadoConversa[]
+  acompanhamentos Acompanhamento[]
+  sessoes         Sessao[]
+
+  @@unique([espacoId, slug])
+  @@map("pessoas")
+}
+
+model Profissional {
+  id              String           @id @default(uuid())
+  espacoId        String
+  espaco          Espaco           @relation(fields: [espacoId], references: [id], onDelete: Cascade)
+  slug            String?
+  nome            String
+  papel           String
+  cor             String
+  /// Código que a pessoa digita para ser acompanhada por este profissional.
+  convite         String           @unique
+  criadoEm        DateTime         @default(now())
+  acompanhamentos Acompanhamento[]
+  anotacoes       Anotacao[]
+  sessoes         Sessao[]
+
+  @@unique([espacoId, slug])
+  @@map("profissionais")
+}
+
+/// A pessoa aceitou ser acompanhada pelo profissional.
+model Acompanhamento {
+  pessoaId       String
+  pessoa         Pessoa       @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  profissionalId String
+  profissional   Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  consentidoEm   DateTime     @default(now())
+
+  @@id([pessoaId, profissionalId])
+  @@map("acompanhamentos")
+}
+
+model Compra {
+  id                    String       @id @default(uuid())
+  pessoaId              String
+  pessoa                Pessoa       @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  item                  String
+  categoria             String
+  valor                 Int
+  /// 1 muito triste … 5 muito feliz.
+  emocao                Int
+  necessidade           String
+  quando                DateTime
+  via                   String
+  avaliacaoProfissional String?
+  lancamentos           Lancamento[]
+
+  @@index([pessoaId, quando])
+  @@map("compras")
+}
+
+model Divida {
+  id            String @id @default(uuid())
+  pessoaId      String
+  pessoa        Pessoa @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  tipo          String
+  nome          String
+  detalhe       String @default("")
+  saldo         Int
+  /// Fração ao mês: 0.142 = 14,2% a.m.
+  taxaMensal    Float
+  parcelaMinima Int
+  vencimento    Int
+
+  @@index([pessoaId])
+  @@map("dividas")
+}
+
+model Plano {
+  pessoaId      String @id
+  pessoa        Pessoa @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  valorMensal   Int    @default(0)
+  estrategia    String @default("mais-cara")
+  valorSugerido Int?
+
+  @@map("planos")
+}
+
+model Fatura {
+  id          String       @id @default(uuid())
+  pessoaId    String
+  pessoa      Pessoa       @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  tipo        String
+  origem      String
+  /// YYYY-MM
+  mes         String
+  criadaEm    DateTime     @default(now())
+  lancamentos Lancamento[]
+
+  @@index([pessoaId, mes])
+  @@map("faturas")
+}
+
+model Lancamento {
+  id        String  @id @default(uuid())
+  faturaId  String
+  fatura    Fatura  @relation(fields: [faturaId], references: [id], onDelete: Cascade)
+  /// YYYY-MM-DD
+  data      String
+  descricao String
+  valor     Int
+  tipo      String
+  categoria String?
+  compraId  String?
+  compra    Compra? @relation(fields: [compraId], references: [id], onDelete: SetNull)
+  ordem     Int     @default(0)
+
+  @@index([faturaId])
+  @@map("lancamentos")
+}
+
+model Memoria {
+  pessoaId        String   @id
+  pessoa          Pessoa   @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  caracteristicas String[]
+  tom             String   @default("acolhedor")
+  objetivo        String   @default("")
+  evitar          String   @default("")
+
+  @@map("memorias")
+}
+
+model Anotacao {
+  id       String       @id @default(uuid())
+  pessoaId String
+  pessoa   Pessoa       @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  autorId  String
+  autor    Profissional @relation(fields: [autorId], references: [id], onDelete: Cascade)
+  texto    String
+  /// Privada: a pessoa não vê, e o texto não vai para a IA.
+  privada  Boolean      @default(false)
+  quando   DateTime     @default(now())
+
+  @@index([pessoaId])
+  @@map("anotacoes")
+}
+
+model Aviso {
+  id       String   @id @default(uuid())
+  pessoaId String
+  pessoa   Pessoa   @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  tipo     String
+  texto    String
+  quando   DateTime @default(now())
+
+  @@index([pessoaId, quando])
+  @@map("avisos")
+}
+
+/// Mensagens da conversa com a Luana, separadas por canal (app e WhatsApp).
+model Mensagem {
+  id               String   @id @default(uuid())
+  pessoaId         String
+  pessoa           Pessoa   @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  canal            String
+  de               String
+  texto            String
+  quando           DateTime @default(now())
+  respostasRapidas Json?
+
+  @@index([pessoaId, canal, quando])
+  @@map("mensagens")
+}
+
+/// Pergunta em aberto da Luana (compra esperando emoção, por exemplo), por canal.
+model EstadoConversa {
+  pessoaId String
+  pessoa   Pessoa @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  canal    String
+  estado   Json
+
+  @@id([pessoaId, canal])
+  @@map("estados_conversa")
+}
+
+/// Dados curtos e temporários: códigos e links do WhatsApp, contato recente.
+model Registro {
+  chave        String   @id
+  dados        Json
+  atualizadoEm DateTime @default(now()) @updatedAt
+
+  @@map("registros")
+}

@@ -43,3 +43,4 @@ next-env.d.ts
 
 # dados locais da Luana em desenvolvimento
 /.data/
+/src/generated/

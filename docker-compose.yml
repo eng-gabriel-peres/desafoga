@@ -1,0 +1,66 @@
+# Desafoga com Docker.
+#
+# Só o banco, para desenvolver com `pnpm dev`:
+#   pnpm db:up            (sobe o Postgres na porta 5440)
+#   pnpm db:migrate       (cria as tabelas)
+#   pnpm db:seed          (dados de demonstração, opcional)
+#
+# Tudo em containers (banco, migrações e app em http://localhost:3000):
+#   docker compose --profile completo up --build
+#
+# Em produção o app roda na Vercel com o Postgres da Neon; este arquivo é
+# para desenvolver, testar e rodar o projeto completo na própria máquina.
+
+name: desafoga
+
+services:
+  banco:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: desafoga
+      POSTGRES_PASSWORD: desafoga
+      POSTGRES_DB: desafoga
+    ports:
+      - "${DESAFOGA_PORTA_DO_BANCO:-5440}:5432"
+    volumes:
+      - banco:/var/lib/postgresql/data
+      # Cria também o banco dos testes (desafoga_teste) na primeira subida.
+      - ./docker/banco:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U desafoga -d desafoga"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Aplica as migrações antes de o app subir (perfil "completo").
+  migracoes:
+    profiles: ["completo"]
+    build:
+      context: .
+      target: migracoes
+    environment:
+      DATABASE_URL: postgresql://desafoga:desafoga@banco:5432/desafoga
+    depends_on:
+      banco:
+        condition: service_healthy
+
+  app:
+    profiles: ["completo"]
+    build:
+      context: .
+      target: app
+    environment:
+      DATABASE_URL: postgresql://desafoga:desafoga@banco:5432/desafoga
+      # Opcionais: IA e WhatsApp. Sem elas, a Luana responde por regras.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      SESSAO_SECRET: ${SESSAO_SECRET:-troque-este-segredo-em-producao}
+    ports:
+      - "3000:3000"
+    depends_on:
+      migracoes:
+        condition: service_completed_successfully
+
+volumes:
+  banco:
