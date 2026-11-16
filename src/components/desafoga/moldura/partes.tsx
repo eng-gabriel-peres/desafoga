@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAbrirRegistro } from "../registro";
 import { rotaDeOutroPaciente, type ItemDoMenu } from "./navegacao";
 import type { Persona } from "@/services";
 
@@ -29,21 +30,21 @@ export function Marca({ comNome = true }: { comNome?: boolean }) {
  * Luana) fica num círculo que sobe acima da barra.
  */
 export function MenuInferior({ itens, caminho }: { itens: ItemDoMenu[]; caminho: string }) {
+  const abrirRegistro = useAbrirRegistro();
   return (
     <nav
       aria-label="Menu"
       className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-[540px] desk:hidden rounded-[22px] border border-line bg-surface shadow-[0_10px_30px_rgb(0_0_0/0.14)]"
     >
       <ul className="grid auto-cols-fr grid-flow-col px-1">
-        {itens.filter((i) => !i.soDesktop).map(({ href, rotulo, Icone, ativo, destaque }) => {
-          const atual = ativo(caminho);
-          return (
-            <li key={href}>
-              <Link
-                href={href}
-                aria-current={atual ? "page" : undefined}
-                className="group flex min-h-16 flex-col items-center justify-end gap-0.5 rounded-[18px] pb-2.5 text-[0.78rem] text-muted no-underline hover:text-ink aria-[current=page]:font-bold aria-[current=page]:text-primary"
-              >
+        {itens
+          .filter((i) => !i.soDesktop)
+          .map(({ href, rotulo, Icone, ativo, destaque, abreRegistro }) => {
+            const atual = ativo(caminho);
+            const classe =
+              "group flex min-h-16 w-full flex-col items-center justify-end gap-0.5 rounded-[18px] pb-2.5 text-[0.78rem] text-muted no-underline hover:text-ink aria-[current=page]:font-bold aria-[current=page]:text-primary";
+            const conteudo = (
+              <>
                 {destaque ? (
                   <span
                     aria-hidden="true"
@@ -55,10 +56,22 @@ export function MenuInferior({ itens, caminho }: { itens: ItemDoMenu[]; caminho:
                   <Icone aria-hidden="true" className="size-6" />
                 )}
                 {rotulo}
-              </Link>
-            </li>
-          );
-        })}
+              </>
+            );
+            return (
+              <li key={href}>
+                {abreRegistro ? (
+                  <button type="button" onClick={abrirRegistro} className={classe}>
+                    {conteudo}
+                  </button>
+                ) : (
+                  <Link href={href} aria-current={atual ? "page" : undefined} className={classe}>
+                    {conteudo}
+                  </Link>
+                )}
+              </li>
+            );
+          })}
       </ul>
     </nav>
   );
@@ -106,24 +119,34 @@ export function Dica({ children }: { children: React.ReactNode }) {
 
 /** Menu da barra lateral do desktop. Recolhida, mostra só os ícones, com o rótulo ao lado. */
 export function MenuLateral({ itens, caminho, recolhida = false }: { itens: ItemDoMenu[]; caminho: string; recolhida?: boolean }) {
+  const abrirRegistro = useAbrirRegistro();
   return (
     <nav aria-label="Menu">
       <ul className="grid gap-1">
-        {itens.map(({ href, rotulo, Icone, ativo }) => (
-          <li key={href}>
-            <Link
-              href={href}
-              aria-current={ativo(caminho) ? "page" : undefined}
-              aria-label={recolhida ? rotulo : undefined}
-              className={`group relative flex min-h-[46px] items-center rounded-xl font-bold text-muted no-underline hover:bg-surface2 hover:text-ink aria-[current=page]:bg-primary-soft aria-[current=page]:text-primary ${
-                recolhida ? "w-[46px] justify-center" : "gap-3 px-3"
-              }`}
-            >
+        {itens.map(({ href, rotulo, Icone, ativo, abreRegistro }) => {
+          const classe = `group relative flex min-h-[46px] items-center rounded-xl font-bold text-muted no-underline hover:bg-surface2 hover:text-ink aria-[current=page]:bg-primary-soft aria-[current=page]:text-primary ${
+            recolhida ? "w-[46px] justify-center" : "w-full gap-3 px-3"
+          }`;
+          const conteudo = (
+            <>
               <Icone aria-hidden="true" className="size-5" />
               {recolhida ? <Dica>{rotulo}</Dica> : rotulo}
-            </Link>
-          </li>
-        ))}
+            </>
+          );
+          return (
+            <li key={href}>
+              {abreRegistro ? (
+                <button type="button" onClick={abrirRegistro} aria-label={recolhida ? rotulo : undefined} className={classe}>
+                  {conteudo}
+                </button>
+              ) : (
+                <Link href={href} aria-current={ativo(caminho) ? "page" : undefined} aria-label={recolhida ? rotulo : undefined} className={classe}>
+                  {conteudo}
+                </Link>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );

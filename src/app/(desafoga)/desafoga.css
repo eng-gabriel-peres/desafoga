@@ -273,3 +273,25 @@ summary {
 ::-webkit-scrollbar-thumb:hover {
   background-color: color-mix(in srgb, var(--muted) 55%, transparent);
 }
+
+/* Janela de registro: surge no desktop, sobe no celular; a página por trás não rola. */
+.janela-de-registro[open] {
+  animation: surgir 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.janela-de-registro[open]::backdrop {
+  animation: aparecer 0.2s ease both;
+}
+@media (max-width: 999.98px) {
+  .janela-de-registro[open] {
+    animation-name: subir;
+  }
+}
+@keyframes subir {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+}
+html:has(.janela-de-registro[open]) {
+  overflow: hidden;
+}

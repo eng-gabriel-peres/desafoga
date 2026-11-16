@@ -17,13 +17,15 @@ export interface ItemDoMenu {
   destaque?: boolean;
   /** Só na barra lateral do desktop; no celular o acesso fica na tela Hoje. */
   soDesktop?: boolean;
+  /** Em vez de trocar de tela, abre o registro de compra por cima da atual. */
+  abreRegistro?: boolean;
 }
 
 export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
   if (area === "pessoa") {
     return [
       { href: "/app/hoje", rotulo: "Hoje", Icone: House, ativo: (c) => c === "/app/hoje" },
-      { href: "/app/registrar", rotulo: "Registrar", Icone: Plus, ativo: (c) => c === "/app/registrar" },
+      { href: "/app/registrar", rotulo: "Registrar", Icone: Plus, ativo: (c) => c === "/app/registrar", abreRegistro: true },
       { href: "/app/assistente", rotulo: "Assistente", Icone: MessageCircle, ativo: (c) => c === "/app/assistente", destaque: true },
       { href: "/app/dividas", rotulo: "Dívidas", Icone: Wallet, ativo: (c) => c.startsWith("/app/dividas") },
       { href: "/app/metas", rotulo: "Metas", Icone: Target, ativo: (c) => c.startsWith("/app/metas") },

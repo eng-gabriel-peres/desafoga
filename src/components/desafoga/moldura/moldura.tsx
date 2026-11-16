@@ -14,6 +14,7 @@ import { itensDoMenu, temPaciente, tituloDaRota, type Area } from "./navegacao";
 import { MenuDoPerfil } from "./menu-do-perfil";
 import { Marca, MenuInferior, MenuLateral, SeletorDePaciente } from "./partes";
 import { Sino } from "./sino";
+import { ComRegistro } from "../registro";
 import { BotaoIcone } from "../ui/botao";
 
 const NOME_DA_AREA: Record<Area, string> = { pessoa: "Meu Desafoga", responsavel: "Painel do responsável" };
@@ -46,6 +47,7 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
       : tituloDaRota(caminho);
 
   return (
+    <ComRegistro>
     <div className={`desk:grid desk:min-h-dvh desk:transition-[grid-template-columns] desk:duration-300 desk:ease-out ${recolhida ? "desk:grid-cols-[76px_minmax(0,1fr)]" : "desk:grid-cols-[264px_minmax(0,1fr)]"}`}>
       <a
         href="#conteudo"
@@ -133,5 +135,6 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
 
       <MenuInferior itens={itens} caminho={caminho} />
     </div>
+    </ComRegistro>
   );
 }

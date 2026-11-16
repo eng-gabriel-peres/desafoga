@@ -36,9 +36,18 @@ interface Rascunho {
 
 const VAZIO: Rascunho = { item: "", valorTexto: "", categoria: null, emocao: null };
 
+/** Pelo endereço /app/registrar: ao terminar ou cancelar, volta para Hoje. */
 export function TelaRegistrar() {
-  const pessoaId = useMinhaPessoaId();
   const router = useRouter();
+  return <FluxoDeRegistro fechar={() => router.push("/app/hoje")} />;
+}
+
+/**
+ * Registrar compra em 3 passos. Abre por cima de qualquer tela (ver
+ * JanelaDeRegistro) ou na página própria; `fechar` decide para onde volta.
+ */
+export function FluxoDeRegistro({ fechar }: { fechar: () => void }) {
+  const pessoaId = useMinhaPessoaId();
   const [passo, setPasso] = useState<1 | 2 | 3 | 4>(1);
   const [rascunho, setRascunho] = useState<Rascunho>(VAZIO);
   const [erro, setErro] = useState("");
@@ -84,10 +93,10 @@ export function TelaRegistrar() {
   }
 
   if (passo === 4 && salva) {
-    return <Concluido {...salva} outra={reiniciar} sair={() => router.push("/app/hoje")} />;
+    return <Concluido {...salva} outra={reiniciar} sair={fechar} />;
   }
 
-  const voltar = () => (passo === 1 ? router.push("/app/hoje") : setPasso((p) => (p - 1) as 1 | 2 | 3));
+  const voltar = () => (passo === 1 ? fechar() : setPasso((p) => (p - 1) as 1 | 2 | 3));
 
   return (
     <div className="mx-auto max-w-[620px]">

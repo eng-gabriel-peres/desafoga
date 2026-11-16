@@ -21,9 +21,11 @@ import { MetasEmMiniatura } from "../metas/miniaturas";
 import { ListaDoOrcamento } from "../orcamento";
 import { useMinhaPessoaId } from "../sessao";
 import { Carregando, Painel, Sub, Vazio } from "../ui/blocos";
-import { BotaoLink } from "../ui/botao";
+import { useAbrirRegistro } from "../registro";
+import { Botao } from "../ui/botao";
 
 export function TelaHoje() {
+  const abrirRegistro = useAbrirRegistro();
   const pessoaId = useMinhaPessoaId();
   const dados = usePessoa(pessoaId);
   const agora = useAgora();
@@ -36,10 +38,10 @@ export function TelaHoje() {
   const encargos = encargosDasFaturas(faturas).total || jurosMensaisTotais(dividas);
 
   const registrar = (
-    <BotaoLink href="/app/registrar" tamanho="grande" bloco>
+    <Botao tamanho="grande" bloco onClick={abrirRegistro}>
       <Plus aria-hidden="true" />
       Registrar compra
-    </BotaoLink>
+    </Botao>
   );
 
   const atalhoDividas = dividas.length > 0 && (

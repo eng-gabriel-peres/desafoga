@@ -61,7 +61,7 @@ O sistema tem duas áreas separadas: o app de quem usa e o painel de quem acompa
 |---|---|---|
 | `/` | Entrada | Demonstração sem cadastro (Ana ou Paula) ou criar a conta |
 | `/app/hoje` | Pessoa | Nota do dia, compras de hoje, atalho para as dívidas, semana e padrões |
-| `/app/registrar` | Pessoa | Registrar compra em 3 passos: nome, valor e categoria; emoção; se era necessária |
+| `/app/registrar` | Pessoa | Registrar compra em 3 passos: nome, valor e categoria; emoção; se era necessária. O "Registrar" do menu e da tela Hoje abre o mesmo registro por cima da tela atual (janela no desktop, tela cheia no celular), sem sair de onde a pessoa está |
 | `/app/assistente` | Pessoa | Chat com a Luana no estilo WhatsApp |
 | `/app/dividas` | Pessoa | Raio-x do mês, plano de quitação, lista de dívidas e custo emocional |
 | `/app/metas` | Pessoa | Metas de economia (seção de metas do protótipo): anel, ritmo do plano, previsão; `nova`, `[id]` (detalhe e histórico) e `[id]/ajustar` |
