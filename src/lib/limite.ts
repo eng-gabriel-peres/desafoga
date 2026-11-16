@@ -39,12 +39,17 @@ const NOME: Record<Recurso, string> = { texto: "mensagens", arquivo: "arquivos",
 export const TETO_GLOBAL_POR_RECURSO: Partial<Record<Recurso, number>> = { conta: 1000 };
 
 export function criarLimitador(contar: Contador, limiteGlobal = LIMITE_GLOBAL_PADRAO) {
-  return async function consumir(recurso: Recurso, visitante: string, rede: string | null): Promise<Veredito> {
-    const chaveDoVisitante = `v:${recurso}:${visitante}`;
+  /** `visitante` null: quem chamou não tem identidade confiável; valem só os tetos globais. */
+  return async function consumir(recurso: Recurso, visitante: string | null, rede: string | null): Promise<Veredito> {
+    const chaveDoVisitante = visitante ? `v:${recurso}:${visitante}` : null;
     const chaveDaRede = rede ? `r:${recurso}:${rede}` : null;
     const tetoDoRecurso = TETO_GLOBAL_POR_RECURSO[recurso];
     const chaveDoRecurso = tetoDoRecurso ? `g:${recurso}` : null;
-    const chaves = [chaveDoVisitante, ...(chaveDoRecurso ? [chaveDoRecurso] : ["global"]), ...(chaveDaRede ? [chaveDaRede] : [])];
+    const chaves = [
+      ...(chaveDoVisitante ? [chaveDoVisitante] : []),
+      ...(chaveDoRecurso ? [chaveDoRecurso] : ["global"]),
+      ...(chaveDaRede ? [chaveDaRede] : []),
+    ];
 
     let totais: Map<string, number>;
     try {
@@ -56,7 +61,7 @@ export function criarLimitador(contar: Contador, limiteGlobal = LIMITE_GLOBAL_PA
     }
 
     const limite = LIMITE_POR_VISITANTE[recurso];
-    if ((totais.get(chaveDoVisitante) ?? 0) > limite) {
+    if (chaveDoVisitante && (totais.get(chaveDoVisitante) ?? 0) > limite) {
       return {
         permitido: false,
         mensagem: `Você chegou ao limite de hoje (${limite} ${NOME[recurso]}). Amanhã eu volto a ${recurso === "texto" ? "responder" : "ler"} normalmente; o que já anotei continua guardado.`,
@@ -192,7 +197,7 @@ export async function devolverHoje(chaves: string[]): Promise<void> {
 }
 
 /** Conta um pedido e diz se ele pode ser atendido. */
-export function consumir(recurso: Recurso, visitante: string, rede: string | null): Promise<Veredito> {
+export function consumir(recurso: Recurso, visitante: string | null, rede: string | null): Promise<Veredito> {
   atual ??= criarLimitador(contadorAtual(), limiteGlobal());
   return atual(recurso, visitante, rede);
 }
@@ -252,8 +257,12 @@ export async function usoDeHoje(visitante: string): Promise<UsoDeHoje | null> {
  * Sem isso, o cliente poderia inventar o cabeçalho e escapar do limite.
  */
 export function redeConfiavel(cabecalhos: Headers): string | null {
-  if (!process.env.VERCEL && process.env.CONFIAR_NO_PROXY !== "1") return null;
-  return redeDe(cabecalhos);
+  if (process.env.VERCEL) return redeDe(cabecalhos);
+  if (process.env.CONFIAR_NO_PROXY !== "1") return null;
+  // Atrás do nosso proxy, vale o último endereço da lista: é o que o proxy
+  // acrescentou. Os anteriores vieram do cliente e podem ser inventados.
+  const ultimo = cabecalhos.get("x-forwarded-for")?.split(",").at(-1)?.trim();
+  return ultimo ? createHash("sha256").update(ultimo).digest("hex").slice(0, 16) : null;
 }
 
 export function redeDe(cabecalhos: Headers): string | null {

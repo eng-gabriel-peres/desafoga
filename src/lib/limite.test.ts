@@ -72,6 +72,12 @@ describe("limite de uso", () => {
     expect(redeDe(new Headers())).toBeNull();
   });
 
+  it("sem identidade confiável, valem só os tetos globais", async () => {
+    const consumir = criarLimitador(contadorEmMemoria(), 3);
+    for (let i = 0; i < 3; i++) expect((await consumir("texto", null, null)).permitido).toBe(true);
+    expect((await consumir("texto", null, null)).permitido).toBe(false);
+  });
+
   it("criar conta tem teto global próprio, que não divide a cota das conversas", async () => {
     const consumir = criarLimitador(contadorEmMemoria(), 5);
     const teto = TETO_GLOBAL_POR_RECURSO.conta!;
@@ -90,6 +96,12 @@ describe("limite de uso", () => {
     expect(redeConfiavel(cabecalhos)).toBeNull();
     process.env.VERCEL = "1";
     expect(redeConfiavel(cabecalhos)).toBe(redeDe(cabecalhos));
+    // Atrás de proxy próprio: vale o último endereço (o que o proxy acrescentou), não o que o cliente mandou.
+    delete process.env.VERCEL;
+    process.env.CONFIAR_NO_PROXY = "1";
+    const forjado = new Headers({ "x-forwarded-for": "1.2.3.4, 203.0.113.7" });
+    expect(redeConfiavel(forjado)).toBe(redeDe(new Headers({ "x-forwarded-for": "203.0.113.7" })));
+    delete process.env.CONFIAR_NO_PROXY;
     if (antes.vercel === undefined) delete process.env.VERCEL;
     else process.env.VERCEL = antes.vercel;
     if (antes.proxy !== undefined) process.env.CONFIAR_NO_PROXY = antes.proxy;

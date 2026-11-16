@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { randomUUID } from "node:crypto";
 import { consumir, redeConfiavel } from "@/lib/limite";
 import { exigirAPropriaPessoa, SemPermissao, SemSessao } from "@/lib/desafoga/servidor/acesso";
 import { ArquivoRecusado, lerFatura, receberArquivoNoChat, receberAudioNoChat } from "@/lib/desafoga/servidor/acoes";
@@ -39,10 +38,10 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
       const recurso = recursoDa(acao);
       if (recurso) {
         // Criar conta ou demo conta pela rede: uma conta nova não ganha cota nova.
-        // Sem rede confiável, nada de balde compartilhado (um travaria todos):
-        // vale o teto global próprio desse recurso.
-        const quem = recurso === "conta" ? (rede ?? `sem-rede:${randomUUID()}`) : (sessao?.id ?? rede ?? `sem-rede:${randomUUID()}`);
-        const uso = await consumir(recurso, `desafoga:${quem}`, rede);
+        // Sem identidade confiável (fora da Vercel, sem proxy declarado), valem
+        // só os tetos globais: nem balde compartilhado, nem identidade inventada.
+        const quem = recurso === "conta" ? rede : (sessao?.id ?? rede);
+        const uso = await consumir(recurso, quem ? `desafoga:${quem}` : null, rede);
         if (!uso.permitido) return erro(uso.mensagem ?? "Limite de uso de hoje atingido.", 429);
       }
       const corpo = (await request.json().catch(() => ({}))) as { args?: unknown };
