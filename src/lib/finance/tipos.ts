@@ -31,7 +31,7 @@ export interface Compra {
   necessidade: Necessidade;
   /** Data e hora em ISO 8601. */
   quando: string;
-  via: "app" | "whatsapp";
+  via: "app" | "whatsapp" | "fatura";
   /** Opinião do profissional sobre a necessidade; null enquanto não avaliou. */
   avaliacaoProfissional: Necessidade | null;
 }
