@@ -1,8 +1,10 @@
 "use client";
 
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useAgora } from "@/hooks/use-agora";
+import { useBarraRecolhida } from "@/hooks/use-barra-recolhida";
 import { useConsulta } from "@/hooks/use-consulta";
 import { usePacienteAtual } from "@/hooks/use-paciente-atual";
 import { dataPorExtenso } from "@/lib/formatar";
@@ -12,6 +14,7 @@ import { itensDoMenu, temPaciente, tituloDaRota, type Area } from "./navegacao";
 import { MenuDoPerfil } from "./menu-do-perfil";
 import { Marca, MenuInferior, MenuLateral, SeletorDePaciente } from "./partes";
 import { Sino } from "./sino";
+import { BotaoIcone } from "../ui/botao";
 
 const NOME_DA_AREA: Record<Area, string> = { pessoa: "Meu Desafoga", responsavel: "Painel do responsável" };
 const NOME_CURTO: Record<Area, string> = { pessoa: "Desafoga", responsavel: "Painel" };
@@ -23,6 +26,7 @@ const NOME_CURTO: Record<Area, string> = { pessoa: "Desafoga", responsavel: "Pai
  */
 export function Moldura({ area, children }: { area: Area; children: ReactNode }) {
   const caminho = usePathname();
+  const [recolhida, alternarBarra] = useBarraRecolhida();
   const eu = useEu();
   const pessoas = useConsulta(area === "responsavel" ? "pessoas" : "sem-pessoas", () =>
     area === "responsavel" ? servicos.pessoas.listar() : Promise.resolve([]),
@@ -42,7 +46,7 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
       : tituloDaRota(caminho);
 
   return (
-    <div className="desk:grid desk:min-h-dvh desk:grid-cols-[264px_minmax(0,1fr)]">
+    <div className={`desk:grid desk:min-h-dvh ${recolhida ? "desk:grid-cols-[76px_minmax(0,1fr)]" : "desk:grid-cols-[264px_minmax(0,1fr)]"}`}>
       <a
         href="#conteudo"
         className="sr-only z-50 rounded-lg bg-primary px-4 py-2 text-primary-ink focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
@@ -63,16 +67,33 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
       </header>
 
       {/* Desktop: barra lateral, com quem está usando e os avisos no pé */}
-      <aside className="sticky top-0 hidden h-dvh flex-col gap-5 border-r border-line bg-surface px-3.5 py-5 desk:flex">
-        <div className="px-2">
-          <Marca />
-          <p className="mt-1 text-[0.85rem] text-muted">{NOME_DA_AREA[area]}</p>
+      <aside
+        className={`sticky top-0 z-30 hidden h-dvh flex-col gap-5 border-r border-line bg-surface py-5 desk:flex ${recolhida ? "items-center px-2.5" : "px-3.5"}`}
+      >
+        {recolhida ? (
+          <div className="grid justify-items-center gap-3">
+            <Marca comNome={false} />
+            <BotaoIcone leve aria-label="Abrir o menu" aria-expanded={false} title="Abrir o menu" onClick={alternarBarra}>
+              <PanelLeftOpen aria-hidden="true" />
+            </BotaoIcone>
+          </div>
+        ) : (
+          <div className="flex items-start gap-2 pl-2">
+            <div className="min-w-0 flex-1">
+              <Marca />
+              <p className="mt-1 text-[0.85rem] text-muted">{NOME_DA_AREA[area]}</p>
+            </div>
+            <BotaoIcone leve aria-label="Recolher o menu" aria-expanded title="Recolher o menu" onClick={alternarBarra}>
+              <PanelLeftClose aria-hidden="true" />
+            </BotaoIcone>
+          </div>
+        )}
+        {/* Recolhida, a lista não rola: os rótulos aparecem ao lado e não podem ser cortados. */}
+        <div className={recolhida ? "flex-1" : "min-h-0 flex-1 overflow-auto"}>
+          <MenuLateral itens={itens} caminho={caminho} recolhida={recolhida} />
         </div>
-        <div className="min-h-0 flex-1 overflow-auto">
-          <MenuLateral itens={itens} caminho={caminho} />
-        </div>
-        <div className="flex items-center gap-0.5 border-t border-line pt-3">
-          <MenuDoPerfil area={area} lateral />
+        <div className={`flex border-t border-line pt-3 ${recolhida ? "flex-col items-center gap-1.5" : "items-center gap-0.5"}`}>
+          <MenuDoPerfil area={area} lateral={!recolhida} paraCima />
           <Sino area={area} paraCima />
         </div>
       </aside>

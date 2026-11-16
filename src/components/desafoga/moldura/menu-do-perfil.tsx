@@ -17,7 +17,17 @@ const ITEM =
  * Bolinha com as iniciais no topo: abre o menu de quem está usando, com
  * perfil, recomeçar a demonstração e sair.
  */
-export function MenuDoPerfil({ area, lateral = false }: { area: Area; /** Na barra lateral: nome ao lado e menu abrindo para cima. */ lateral?: boolean }) {
+export function MenuDoPerfil({
+  area,
+  lateral = false,
+  paraCima = false,
+}: {
+  area: Area;
+  /** Na barra lateral aberta: nome ao lado da bolinha. */
+  lateral?: boolean;
+  /** No pé da barra lateral: o menu abre para cima. */
+  paraCima?: boolean;
+}) {
   const eu = useEu();
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
@@ -78,14 +88,14 @@ export function MenuDoPerfil({ area, lateral = false }: { area: Area; /** Na bar
             <ChevronsUpDown aria-hidden="true" />
           </>
         ) : (
-          <ChevronDown aria-hidden="true" className="hidden desk:block" />
+          <ChevronDown aria-hidden="true" className={paraCima ? "hidden" : "hidden desk:block"} />
         )}
       </button>
 
       {aberto && (
         <div
           id={id}
-          className={`absolute z-40 w-[min(300px,calc(100vw-24px))] ${lateral ? "bottom-full left-0 mb-2" : "top-13 right-0"} rounded-2xl border border-line bg-surface p-2 shadow-[0_12px_32px_rgb(0_0_0/0.18)]`}
+          className={`absolute z-40 w-[min(300px,calc(100vw-24px))] ${paraCima ? "bottom-full left-0 mb-2" : "top-13 right-0"} rounded-2xl border border-line bg-surface p-2 shadow-[0_12px_32px_rgb(0_0_0/0.18)]`}
         >
           <div className="flex items-center gap-2.5 border-b border-line px-2 pt-1.5 pb-3">
             <Avatar nome={quem.nome} cor={quem.cor} />

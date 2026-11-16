@@ -92,8 +92,20 @@ export function SeletorDePaciente({ pessoas, atual, caminho }: { pessoas: Person
   );
 }
 
-/** Menu da barra lateral do desktop. */
-export function MenuLateral({ itens, caminho }: { itens: ItemDoMenu[]; caminho: string }) {
+/** Rótulo que aparece ao lado do ícone, ao passar o mouse ou focar pelo teclado. */
+export function Dica({ children }: { children: React.ReactNode }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute top-1/2 left-full z-50 ml-3 -translate-y-1/2 rounded-lg bg-ink px-2.5 py-1.5 text-[0.85rem] font-bold whitespace-nowrap text-surface opacity-0 shadow-md transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+    >
+      {children}
+    </span>
+  );
+}
+
+/** Menu da barra lateral do desktop. Recolhida, mostra só os ícones, com o rótulo ao lado. */
+export function MenuLateral({ itens, caminho, recolhida = false }: { itens: ItemDoMenu[]; caminho: string; recolhida?: boolean }) {
   return (
     <nav aria-label="Menu">
       <ul className="grid gap-1">
@@ -102,10 +114,13 @@ export function MenuLateral({ itens, caminho }: { itens: ItemDoMenu[]; caminho: 
             <Link
               href={href}
               aria-current={ativo(caminho) ? "page" : undefined}
-              className="flex min-h-[46px] items-center gap-3 rounded-xl px-3 font-bold text-muted no-underline hover:bg-surface2 hover:text-ink aria-[current=page]:bg-primary-soft aria-[current=page]:text-primary"
+              aria-label={recolhida ? rotulo : undefined}
+              className={`group relative flex min-h-[46px] items-center rounded-xl font-bold text-muted no-underline hover:bg-surface2 hover:text-ink aria-[current=page]:bg-primary-soft aria-[current=page]:text-primary ${
+                recolhida ? "w-[46px] justify-center" : "gap-3 px-3"
+              }`}
             >
               <Icone aria-hidden="true" className="size-5" />
-              {rotulo}
+              {recolhida ? <Dica>{rotulo}</Dica> : rotulo}
             </Link>
           </li>
         ))}
