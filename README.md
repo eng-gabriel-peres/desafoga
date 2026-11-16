@@ -81,19 +81,19 @@ Na demonstração, a Paula acompanha Ana, Carlos, Lúcia e Rafael; os ids das p�
 ```
 src/
   app/
-    (desafoga)/           layout raiz do Desafoga (fonte, tokens claro/escuro, Letra maior)
+    (desafoga)/           layout raiz do Desafoga (fonte, tokens claro/escuro)
       page.tsx            entrada: demonstração ou criar conta
-      app/                área da pessoa (moldura com barra de menu flutuante e menu do perfil)
+      app/                área da pessoa (moldura: barra flutuante no celular, barra lateral no desktop)
       painel/             área do responsável
     (luana)/              chat da Luana com IA e painel pelo link (/luana, /p)
     api/                  rotas do chat, da fatura e do WhatsApp
   components/desafoga/
     ui/                   botões, painel, KPI, etiquetas, avatar, carinha SVG
-    moldura/              moldura de cada área, menus, sino de avisos, Letra maior
+    moldura/              moldura de cada área, menus, sino de avisos, menu do perfil
     telas/                uma tela por arquivo (hoje, registrar, assistente, dívidas, fatura, perfil, pacientes, resumo, memória)
     dividas/, chat/       partes das telas de dívidas (inclui o cadastro de dívidas) e do chat
     sessao.tsx            quem está usando o app; manda para a entrada quem não tem o perfil da área
-  hooks/                  consulta à camada de serviço, data atual, paciente aberto, Letra maior
+  hooks/                  consulta à camada de serviço, data atual, paciente aberto
   services/
     contratos.ts          interfaces que as telas usam
     tipos.ts              tipos de domínio (persona, memória, aviso, mensagem…)

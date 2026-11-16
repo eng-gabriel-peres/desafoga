@@ -97,22 +97,16 @@
 }
 
 /*
- * Escala da letra. Tudo usa rem, então "Letra maior" aumenta o app inteiro.
- * No desktop a base é menor porque a tela é vista de mais longe.
+ * Escala da letra. Tudo usa rem, então o zoom do navegador aumenta o app
+ * inteiro. No desktop a base é menor porque a tela é vista de mais longe.
  */
 html {
   font-size: 18px;
   -webkit-text-size-adjust: 100%;
 }
-html.letra-maior {
-  font-size: 21px;
-}
 @media (min-width: 1000px) {
   html {
     font-size: 16px;
-  }
-  html.letra-maior {
-    font-size: 19px;
   }
 }
 

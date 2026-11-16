@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useConsulta } from "@/hooks/use-consulta";
 import { servicos, type NovaConta, type PerfilDaDemo } from "@/services";
-import { BotaoLetraMaior, Marca } from "./moldura/partes";
+import { Marca } from "./moldura/partes";
 import { Avatar, Chip, Painel, Sub } from "./ui/blocos";
 import { Botao } from "./ui/botao";
 
@@ -37,9 +37,8 @@ export function Entrada() {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[560px] flex-col justify-center px-4 py-10">
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8">
         <Marca />
-        <BotaoLetraMaior />
       </div>
       <h1 className="text-[1.9rem] leading-tight font-bold">Respire. Suas compras e dívidas, sem peso.</h1>
       <p className="mt-2 text-muted">

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, LogOut, RotateCcw, UserRound, Users, type LucideIcon } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, LogOut, RotateCcw, UserRound, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useId, useRef, useState, type ReactNode } from "react";
@@ -17,7 +17,7 @@ const ITEM =
  * Bolinha com as iniciais no topo: abre o menu de quem está usando, com
  * perfil, recomeçar a demonstração e sair.
  */
-export function MenuDoPerfil({ area }: { area: Area }) {
+export function MenuDoPerfil({ area, lateral = false }: { area: Area; /** Na barra lateral: nome ao lado e menu abrindo para cima. */ lateral?: boolean }) {
   const eu = useEu();
   const router = useRouter();
   const [aberto, setAberto] = useState(false);
@@ -56,7 +56,7 @@ export function MenuDoPerfil({ area }: { area: Area }) {
   }
 
   return (
-    <div ref={caixa} className="relative">
+    <div ref={caixa} className={`relative ${lateral ? "min-w-0 flex-1" : ""}`}>
       <button
         ref={botao}
         type="button"
@@ -64,16 +64,28 @@ export function MenuDoPerfil({ area }: { area: Area }) {
         aria-expanded={aberto}
         aria-controls={id}
         onClick={() => setAberto((a) => !a)}
-        className="flex min-h-11 shrink-0 items-center gap-1 rounded-full p-0.5 hover:bg-surface2 aria-expanded:bg-surface2 [&_svg]:size-4 [&_svg]:text-muted"
+        className={`flex min-h-11 items-center hover:bg-surface2 aria-expanded:bg-surface2 [&_svg]:shrink-0 [&_svg]:text-muted ${
+          lateral ? "w-full gap-2.5 rounded-xl p-1.5 text-left [&_svg]:size-4" : "shrink-0 gap-1 rounded-full p-0.5 [&_svg]:size-4"
+        }`}
       >
         <Avatar nome={quem.nome} cor={quem.cor} />
-        <ChevronDown aria-hidden="true" className="hidden desk:block" />
+        {lateral ? (
+          <>
+            <span aria-hidden="true" className="min-w-0 flex-1">
+              <b className="block truncate text-[0.95rem]">{quem.nome}</b>
+              <span className="block truncate text-[0.82rem] text-muted">{quem.detalhe}</span>
+            </span>
+            <ChevronsUpDown aria-hidden="true" />
+          </>
+        ) : (
+          <ChevronDown aria-hidden="true" className="hidden desk:block" />
+        )}
       </button>
 
       {aberto && (
         <div
           id={id}
-          className="absolute top-13 right-0 z-40 w-[min(300px,calc(100vw-24px))] rounded-2xl border border-line bg-surface p-2 shadow-[0_12px_32px_rgb(0_0_0/0.18)]"
+          className={`absolute z-40 w-[min(300px,calc(100vw-24px))] ${lateral ? "bottom-full left-0 mb-2" : "top-13 right-0"} rounded-2xl border border-line bg-surface p-2 shadow-[0_12px_32px_rgb(0_0_0/0.18)]`}
         >
           <div className="flex items-center gap-2.5 border-b border-line px-2 pt-1.5 pb-3">
             <Avatar nome={quem.nome} cor={quem.cor} />

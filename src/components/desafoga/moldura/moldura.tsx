@@ -10,17 +10,16 @@ import { servicos } from "@/services";
 import { useEu } from "../sessao";
 import { itensDoMenu, temPaciente, tituloDaRota, type Area } from "./navegacao";
 import { MenuDoPerfil } from "./menu-do-perfil";
-import { BotaoLetraMaior, Marca, MenuInferior, SeletorDePaciente } from "./partes";
+import { Marca, MenuInferior, MenuLateral, SeletorDePaciente } from "./partes";
 import { Sino } from "./sino";
 
 const NOME_DA_AREA: Record<Area, string> = { pessoa: "Meu Desafoga", responsavel: "Painel do responsável" };
 const NOME_CURTO: Record<Area, string> = { pessoa: "Desafoga", responsavel: "Painel" };
 
 /**
- * Moldura de cada área, igual no celular e no desktop: topo com letra maior,
- * sino e a bolinha do perfil (menu com perfil e sair), e a barra de menu
- * flutuante embaixo, com a Luana em destaque no meio. No desktop, o título
- * da tela abre o conteúdo.
+ * Moldura de cada área. No celular: topo com sino e a bolinha
+ * do perfil, e a barra de menu flutuante com a Luana em destaque no meio.
+ * No desktop (1000px ou mais): barra lateral com o perfil e o sino no pé, e cabeçalho com o título da tela.
  */
 export function Moldura({ area, children }: { area: Area; children: ReactNode }) {
   const caminho = usePathname();
@@ -43,7 +42,7 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
       : tituloDaRota(caminho);
 
   return (
-    <div className="min-h-dvh">
+    <div className="desk:grid desk:min-h-dvh desk:grid-cols-[264px_minmax(0,1fr)]">
       <a
         href="#conteudo"
         className="sr-only z-50 rounded-lg bg-primary px-4 py-2 text-primary-ink focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
@@ -51,45 +50,64 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
         Pular para o conteúdo
       </a>
 
-      <header className="sticky top-0 z-20 border-b border-line bg-surface pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex h-16 max-w-[620px] items-center gap-2 px-3 desk:max-w-[1280px] desk:gap-2.5 desk:px-9">
+      {/* Celular: topo */}
+      <header className="sticky top-0 z-20 border-b border-line bg-surface pt-[env(safe-area-inset-top)] desk:hidden">
+        <div className="mx-auto flex h-16 max-w-[620px] items-center gap-1 px-3">
           <div className="mr-auto flex min-w-0 items-center gap-2">
             <Marca comNome={false} />
-            <span className="truncate font-bold desk:hidden">{NOME_CURTO[area]}</span>
-            <span className="hidden text-[1.2rem] font-bold desk:inline">Desafoga</span>
-            <span className="hidden rounded-full bg-surface2 px-2.5 py-0.5 text-[0.85rem] text-muted desk:inline">{NOME_DA_AREA[area]}</span>
+            <span className="truncate font-bold">{NOME_CURTO[area]}</span>
           </div>
-          {comPaciente && pessoas && (
-            <div className="hidden desk:block">
-              <SeletorDePaciente pessoas={pessoas} atual={pacienteId} caminho={caminho} />
-            </div>
-          )}
-          <BotaoLetraMaior />
           <Sino area={area} />
           <MenuDoPerfil area={area} />
         </div>
       </header>
 
-      <main
-        id="conteudo"
-        tabIndex={-1}
-        className={`mx-auto w-full outline-none desk:max-w-[1280px] desk:px-9 ${
-          telaCheia ? "pb-[calc(5.5rem+env(safe-area-inset-bottom))] desk:pt-5" : "max-w-[620px] px-4 pt-4.5 pb-32 desk:pt-7"
-        }`}
-      >
-        {!telaCheia && (
-          <div className="mb-6 hidden desk:block">
+      {/* Desktop: barra lateral, com quem está usando e os avisos no pé */}
+      <aside className="sticky top-0 hidden h-dvh flex-col gap-5 border-r border-line bg-surface px-3.5 py-5 desk:flex">
+        <div className="px-2">
+          <Marca />
+          <p className="mt-1 text-[0.85rem] text-muted">{NOME_DA_AREA[area]}</p>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto">
+          <MenuLateral itens={itens} caminho={caminho} />
+        </div>
+        <div className="flex items-center gap-0.5 border-t border-line pt-3">
+          <MenuDoPerfil area={area} lateral />
+          <Sino area={area} paraCima />
+        </div>
+      </aside>
+
+      <div className="min-w-0 desk:flex desk:flex-col">
+        {/* Desktop: cabeçalho com o título da tela */}
+        <header className="sticky top-0 z-15 hidden items-center gap-3.5 border-b border-line bg-bg px-9 pt-5 pb-4 desk:flex">
+          <div>
             <h1 className="text-[1.55rem] leading-tight font-bold">{titulo}</h1>
             {subtitulo && <p className="mt-0.5 text-[0.92rem] text-muted">{subtitulo}</p>}
           </div>
-        )}
-        {comPaciente && pessoas && (
-          <div className="mb-4 desk:hidden">
-            <SeletorDePaciente pessoas={pessoas} atual={pacienteId} caminho={caminho} />
-          </div>
-        )}
-        {children}
-      </main>
+          {comPaciente && pessoas && (
+            <div className="ml-auto">
+              <SeletorDePaciente pessoas={pessoas} atual={pacienteId} caminho={caminho} />
+            </div>
+          )}
+        </header>
+
+        <main
+          id="conteudo"
+          tabIndex={-1}
+          className={`mx-auto w-full outline-none desk:max-w-[1280px] desk:px-9 ${
+            telaCheia
+              ? "pb-[calc(5.5rem+env(safe-area-inset-bottom))] desk:pt-5 desk:pb-5"
+              : "max-w-[620px] px-4 pt-4.5 pb-32 desk:pt-7 desk:pb-14"
+          }`}
+        >
+          {comPaciente && pessoas && (
+            <div className="mb-4 desk:hidden">
+              <SeletorDePaciente pessoas={pessoas} atual={pacienteId} caminho={caminho} />
+            </div>
+          )}
+          {children}
+        </main>
+      </div>
 
       <MenuInferior itens={itens} caminho={caminho} />
     </div>

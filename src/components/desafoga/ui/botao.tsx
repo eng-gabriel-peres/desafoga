@@ -41,12 +41,16 @@ export function BotaoLink({ variante, tamanho, bloco, className = "", ...props }
 export function BotaoIcone({
   className = "",
   type = "button",
+  leve = false,
   ...props
-}: ComponentProps<"button"> & { "aria-label": string }) {
+}: ComponentProps<"button"> & { "aria-label": string; /** Só o ícone, sem o quadro atrás. */ leve?: boolean }) {
+  const estilo = leve
+    ? "rounded-full text-muted hover:bg-surface2 hover:text-ink aria-expanded:bg-surface2 aria-expanded:text-ink aria-pressed:bg-primary-soft aria-pressed:text-primary"
+    : "rounded-[10px] border border-line bg-surface2 text-ink hover:border-primary aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-ink";
   return (
     <button
       type={type}
-      className={`relative inline-grid size-11 shrink-0 place-items-center rounded-[10px] border border-line bg-surface2 font-bold text-ink hover:border-primary aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-ink [&_svg]:size-5 ${className}`}
+      className={`relative inline-grid size-11 shrink-0 place-items-center font-bold [&_svg]:size-5 ${estilo} ${className}`}
       {...props}
     />
   );

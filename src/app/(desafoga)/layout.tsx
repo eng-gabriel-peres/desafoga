@@ -24,15 +24,9 @@ export const viewport: Viewport = {
   ],
 };
 
-/** Aplica "Letra maior" antes da primeira pintura, para a tela não pular. */
-const APLICAR_LETRA = `try{if(localStorage.getItem("desafoga-letra-maior")==="1")document.documentElement.classList.add("letra-maior")}catch(e){}`;
-
 export default function DesafogaLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={atkinson.variable} suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: APLICAR_LETRA }} />
-      </head>
+    <html lang="pt-BR" className={atkinson.variable}>
       <body className="min-h-dvh antialiased">{children}</body>
     </html>
   );

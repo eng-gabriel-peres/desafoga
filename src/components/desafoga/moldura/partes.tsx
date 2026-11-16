@@ -1,10 +1,7 @@
 "use client";
 
-import { ALargeSmall } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useLetraMaior } from "@/hooks/use-letra-maior";
-import { BotaoIcone } from "../ui/botao";
 import { rotaDeOutroPaciente, type ItemDoMenu } from "./navegacao";
 import type { Persona } from "@/services";
 
@@ -27,24 +24,15 @@ export function Marca({ comNome = true }: { comNome?: boolean }) {
   );
 }
 
-export function BotaoLetraMaior() {
-  const [ativa, alternar] = useLetraMaior();
-  return (
-    <BotaoIcone aria-label="Letra maior" aria-pressed={ativa} onClick={alternar}>
-      <ALargeSmall aria-hidden="true" />
-    </BotaoIcone>
-  );
-}
-
 /**
- * Barra de menu flutuante, no celular e no desktop. O item em destaque (a
+ * Barra de menu flutuante do celular. O item em destaque (a
  * Luana) fica num círculo que sobe acima da barra.
  */
 export function MenuInferior({ itens, caminho }: { itens: ItemDoMenu[]; caminho: string }) {
   return (
     <nav
       aria-label="Menu"
-      className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-[540px] rounded-[22px] border border-line bg-surface shadow-[0_10px_30px_rgb(0_0_0/0.14)]"
+      className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-[540px] desk:hidden rounded-[22px] border border-line bg-surface shadow-[0_10px_30px_rgb(0_0_0/0.14)]"
     >
       <ul className="grid auto-cols-fr grid-flow-col px-1">
         {itens.map(({ href, rotulo, Icone, ativo, destaque }) => {
@@ -101,5 +89,27 @@ export function SeletorDePaciente({ pessoas, atual, caminho }: { pessoas: Person
         ))}
       </select>
     </label>
+  );
+}
+
+/** Menu da barra lateral do desktop. */
+export function MenuLateral({ itens, caminho }: { itens: ItemDoMenu[]; caminho: string }) {
+  return (
+    <nav aria-label="Menu">
+      <ul className="grid gap-1">
+        {itens.map(({ href, rotulo, Icone, ativo }) => (
+          <li key={href}>
+            <Link
+              href={href}
+              aria-current={ativo(caminho) ? "page" : undefined}
+              className="flex min-h-[46px] items-center gap-3 rounded-xl px-3 font-bold text-muted no-underline hover:bg-surface2 hover:text-ink aria-[current=page]:bg-primary-soft aria-[current=page]:text-primary"
+            >
+              <Icone aria-hidden="true" className="size-5" />
+              {rotulo}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }

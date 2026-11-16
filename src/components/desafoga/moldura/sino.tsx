@@ -15,7 +15,7 @@ import type { Area } from "./navegacao";
  * Sino de avisos. O responsável vê os avisos de todos os pacientes; a pessoa
  * vê as sugestões que os profissionais mandaram para ela.
  */
-export function Sino({ area }: { area: Area }) {
+export function Sino({ area, paraCima = false }: { area: Area; /** Na barra lateral, a caixa abre para cima. */ paraCima?: boolean }) {
   const [aberto, setAberto] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
   const id = useId();
@@ -32,6 +32,7 @@ export function Sino({ area }: { area: Area }) {
   return (
     <div ref={caixa} className="relative">
       <BotaoIcone
+        leve
         aria-label={recentes ? `Avisos, ${recentes} novos` : "Avisos"}
         aria-expanded={aberto}
         aria-controls={id}
@@ -49,7 +50,7 @@ export function Sino({ area }: { area: Area }) {
           id={id}
           role="dialog"
           aria-label="Avisos recentes"
-          className="absolute top-13 right-0 z-40 max-h-[70dvh] w-[min(380px,calc(100vw-24px))] overflow-auto rounded-2xl border border-line bg-surface px-4 py-2 shadow-[0_12px_32px_rgb(0_0_0/0.18)]"
+          className={`absolute z-40 ${paraCima ? "bottom-13 left-0" : "top-13 right-0"} max-h-[70dvh] w-[min(380px,calc(100vw-24px))] overflow-auto rounded-2xl border border-line bg-surface px-4 py-2 shadow-[0_12px_32px_rgb(0_0_0/0.18)]`}
         >
           <b className="block pt-2 pb-1">Avisos recentes</b>
           <ListaDeAvisos avisos={avisos.slice(0, 6)} agora={agora} vazio="Nada novo por aqui." />
