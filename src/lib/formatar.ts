@@ -1,7 +1,12 @@
 /** Formatação de datas para a tela (não faz contas). */
 import { chaveDoDia } from "@/lib/finance";
 
-export { formatarReais as reais } from "@/lib/dinheiro";
+import { formatarReais } from "@/lib/dinheiro";
+
+/** "R$ 1.234,56" com espaço que não quebra: o valor nunca se separa do R$ na tela. */
+export function reais(centavos: number): string {
+  return formatarReais(centavos).replace(" ", "\u00a0");
+}
 
 const primeiraMaiuscula = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -36,4 +41,9 @@ export function dataPorExtenso(agora: Date): string {
 export function diaDaSemanaCurto(chave: string): string {
   const [a, m, d] = chave.split("-").map(Number);
   return ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][new Date(a, m - 1, d).getDay()];
+}
+
+/** "ENCARGOS ROTATIVO" -> "Encargos rotativo"; mantém siglas como IOF. */
+export function descricaoLegivel(descricao: string): string {
+  return primeiraMaiuscula(descricao.toLowerCase()).replace(/\biof\b/gi, "IOF").replace(/\bpix\b/gi, "Pix");
 }

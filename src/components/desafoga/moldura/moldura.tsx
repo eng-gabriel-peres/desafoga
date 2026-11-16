@@ -14,6 +14,7 @@ import { BotaoLetraMaior, LinkSair, Marca, MenuInferior, MenuLateral, SeletorDeP
 import { Sino } from "./sino";
 
 const NOME_DA_AREA: Record<Area, string> = { pessoa: "Meu Desafoga", responsavel: "Painel do responsável" };
+const NOME_CURTO: Record<Area, string> = { pessoa: "Desafoga", responsavel: "Painel" };
 
 /**
  * Moldura de cada área. No celular: topo e menu inferior. No desktop (1000px
@@ -56,7 +57,7 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
         <div className="mx-auto flex max-w-[620px] items-center gap-2 px-3 py-2.5">
           <div className="mr-auto flex min-w-0 items-center gap-2">
             <Marca comNome={false} />
-            <span className="truncate font-bold">{NOME_DA_AREA[area]}</span>
+            <span className="truncate font-bold">{NOME_CURTO[area]}</span>
           </div>
           <BotaoLetraMaior />
           <Sino area={area} />
