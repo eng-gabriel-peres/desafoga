@@ -26,6 +26,8 @@ export interface Veredito {
 export type Contador = ((chaves: string[], dia: string) => Promise<Map<string, number>>) & {
   /** Lê, sem somar, as chaves pedidas e todas as que começam com o prefixo. */
   ler?: (dia: string, chaves: string[], prefixo: string) => Promise<Map<string, number>>;
+  /** Tira 1 de cada chave no dia (sem passar de zero): devolve uma vaga reservada. */
+  devolver?: (chaves: string[], dia: string) => Promise<void>;
 };
 
 const NOME: Record<Recurso, string> = { texto: "mensagens", arquivo: "arquivos", audio: "áudios", codigo: "tentativas de código" };
@@ -88,6 +90,12 @@ export function contadorEmMemoria(): Contador {
     }
     return saida;
   };
+  contar.devolver = async (chaves, dia) => {
+    for (const chave of chaves) {
+      const atual = totais.get(`${dia}|${chave}`) ?? 0;
+      if (atual > 0) totais.set(`${dia}|${chave}`, atual - 1);
+    }
+  };
   return contar;
 }
 
@@ -131,6 +139,10 @@ export function contadorPostgres(url: string): Contador {
     );
     return new Map(r.rows.map((linha) => [linha.chave, linha.total]));
   };
+  contar.devolver = async (chaves, dia) => {
+    await pronto();
+    await pool.query("update uso set total = greatest(total - 1, 0) where dia = $2::date and chave = any($1::text[])", [chaves, dia]);
+  };
   return contar;
 }
 
@@ -161,6 +173,11 @@ export async function lerHoje(chaves: string[]): Promise<Map<string, number>> {
   const contar = contadorAtual();
   // Prefixo que nenhuma chave tem: só as chaves pedidas voltam.
   return contar.ler ? contar.ler(hojeEmBrasilia(), chaves, "\u0000") : new Map();
+}
+
+/** Devolve uma vaga somada com `somarHoje` (por exemplo, quando o envio falhou). */
+export async function devolverHoje(chaves: string[]): Promise<void> {
+  await contadorAtual().devolver?.(chaves, hojeEmBrasilia());
 }
 
 /** Conta um pedido e diz se ele pode ser atendido. */

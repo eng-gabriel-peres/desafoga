@@ -40,7 +40,7 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
       if (!uso.permitido) return erro(uso.mensagem ?? "Limite de uso de hoje atingido.", 429);
     }
     const corpo = (await request.json().catch(() => ({}))) as { args?: unknown };
-    return NextResponse.json({ dados: (await executar(acao, visitante, corpo.args)) ?? null });
+    return NextResponse.json({ dados: (await executar(acao, visitante, corpo.args, { rede: redeDe(request.headers) })) ?? null });
   } catch (e) {
     if (e instanceof ErroDeEntrada || e instanceof ArquivoRecusado || e instanceof PedidoRecusado) return erro(e.message, 400);
     if (e instanceof Error && e.message.startsWith("Pessoa não encontrada")) return erro(e.message, 404);

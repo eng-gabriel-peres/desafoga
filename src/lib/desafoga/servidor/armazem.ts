@@ -10,7 +10,7 @@
 import { randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { Pool } from "pg";
-import { lerHoje, somarHoje } from "@/lib/limite";
+import { devolverHoje, somarHoje } from "@/lib/limite";
 import { novoBanco, type Banco } from "@/services/nucleo";
 import { normalizarTelefone } from "../telefone";
 
@@ -151,14 +151,15 @@ const VALIDADE_DO_CODIGO_MS = 15 * 60_000;
 /** Tentativas por código: 6 dígitos não dão para adivinhar em 5. */
 const TENTATIVAS_POR_CODIGO = 5;
 /**
- * Limites do dia em dois níveis. Por navegador e número, rígidos: valem para
- * quem está tentando. Por número, um teto alto contra quem tenta de vários
- * navegadores; alto o bastante para outra pessoa não conseguir travar o dono.
+ * Limites do dia. Por quem pede (o navegador e, à parte, a rede, que o
+ * cliente não escolhe), rígidos. Por número, um teto contra quem tenta de
+ * vários navegadores e redes; com 30 palpites em 1 milhão, a chance de
+ * acertar é de 0,003% por dia.
  */
-const TENTATIVAS_POR_NAVEGADOR_E_NUMERO = 10;
-const TENTATIVAS_POR_NUMERO = 50;
-const CODIGOS_POR_NAVEGADOR_E_NUMERO = 5;
-const CODIGOS_POR_NUMERO = 20;
+const LIMITES = {
+  codigos: { porQuemPede: 5, porNumero: 20 },
+  tentativas: { porQuemPede: 10, porNumero: 30 },
+};
 /** Intervalo mínimo entre dois códigos pedidos pelo mesmo navegador para o mesmo número. */
 const INTERVALO_ENTRE_ENVIOS_MS = 60_000;
 /** Só mandamos código para quem falou com a Luana no WhatsApp nesse período (é também a janela do WhatsApp). */
@@ -166,10 +167,47 @@ const JANELA_DE_CONTATO_MS = 24 * 60 * 60_000;
 
 export class PedidoRecusado extends Error {}
 
+interface Quem {
+  visitante: string;
+  /** Hash do endereço de rede de quem pede, quando conhecido. */
+  rede?: string | null;
+}
+
+/** Chaves do contador do dia para um tipo de limite: por navegador, por rede e por número. */
+function chavesDoLimite(tipo: keyof typeof LIMITES, quem: Quem, telefone: string) {
+  const porQuemPede = [`${tipo}:v:${quem.visitante}:${telefone}`, ...(quem.rede ? [`${tipo}:r:${quem.rede}:${telefone}`] : [])];
+  return { porQuemPede, porNumero: `${tipo}:n:${telefone}`, todas: [...porQuemPede, `${tipo}:n:${telefone}`] };
+}
+
+/**
+ * Reserva uma vaga no limite, de forma atômica (soma antes de conferir):
+ * pedidos em paralelo não passam do teto. Se passou, devolve a vaga e recusa.
+ */
+async function reservar(tipo: keyof typeof LIMITES, quem: Quem, telefone: string): Promise<string[]> {
+  const c = chavesDoLimite(tipo, quem, telefone);
+  const totais = await somarHoje(c.todas);
+  const estourou =
+    c.porQuemPede.some((k) => (totais.get(k) ?? 0) > LIMITES[tipo].porQuemPede) || (totais.get(c.porNumero) ?? 0) > LIMITES[tipo].porNumero;
+  if (estourou) {
+    await devolverHoje(c.todas);
+    throw new PedidoRecusado(
+      tipo === "codigos" ? "Esse número já recebeu códigos demais hoje. Tente de novo amanhã." : "Muitas tentativas para esse número hoje. Tente de novo amanhã.",
+    );
+  }
+  return c.todas;
+}
+
 /** Anota que o número escreveu para a Luana: a partir daí podemos responder a ele. */
 export async function registrarContato(numero: string, agora = Date.now()): Promise<void> {
   const telefone = normalizarTelefone(numero);
   if (telefone) await armazem().gravar(`contato:${telefone}`, agora);
+}
+
+export interface PedidoDeCodigo {
+  telefone: string;
+  codigo: string;
+  /** Vaga reservada no limite de envios; devolvida se o envio falhar. */
+  reserva: string[];
 }
 
 /**
@@ -182,11 +220,11 @@ export async function registrarContato(numero: string, agora = Date.now()): Prom
  * (`exigirContato`), e recebe no máximo alguns códigos por dia.
  */
 export async function pedirTelefone(
-  visitante: string,
+  quem: Quem,
   pessoaId: string,
   texto: string,
   { agora = Date.now(), exigirContato = true }: { agora?: number; exigirContato?: boolean } = {},
-): Promise<{ telefone: string; codigo: string } | null> {
+): Promise<PedidoDeCodigo | null> {
   const telefone = normalizarTelefone(texto);
   if (!telefone) return null;
   if (exigirContato) {
@@ -195,67 +233,68 @@ export async function pedirTelefone(
       throw new PedidoRecusado("Mande antes um “oi” para a Luana no WhatsApp desse número. Depois peça o código de novo.");
     }
   }
-  const ultimoEnvio = (await armazem().ler(`envio:${visitante}:${telefone}`)) as number | null;
+  const ultimoEnvio = (await armazem().ler(`envio:${quem.visitante}:${telefone}`)) as number | null;
   if (ultimoEnvio && agora - ultimoEnvio < INTERVALO_ENTRE_ENVIOS_MS) {
     throw new PedidoRecusado("Acabamos de mandar um código para esse número. Espere um minuto para pedir outro.");
   }
-  const enviados = await lerHoje([`codigo-enviado:${visitante}:${telefone}`, `codigo-enviado:${telefone}`]);
-  if (
-    (enviados.get(`codigo-enviado:${visitante}:${telefone}`) ?? 0) >= CODIGOS_POR_NAVEGADOR_E_NUMERO ||
-    (enviados.get(`codigo-enviado:${telefone}`) ?? 0) >= CODIGOS_POR_NUMERO
-  ) {
-    throw new PedidoRecusado("Esse número já recebeu códigos demais hoje. Tente de novo amanhã.");
-  }
+  const reserva = await reservar("codigos", quem, telefone);
   const codigo = String(randomInt(0, 1_000_000)).padStart(6, "0");
   const pedido: Pedido = { id: randomUUID(), telefone, codigo, expira: agora + VALIDADE_DO_CODIGO_MS };
-  await armazem().gravar(`pedido:${visitante}:${pessoaId}`, pedido);
-  return { telefone, codigo };
+  await armazem().gravar(`pedido:${quem.visitante}:${pessoaId}`, pedido);
+  await armazem().gravar(`envio:${quem.visitante}:${telefone}`, agora);
+  return { telefone, codigo, reserva };
 }
 
-/** Conta o código como enviado; só depois de o WhatsApp aceitar a mensagem. */
-export async function registrarEnvio(visitante: string, telefone: string, agora = Date.now()): Promise<void> {
-  await armazem().gravar(`envio:${visitante}:${telefone}`, agora);
-  await somarHoje([`codigo-enviado:${visitante}:${telefone}`, `codigo-enviado:${telefone}`]);
-}
-
-/** Desfaz o pedido quando o código não pôde ser enviado (e ele não conta no limite). */
-export async function cancelarPedido(visitante: string, pessoaId: string): Promise<void> {
+/** Desfaz o pedido quando o código não pôde ser enviado: a vaga volta para o limite. */
+export async function cancelarPedido(visitante: string, pessoaId: string, pedido: PedidoDeCodigo): Promise<void> {
   await armazem().apagar(`pedido:${visitante}:${pessoaId}`);
+  await armazem().apagar(`envio:${visitante}:${pedido.telefone}`);
+  await devolverHoje(pedido.reserva);
 }
 
 /**
  * Segundo passo: a pessoa digitou no app o código que recebeu. Cada tentativa
- * é contada antes da comparação, de forma atômica no banco: tentativas em
- * paralelo não escapam do limite. Liga o número à pessoa e devolve o número.
+ * reserva uma vaga no limite antes da comparação, de forma atômica: tentativas
+ * em paralelo não escapam. Liga o número à pessoa e devolve o número.
  */
-export async function confirmarTelefone(visitante: string, pessoaId: string, codigo: string, agora = Date.now()): Promise<string> {
+export async function confirmarTelefone(
+  quem: Quem,
+  pessoaId: string,
+  codigo: string,
+  { agora = Date.now() }: { agora?: number } = {},
+): Promise<string> {
+  const { visitante } = quem;
   const chave = `pedido:${visitante}:${pessoaId}`;
   const pedido = (await armazem().ler(chave)) as Pedido | null;
   if (!pedido || pedido.expira < agora) throw new PedidoRecusado("O código venceu. Peça um novo.");
 
-  const doPedido = `codigo-tentativa:${pedido.id}`;
-  const doPar = `codigo-tentativa:${visitante}:${pedido.telefone}`;
-  const doNumero = `codigo-tentativa-numero:${pedido.telefone}`;
-  const totais = await somarHoje([doPedido, doPar, doNumero]);
-  if ((totais.get(doPar) ?? 0) > TENTATIVAS_POR_NAVEGADOR_E_NUMERO || (totais.get(doNumero) ?? 0) > TENTATIVAS_POR_NUMERO) {
+  try {
+    await reservar("tentativas", quem, pedido.telefone);
+  } catch (e) {
     await armazem().apagar(chave);
-    throw new PedidoRecusado("Muitas tentativas para esse número hoje. Tente de novo amanhã.");
+    throw e;
   }
-  if ((totais.get(doPedido) ?? 0) > TENTATIVAS_POR_CODIGO) {
+  const doPedido = (await somarHoje([`tentativas:p:${pedido.id}`])).get(`tentativas:p:${pedido.id}`) ?? 0;
+  if (doPedido > TENTATIVAS_POR_CODIGO) {
     await armazem().apagar(chave);
     throw new PedidoRecusado("Código errado muitas vezes. Peça um novo.");
   }
   if (!iguais(pedido.codigo, codigo.trim())) throw new PedidoRecusado("Código não confere. Confira a mensagem no WhatsApp.");
 
   const { telefone } = pedido;
+  await ligarTelefone(visitante, pessoaId, telefone);
+  await armazem().apagar(chave);
+  return telefone;
+}
+
+/** Liga o número à pessoa, desfazendo a ligação anterior dela, se houver. */
+async function ligarTelefone(visitante: string, pessoaId: string, telefone: string): Promise<void> {
   await comBanco(visitante, async (banco) => {
     const anterior = banco.telefones[pessoaId];
     if (anterior && anterior !== telefone) await apagarSeFor(anterior, visitante, pessoaId);
     banco.telefones[pessoaId] = telefone;
   });
   await armazem().gravar(`telefone:${telefone}`, { visitante, pessoaId } satisfies Vinculo);
-  await armazem().apagar(chave);
-  return telefone;
 }
 
 function iguais(a: string, b: string): boolean {

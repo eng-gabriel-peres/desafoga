@@ -29,7 +29,6 @@ import {
   PedidoRecusado,
   pedirTelefone,
   recomecarBanco,
-  registrarEnvio,
 } from "./armazem";
 import { enviarPeloWhatsapp, whatsappConfigurado } from "./enviar";
 
@@ -67,37 +66,43 @@ const ACOES = {
   "pessoas.profissionais": acao(z.tuple([]), async () => PROFISSIONAIS),
   "pessoas.responsavel": acao(z.tuple([]), async () => responsavel()),
   "pessoas.whatsapp": acao(z.tuple([id]), (v, [p]) => comBanco(v, (b) => b.telefones[p] ?? null, false)),
-  "pessoas.conectarWhatsapp": acao(z.tuple([id, texto(30)]), async (v, [p, tel]) => {
-    await comBanco(v, (b) => pessoa(b, p), false);
-    // Desenvolvimento sem WhatsApp configurado: não há como mandar nem receber, o código aparece na tela.
-    const semWhatsapp = !whatsappConfigurado() && process.env.NODE_ENV !== "production";
-    const pedido = await pedirTelefone(v, p, tel, { exigirContato: !semWhatsapp });
-    if (!pedido) throw new ErroDeEntrada("Número inválido. Use DDD e número, por exemplo (11) 99999-8888.");
-    const mensagem = `Seu código do Desafoga é ${pedido.codigo}. Digite no app para conectar este WhatsApp. Se não foi você, ignore esta mensagem.`;
-    if (semWhatsapp) {
-      await registrarEnvio(v, pedido.telefone);
-      return { telefone: pedido.telefone, codigoDeTeste: pedido.codigo };
-    }
-    try {
-      await enviarPeloWhatsapp(pedido.telefone, mensagem);
-      await registrarEnvio(v, pedido.telefone);
-    } catch (e) {
-      await cancelarPedido(v, p);
-      console.error("Desafoga: código não enviado,", e instanceof Error ? e.message.slice(0, 200) : "erro");
-      throw new ErroDeEntrada(
-        "Não consegui mandar o código para esse WhatsApp. Confira o número e mande antes um “oi” para a Luana por ele (no sandbox da Twilio, a mensagem de entrada “join”).",
-      );
-    }
-    return { telefone: pedido.telefone, codigoDeTeste: null };
-  }, "texto"),
-  "pessoas.confirmarWhatsapp": acao(z.tuple([id, z.string().regex(/^\s*\d{6}\s*$/)]), async (v, [p, codigo]) => {
-    try {
-      return await confirmarTelefone(v, p, codigo);
-    } catch (e) {
-      if (e instanceof PedidoRecusado) throw new ErroDeEntrada(e.message);
-      throw e;
-    }
-  }, "codigo"),
+  "pessoas.conectarWhatsapp": acao(
+    z.tuple([id, texto(30)]),
+    async (v, [p, tel], { rede }) => {
+      await comBanco(v, (b) => pessoa(b, p), false);
+      // Desenvolvimento sem WhatsApp configurado: não há como mandar nem receber, o código aparece na tela.
+      const semWhatsapp = !whatsappConfigurado() && process.env.NODE_ENV !== "production";
+      const pedido = await pedirTelefone({ visitante: v, rede }, p, tel, { exigirContato: !semWhatsapp });
+      if (!pedido) throw new ErroDeEntrada("Número inválido. Use DDD e número, por exemplo (11) 99999-8888.");
+      if (semWhatsapp) return { telefone: pedido.telefone, codigoDeTeste: pedido.codigo };
+      try {
+        await enviarPeloWhatsapp(
+          pedido.telefone,
+          `Seu código do Desafoga é ${pedido.codigo}. Digite no app para conectar este WhatsApp. Se não foi você, ignore esta mensagem.`,
+        );
+      } catch (e) {
+        await cancelarPedido(v, p, pedido);
+        console.error("Desafoga: código não enviado,", e instanceof Error ? e.message.slice(0, 200) : "erro");
+        throw new ErroDeEntrada(
+          "Não consegui mandar o código para esse WhatsApp. Confira o número e mande antes um “oi” para a Luana por ele (no sandbox da Twilio, a mensagem de entrada “join”).",
+        );
+      }
+      return { telefone: pedido.telefone, codigoDeTeste: null };
+    },
+    "texto",
+  ),
+  "pessoas.confirmarWhatsapp": acao(
+    z.tuple([id, z.string().regex(/^\s*\d{6}\s*$/)]),
+    async (v, [p, codigo], { rede }) => {
+      try {
+        return await confirmarTelefone({ visitante: v, rede }, p, codigo);
+      } catch (e) {
+        if (e instanceof PedidoRecusado) throw new ErroDeEntrada(e.message);
+        throw e;
+      }
+    },
+    "codigo",
+  ),
   "pessoas.desconectarWhatsapp": acao(z.tuple([id]), (v, [p]) => desvincularTelefone(v, p)),
 
   "compras.listar": acao(z.tuple([id]), (v, [p]) => comBanco(v, (b) => pessoa(b, p).compras, false)),
@@ -150,9 +155,15 @@ const ACOES = {
 
 type Recurso = "texto" | "arquivo" | "audio" | "codigo";
 
+/** O que a rota sabe de quem chamou, além do visitante. */
+export interface Contexto {
+  /** Hash do endereço de rede, que o cliente não escolhe. */
+  rede: string | null;
+}
+
 function acao<A extends z.ZodTypeAny, R>(
   argumentos: A,
-  executar: (visitante: string, args: z.infer<A>) => Promise<R>,
+  executar: (visitante: string, args: z.infer<A>, contexto: Contexto) => Promise<R>,
   /** Ações que chamam a IA entram no limite diário de uso. */
   recurso?: Recurso,
 ) {
@@ -170,9 +181,9 @@ export function recursoDa(nome: NomeDaAcao): Recurso | undefined {
 }
 
 /** Valida os argumentos e executa a ação. */
-export async function executar(nome: NomeDaAcao, visitante: string, args: unknown): Promise<unknown> {
+export async function executar(nome: NomeDaAcao, visitante: string, args: unknown, contexto: Contexto = { rede: null }): Promise<unknown> {
   const a = ACOES[nome];
   const lidos = a.argumentos.safeParse(Array.isArray(args) ? args : []);
   if (!lidos.success) throw new ErroDeEntrada("Argumentos inválidos.");
-  return (a.executar as (v: string, args: unknown) => Promise<unknown>)(visitante, lidos.data);
+  return (a.executar as (v: string, args: unknown, c: Contexto) => Promise<unknown>)(visitante, lidos.data, contexto);
 }
