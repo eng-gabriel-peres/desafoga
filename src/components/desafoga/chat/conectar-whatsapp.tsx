@@ -1,9 +1,9 @@
 "use client";
 
-import { Check, MessageCircle, X } from "lucide-react";
+import { Check, MessageCircle, Unlink, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useConsulta } from "@/hooks/use-consulta";
-import { telefoneLegivel } from "@/lib/desafoga/telefone";
+import { normalizarTelefone, telefoneLegivel } from "@/lib/desafoga/telefone";
 import { servicos } from "@/services";
 import { Botao } from "../ui/botao";
 
@@ -35,15 +35,16 @@ export function BotaoWhatsapp({ pessoaId }: { pessoaId: string }) {
 
 type Etapa =
   | { tipo: "numero" }
+  | { tipo: "conferir"; telefone: string }
   | { tipo: "codigo"; telefone: string; codigoDeTeste: string | null }
   | { tipo: "pronto"; telefone: string };
 
 const CAMPO = "min-h-12 w-full rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 outline-none focus:border-primary";
 
 /**
- * Conectar o WhatsApp: a pessoa informa o número, a Luana manda um código
- * para esse WhatsApp e a pessoa digita o código aqui. Assim só quem tem o
- * celular na mão liga o número à conta.
+ * Conectar o WhatsApp: a pessoa informa o número, confere, a Luana manda um
+ * código para esse WhatsApp e a pessoa digita o código aqui. Só quem tem o
+ * celular na mão liga o número, e sempre à conta de quem pediu.
  */
 function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual: string | null; fechar: () => void }) {
   const [etapa, setEtapa] = useState<Etapa>({ tipo: "numero" });
@@ -60,22 +61,37 @@ function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual:
   }, [fechar]);
 
   useEffect(() => {
-    caixa.current?.querySelector<HTMLInputElement>("input")?.focus();
+    caixa.current?.querySelector<HTMLElement>("input, [data-foco]")?.focus();
   }, [etapa.tipo]);
 
-  async function pedirCodigo(e?: React.FormEvent) {
-    e?.preventDefault();
+  function conferir(e: React.FormEvent) {
+    e.preventDefault();
+    setErro("");
+    const telefone = normalizarTelefone(numero);
+    if (!telefone) return setErro("Número inválido. Use DDD e número, por exemplo (11) 99999-8888.");
+    setEtapa({ tipo: "conferir", telefone });
+  }
+
+  async function enviarCodigo(telefone: string) {
     setErro("");
     setEnviando(true);
     try {
-      const r = await servicos.pessoas.conectarWhatsapp(pessoaId, numero);
+      const r = await servicos.pessoas.conectarWhatsapp(pessoaId, telefone);
       setCodigo("");
       setEtapa({ tipo: "codigo", telefone: r.telefone, codigoDeTeste: r.codigoDeTeste });
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não consegui mandar o código.");
+      setEtapa({ tipo: "numero" });
     } finally {
       setEnviando(false);
     }
+  }
+
+  async function errei() {
+    // O código enviado deixa de valer na hora.
+    await servicos.pessoas.desistirDoWhatsapp(pessoaId).catch(() => undefined);
+    setErro("");
+    setEtapa({ tipo: "numero" });
   }
 
   async function confirmar(e: React.FormEvent) {
@@ -91,9 +107,22 @@ function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual:
     }
   }
 
+  async function desconectar() {
+    setEnviando(true);
+    await servicos.pessoas.desconectarWhatsapp(pessoaId);
+    setEnviando(false);
+    fechar();
+  }
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-scrim p-4" onPointerDown={(e) => e.target === e.currentTarget && fechar()}>
-      <div ref={caixa} role="dialog" aria-modal="true" aria-labelledby="titulo-whatsapp" className="w-full max-w-[460px] rounded-3xl border border-line bg-bg p-6">
+      <div
+        ref={caixa}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="titulo-whatsapp"
+        className="max-h-[92dvh] w-full max-w-[460px] overflow-auto rounded-3xl border border-line bg-bg p-6"
+      >
         <div className="mb-3 flex items-start justify-between gap-3">
           <h2 id="titulo-whatsapp" className="text-[1.3rem] leading-tight font-bold">
             Conversar com a Luana pelo WhatsApp
@@ -108,10 +137,18 @@ function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual:
             <p className="text-muted">
               O que você contar pelo WhatsApp (compras, faturas, áudios) entra aqui no app. As conversas são separadas: o WhatsApp tem a dele e o app tem a sua.
             </p>
-            {atual && <p className="mt-2 font-bold">Conectado agora: {telefoneLegivel(atual)}</p>}
-            <form onSubmit={pedirCodigo} className="mt-4">
+            {atual && (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-good-soft px-3 py-2">
+                <span className="font-bold text-good">Conectado: {telefoneLegivel(atual)}</span>
+                <Botao variante="link" tamanho="pequeno" onClick={desconectar} disabled={enviando}>
+                  <Unlink aria-hidden="true" />
+                  Desconectar
+                </Botao>
+              </div>
+            )}
+            <form onSubmit={conferir} className="mt-4">
               <label className="block">
-                <span className="mb-1.5 block font-bold">Seu número de WhatsApp</span>
+                <span className="mb-1.5 block font-bold">{atual ? "Trocar para outro número" : "Seu número de WhatsApp"}</span>
                 <input
                   value={numero}
                   onChange={(e) => setNumero(e.target.value)}
@@ -130,8 +167,8 @@ function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual:
                   {erro}
                 </p>
               )}
-              <Botao type="submit" bloco className="mt-4" disabled={enviando}>
-                {enviando ? "Enviando…" : "Enviar código"}
+              <Botao type="submit" bloco className="mt-4">
+                Continuar
               </Botao>
             </form>
             <div className="mt-5 rounded-2xl bg-surface p-4 text-[0.95rem]">
@@ -148,6 +185,24 @@ function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual:
               </ol>
             </div>
           </>
+        )}
+
+        {etapa.tipo === "conferir" && (
+          <div>
+            <p>Confira o número antes de mandarmos o código:</p>
+            <p className="my-4 text-center text-[1.6rem] font-bold tracking-wide">
+              {telefoneLegivel(etapa.telefone)}
+            </p>
+            <p className="text-[0.92rem] text-muted">Se o número estiver errado, o código vai para outra pessoa e não vai servir para você.</p>
+            <div className="mt-4 grid grid-cols-2 gap-2.5">
+              <Botao variante="secundario" onClick={() => setEtapa({ tipo: "numero" })}>
+                Corrigir
+              </Botao>
+              <Botao data-foco onClick={() => enviarCodigo(etapa.telefone)} disabled={enviando}>
+                {enviando ? "Enviando…" : "Enviar código"}
+              </Botao>
+            </div>
+          </div>
         )}
 
         {etapa.tipo === "codigo" && (
@@ -180,10 +235,10 @@ function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual:
               {enviando ? "Confirmando…" : "Confirmar"}
             </Botao>
             <div className="mt-2 flex flex-wrap justify-between gap-2">
-              <Botao variante="link" onClick={() => setEtapa({ tipo: "numero" })}>
-                Trocar número
+              <Botao variante="link" onClick={errei}>
+                Errei o número
               </Botao>
-              <Botao variante="link" onClick={() => pedirCodigo()} disabled={enviando}>
+              <Botao variante="link" onClick={() => enviarCodigo(etapa.telefone)} disabled={enviando}>
                 Mandar outro código
               </Botao>
             </div>
@@ -195,7 +250,10 @@ function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual:
             <p className="rounded-xl bg-good-soft px-3 py-2.5 font-bold text-good">
               Pronto: {telefoneLegivel(etapa.telefone)} está conectado à sua conta.
             </p>
-            <p className="mt-3">Agora é só conversar com a Luana pelo WhatsApp: “comprei pão 12”, um áudio ou a foto da fatura.</p>
+            <p className="mt-3">
+              Agora é só conversar com a Luana pelo WhatsApp: “comprei pão 12”, um áudio ou a foto da fatura. A Luana também mandou uma mensagem para esse
+              número avisando da conexão; quem tiver o número pode responder “desconectar” a qualquer momento.
+            </p>
             <Botao bloco className="mt-4" onClick={fechar}>
               Fechar
             </Botao>

@@ -65,7 +65,6 @@ O sistema tem duas áreas separadas: o app de quem usa e o painel de quem acompa
 | `/app/assistente` | Pessoa | Chat com a Luana no estilo WhatsApp |
 | `/app/dividas` | Pessoa | Raio-x do mês, plano de quitação, lista de dívidas e custo emocional |
 | `/app/perfil` | Pessoa | WhatsApp, quem acompanha (código de convite) e apagar a conta |
-| `/app/conectar` | Pessoa | Conecta o WhatsApp pelo link que a Luana mandou |
 | `/app/dividas/fatura` | Pessoa | Enviar fatura: upload, leitura em 3 etapas e classificação das compras novas |
 | `/painel` | Responsável | Pacientes (tabela no desktop, cartões no celular) e código de convite |
 | `/painel/[id]` | Responsável | Resumo do paciente: indicadores, humor e gasto por dia, padrões e avisos |
@@ -128,10 +127,10 @@ Valores em centavos e taxas como fração ao mês. Cada função tem teste.
 A Luana é a mesma nos dois canais: mesmo código no servidor (`src/lib/desafoga`), mesma memória do profissional e mesmos números.
 
 - **Dados unificados:** no cadastro, a pessoa informa o número de WhatsApp (hoje, em "Conectar WhatsApp", no chat do app). A Luana manda um código para esse WhatsApp e a pessoa digita o código no app; só então o número fica ligado à conta, para ninguém conectar o número de outra pessoa. Contra spam e tentativa e erro: o código só vai para números que falaram com a Luana nas últimas 24 horas; cada navegador pode pedir 5 códigos e errar 10 vezes por número no dia (com um teto alto por número, para outra pessoa não conseguir travar o dono); cada código vale 15 minutos e 5 tentativas; envio que falhou não conta. A partir daí, tudo o que ela manda por esse número (compras, faturas, áudios) cai na conta dela e aparece no app e no painel do responsável.
-- **Atalho pelo link:** quem escreve para a Luana sem estar conectado recebe o link de cadastro e também um link pessoal assinado (`/app/conectar#…`). Abrindo esse link com a conta aberta no celular, o número conecta direto, sem digitar código. O link vale 30 minutos e uma vez; o código vai depois do `#`, então não aparece em logs nem é repassado a outros sites.
+- **Número errado e arrependimento:** antes de enviar o código, o app mostra o número formatado para conferir; número que nunca falou com a Luana nem recebe código (a pessoa é avisada para conferir); "Errei o número" invalida o código na hora. Ao conectar, a Luana avisa aquele WhatsApp de qual conta ele passou a fazer parte, e quem tem o número pode responder "desconectar" a qualquer momento (no app, Perfil > WhatsApp > Desconectar).
 - **Conversas separadas:** o chat do app e o do WhatsApp são conversas diferentes. Uma pergunta em aberto num canal não se mistura com o outro.
 - **IA lê, código calcula:** o Gemini lê gastos escritos do jeito da pessoa ("almoço 35 e uber 18,50"), faturas, prints e áudios, e conversa usando a memória. Plano, simulações, juros, o registro de compras (com emoção e necessidade) e a resposta a sofrimento intenso seguem por regras, com os números de `src/lib/finance`. Sem `GEMINI_API_KEY`, ou com a IA fora do ar, as regras respondem tudo.
-- **Webhooks:** `/api/twilio/webhook` (sandbox da Twilio) e `/api/whatsapp/webhook` (Meta). Número sem conta recebe um aviso de que não está conectado e o link da plataforma para se cadastrar.
+- **Webhooks:** `/api/twilio/webhook` (sandbox da Twilio) e `/api/whatsapp/webhook` (Meta). Número sem conta recebe um aviso de que não está conectado e o link da plataforma para se cadastrar e conectar o WhatsApp pelo app.
 
 Para a demonstração com o sandbox da Twilio: preencha `NEXT_PUBLIC_WHATSAPP_NUMERO` e `NEXT_PUBLIC_WHATSAPP_CODIGO` (código do "join"), mande `join <código>` para o número do sandbox, conecte o seu número na conta da Ana, digite o código que chegar no WhatsApp e converse com a Luana pelo WhatsApp.
 

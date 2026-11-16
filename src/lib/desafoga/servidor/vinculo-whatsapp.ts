@@ -1,10 +1,9 @@
 /**
  * Ligação do WhatsApp à conta da pessoa.
  *
- * Dois caminhos, os dois provando que o número é de quem pede:
- * - código: a Luana manda 6 dígitos para o número e a pessoa digita no app;
- * - link assinado: a Luana manda um link para quem escreveu sem estar
- *   conectado, e a pessoa confirma no app.
+ * A pessoa informa o número no app, a Luana manda 6 dígitos para esse
+ * WhatsApp e a pessoa digita o código no app. A ligação fica presa a quem
+ * pediu (a conta da sessão) e só vale com o celular do número na mão.
  *
  * Contra spam e tentativa e erro: só manda código para quem falou com a Luana
  * nas últimas 24 horas, reserva vagas de limite de forma atômica (soma antes
@@ -13,7 +12,6 @@
 import { randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { devolverHoje, somarHoje } from "@/lib/limite";
 import { normalizarTelefone } from "../telefone";
-import { lerCodigoDeConexao } from "./link-de-conexao";
 import { prisma } from "./prisma";
 import { registros } from "./registros";
 
@@ -137,7 +135,9 @@ export async function pedirCodigo(
   if (exigirContato) {
     const contato = (await registros().ler(`contato:${telefone}`)) as number | null;
     if (!contato || agora - contato > JANELA_DE_CONTATO_MS) {
-      throw new PedidoRecusado("Mande antes um “oi” para a Luana no WhatsApp desse número. Depois peça o código de novo.");
+      throw new PedidoRecusado(
+        "Esse número ainda não falou com a Luana. Confira se o número está certo e mande antes um “oi” para a Luana por ele; depois peça o código de novo.",
+      );
     }
   }
   const ultimoEnvio = (await registros().ler(`envio:${quem.pessoaId}:${telefone}`)) as number | null;
@@ -150,6 +150,11 @@ export async function pedirCodigo(
   await registros().gravar(`pedido:${quem.pessoaId}`, pedido);
   await registros().gravar(`envio:${quem.pessoaId}:${telefone}`, agora);
   return { telefone, codigo, reserva };
+}
+
+/** "Errei o número": invalida o código pendente na hora. */
+export async function desistirDoPedido(pessoaId: string): Promise<void> {
+  await registros().apagar(`pedido:${pessoaId}`);
 }
 
 /** Desfaz o pedido quando o código não pôde ser enviado: a vaga volta para o limite. */
@@ -187,17 +192,6 @@ export async function confirmarCodigo(quem: Quem, codigo: string, { agora = Date
   await telefones.ligar(quem.pessoaId, pedido.telefone);
   await registros().apagar(chave);
   return pedido.telefone;
-}
-
-/** Conecta pelo link assinado. O uso é marcado de vez (insert sem sobrescrever): o link vale uma vez. */
-export async function conectarPorLink(pessoaId: string, codigo: string): Promise<string> {
-  const lido = lerCodigoDeConexao(codigo);
-  if (!lido) throw new PedidoRecusado("Esse link venceu ou não é válido. Mande uma mensagem para a Luana no WhatsApp para receber outro.");
-  if (!(await registros().criarSeNaoExiste(`link-usado:${lido.uso}`, Date.now()))) {
-    throw new PedidoRecusado("Esse link já foi usado. Mande uma mensagem para a Luana no WhatsApp para receber outro.");
-  }
-  await telefones.ligar(pessoaId, lido.telefone);
-  return lido.telefone;
 }
 
 export async function desconectar(pessoaId: string): Promise<void> {

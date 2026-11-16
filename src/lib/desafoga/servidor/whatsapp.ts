@@ -5,9 +5,7 @@
  */
 import { paraWhatsapp } from "../conversar";
 import { receberArquivoNoChat, receberAudioNoChat, responderTexto } from "./acoes";
-import { normalizarTelefone } from "../telefone";
-import { donoDoTelefone, registrarContato } from "./vinculo-whatsapp";
-import { linkDeConexao } from "./link-de-conexao";
+import { desconectar, donoDoTelefone, registrarContato } from "./vinculo-whatsapp";
 
 export interface MensagemRecebida {
   de: string;
@@ -17,17 +15,12 @@ export interface MensagemRecebida {
 }
 
 /** Resposta para quem ainda não conectou o WhatsApp a uma conta do Desafoga. */
-export function mensagemSemConta(origem: string, numero: string): string {
-  const telefone = normalizarTelefone(numero);
-  const link = telefone ? linkDeConexao(origem, telefone) : null;
+export function mensagemSemConta(origem: string): string {
   return [
     "Oi! Eu sou a Luana, assistente do Desafoga.",
     "Este número ainda não está conectado a nenhuma conta, então não consigo anotar nada por aqui.",
-    `Para começar, crie sua conta em ${origem} e, no app, toque em Conectar WhatsApp com este número. Eu mando um código para cá e você digita por lá.`,
-    link ? `Se você já tem conta e está com ela aberta neste celular, é só tocar aqui para conectar direto (vale 30 minutos):\n${link}` : null,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+    `Para começar, crie sua conta em ${origem} e, no app, abra Perfil > Conectar WhatsApp com este número. Eu mando um código para cá e você digita por lá.`,
+  ].join("\n\n");
 }
 
 /** Textos a enviar de volta para quem mandou a mensagem. */
@@ -35,7 +28,13 @@ export async function atenderNoWhatsapp(m: MensagemRecebida, origem: string, avi
   // Quem escreve abre a conversa: a partir daí podemos mandar o código de conexão para este número.
   await registrarContato(m.de);
   const pessoaId = await donoDoTelefone(m.de);
-  if (!pessoaId) return [mensagemSemConta(origem, m.de)];
+  if (!pessoaId) return [mensagemSemConta(origem)];
+
+  // O dono do número sempre pode desfazer a ligação, por aqui mesmo.
+  if (m.tipo === "text" && m.texto && /^\s*desconectar\W*$/i.test(m.texto)) {
+    await desconectar(pessoaId);
+    return ["Pronto, este WhatsApp não está mais ligado a nenhuma conta do Desafoga. Para conectar de novo, use Perfil > Conectar WhatsApp no app."];
+  }
 
   if (m.tipo === "text" && m.texto) {
     return (await responderTexto(pessoaId, "whatsapp", m.texto)).map(paraWhatsapp);

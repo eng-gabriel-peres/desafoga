@@ -21,7 +21,7 @@ import {
   type PerfilDaDemo,
   type SessaoAtual,
 } from "./sessao";
-import { cancelarPedido, conectarPorLink, confirmarCodigo, desconectar, pedirCodigo, PedidoRecusado } from "./vinculo-whatsapp";
+import { cancelarPedido, confirmarCodigo, desconectar, desistirDoPedido, pedirCodigo, PedidoRecusado } from "./vinculo-whatsapp";
 
 const id = z.string().uuid();
 const centavos = z.number().int().min(0).max(1e10);
@@ -176,19 +176,23 @@ const ACOES = {
   "pessoas.confirmarWhatsapp": acao(
     z.tuple([id, z.string().regex(/^\s*\d{6}\s*$/)]),
     async ([p, codigo], { sessao, rede }) => {
-      exigirAPropriaPessoa(sessao, p);
-      return comRecusa(() => confirmarCodigo({ pessoaId: p, rede }, codigo));
+      const s = exigirAPropriaPessoa(sessao, p);
+      const telefone = await comRecusa(() => confirmarCodigo({ pessoaId: p, rede }, codigo));
+      // O dono do número fica sabendo a qual conta ele foi ligado, e pode desfazer pelo próprio WhatsApp.
+      if (whatsappConfigurado()) {
+        await enviarPeloWhatsapp(
+          telefone,
+          `Pronto! Este WhatsApp foi conectado à conta de ${s.pessoa?.apelido ?? "você"} no Desafoga. Se não foi você, responda: desconectar`,
+        ).catch((e: unknown) => console.error("Desafoga: aviso de conexão não enviado,", e instanceof Error ? e.message.slice(0, 200) : "erro"));
+      }
+      return telefone;
     },
     "codigo",
   ),
-  "pessoas.conectarWhatsappPorLink": acao(
-    z.tuple([id, z.string().min(10).max(600)]),
-    async ([p, codigo], { sessao }) => {
-      exigirAPropriaPessoa(sessao, p);
-      return comRecusa(() => conectarPorLink(p, codigo));
-    },
-    "codigo",
-  ),
+  "pessoas.desistirDoWhatsapp": acao(z.tuple([id]), async ([p], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await desistirDoPedido(p);
+  }),
   "pessoas.desconectarWhatsapp": acao(z.tuple([id]), async ([p], { sessao }) => {
     exigirAPropriaPessoa(sessao, p);
     await desconectar(p);

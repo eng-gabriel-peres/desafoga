@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { criarCodigoDeConexao } from "./link-de-conexao";
 import { executar, type Contexto } from "./rotas";
 import {
   cancelarPedido,
-  conectarPorLink,
   confirmarCodigo,
   desconectar,
+  desistirDoPedido,
   donoDoTelefone,
   pedirCodigo,
   registrarContato,
@@ -133,28 +132,33 @@ describe("conectar o WhatsApp com código", () => {
   });
 });
 
-describe("conectar pelo link assinado", () => {
-  it("liga o número uma vez só e recusa link adulterado ou vencido", async () => {
-    const codigo = criarCodigoDeConexao("5511987650000")!;
-    expect(await conectarPorLink("pessoa-link", codigo)).toBe("5511987650000");
-    expect(await donoDoTelefone("5511987650000")).toBe("pessoa-link");
-    await expect(conectarPorLink("pessoa-outra", codigo)).rejects.toThrow("já foi usado");
+describe("número errado", () => {
+  it("\"errei o número\" invalida o código na hora", async () => {
+    const p = await pedir("pessoa-n", "11955550000");
+    await desistirDoPedido("pessoa-n");
+    await expect(confirmarCodigo(de("pessoa-n"), p!.codigo)).rejects.toThrow("venceu");
+    expect(await donoDoTelefone("5511955550000")).toBeNull();
+  });
 
-    const [, assinatura] = criarCodigoDeConexao("5511987650001")!.split(".");
-    const outroNumero = Buffer.from(JSON.stringify({ t: "5511900000000", e: Date.now() + 60_000, n: "x" })).toString("base64url");
-    await expect(conectarPorLink("pessoa-link", `${outroNumero}.${assinatura}`)).rejects.toThrow("não é válido");
-
-    const vencido = criarCodigoDeConexao("5511987650002", Date.now() - 31 * 60_000)!;
-    await expect(conectarPorLink("pessoa-link", vencido)).rejects.toThrow("venceu");
+  it("número que nunca falou com a Luana não recebe código e a pessoa é avisada para conferir", async () => {
+    await expect(pedirCodigo(de("pessoa-o"), "11900001111")).rejects.toThrow("Confira se o número está certo");
   });
 });
 
 describe("WhatsApp de quem não tem conta", () => {
-  it("avisa que o número não está conectado e manda o link de cadastro e o de conexão", async () => {
+  it("avisa que o número não está conectado e manda só o link de cadastro", async () => {
     const [resposta] = await atenderNoWhatsapp({ de: "5511912341234", tipo: "text", texto: "comprei pão 12" }, "https://desafoga.app", async () => {});
     expect(resposta).toContain("não está conectado a nenhuma conta");
     expect(resposta).toContain("https://desafoga.app");
-    expect(resposta).toMatch(/https:\/\/desafoga\.app\/app\/conectar#[\w-]+\.[\w-]+/);
+    expect(resposta).not.toContain("/app/conectar");
+  });
+
+  it("o dono do número desfaz a ligação respondendo \"desconectar\"", async () => {
+    const p = await pedir("pessoa-q", "11966660000");
+    await confirmarCodigo(de("pessoa-q"), p!.codigo);
+    const [resposta] = await atenderNoWhatsapp({ de: "5511966660000", tipo: "text", texto: "Desconectar" }, "https://desafoga.app", async () => {});
+    expect(resposta).toContain("não está mais ligado");
+    expect(await donoDoTelefone("5511966660000")).toBeNull();
   });
 });
 
