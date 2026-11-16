@@ -64,11 +64,14 @@ O sistema tem duas áreas separadas: o app de quem usa e o painel de quem acompa
 | `/app/registrar` | Pessoa | Registrar compra em 3 passos: nome, valor e categoria; emoção; se era necessária |
 | `/app/assistente` | Pessoa | Chat com a Luana no estilo WhatsApp |
 | `/app/dividas` | Pessoa | Raio-x do mês, plano de quitação, lista de dívidas e custo emocional |
-| `/app/perfil` | Pessoa | WhatsApp, quem acompanha (código de convite) e apagar a conta |
+| `/app/metas` | Pessoa | Metas de economia (seção de metas do protótipo): anel, ritmo do plano, previsão; `nova`, `[id]` (detalhe e histórico) e `[id]/ajustar` |
+| `/app/orcamento` | Pessoa | Limite do mês por categoria: quanto usou, quanto resta e quanto dá por dia (no desktop, pela barra lateral; no celular, pela tela Hoje) |
+| `/app/perfil` | Pessoa | WhatsApp, quem acompanha (código de convite) e apagar a conta (também pelo menu da bolinha do perfil) |
 | `/app/dividas/fatura` | Pessoa | Enviar fatura: upload, leitura em 3 etapas e classificação das compras novas |
 | `/painel` | Responsável | Pacientes (tabela no desktop, cartões no celular) e código de convite |
 | `/painel/[id]` | Responsável | Resumo do paciente: indicadores, humor e gasto por dia, padrões e avisos |
 | `/painel/[id]/dividas` | Responsável | Dívidas do paciente, só leitura, com "Sugerir valor mensal" |
+| `/painel/[id]/metas` | Responsável | Metas do paciente, só leitura, com "Mandar incentivo" |
 | `/painel/[id]/memoria` | Responsável | Memória da assistente: características, tom, objetivo, anotações e teste |
 | `/api/desafoga/[acao]` | API | Dados e conversa do Desafoga (uma ação por chamada; sessão por cookie) |
 | `/api/twilio/webhook`, `/api/whatsapp/webhook` | WhatsApp | Mensagens que chegam pelo WhatsApp |
@@ -121,6 +124,8 @@ Valores em centavos e taxas como fração ao mês. Cada função tem teste.
 - `compararExtra`: só o mínimo contra o mínimo mais um valor extra.
 - `encargosDasFaturas`, `custoEmocional`, `separarFatura`: juros, IOF, tarifas e quanto dos juros veio de compras feitas com emoção 1 ou 2.
 - `notaDoDia`, `resumoDaSemana`, `situacaoDoPaciente`, `padroesDeCompra`: emoção, semana e situação do paciente.
+- `situacaoDoOrcamento`, `orcamentoDoMes`, `resumoDoOrcamento`: quanto do limite da categoria foi usado no mês, quanto resta e o limite diário até o fim do mês.
+- `situacaoDaMeta`, `opcoesParaPrazo`, `previsaoDeTermino`: guardado, falta, em dia/adiantada/atrasada, quanto guardar por dia, semana ou mês até a data e quando a meta termina.
 
 ## A Luana no app e no WhatsApp
 
@@ -128,6 +133,7 @@ A Luana é a mesma nos dois canais: mesmo código no servidor (`src/lib/desafoga
 
 - **Dados unificados:** no cadastro, a pessoa informa o número de WhatsApp (hoje, em "Conectar WhatsApp", no chat do app). A Luana manda um código para esse WhatsApp e a pessoa digita o código no app; só então o número fica ligado à conta, para ninguém conectar o número de outra pessoa. Contra spam e tentativa e erro: o código só vai para números que falaram com a Luana nas últimas 24 horas; cada navegador pode pedir 5 códigos e errar 10 vezes por número no dia (com um teto alto por número, para outra pessoa não conseguir travar o dono); cada código vale 15 minutos e 5 tentativas; envio que falhou não conta. A partir daí, tudo o que ela manda por esse número (compras, faturas, áudios) cai na conta dela e aparece no app e no painel do responsável.
 - **Número errado e arrependimento:** antes de enviar o código, o app mostra o número formatado para conferir; número que nunca falou com a Luana nem recebe código (a pessoa é avisada para conferir); "Errei o número" invalida o código na hora. Ao conectar, a Luana avisa aquele WhatsApp da conexão (com texto fixo), e quem tem o número pode responder "desconectar" a qualquer momento (no app, Perfil > WhatsApp > Desconectar).
+- **Metas e orçamento:** "guardei 50" ou "transferi 1k pra reserva" registra o dinheiro na meta num movimento só (a transferência já conta na meta); com mais de uma meta ativa, a Luana pergunta qual. Depois de registrar uma compra, ela diz quanto resta do orçamento daquela categoria e o limite diário até o fim do mês.
 - **Conversas separadas:** o chat do app e o do WhatsApp são conversas diferentes. Uma pergunta em aberto num canal não se mistura com o outro.
 - **IA lê, código calcula:** o Gemini lê gastos escritos do jeito da pessoa ("almoço 35 e uber 18,50"), faturas, prints e áudios, e conversa usando a memória. Plano, simulações, juros, o registro de compras (com emoção e necessidade) e a resposta a sofrimento intenso seguem por regras, com os números de `src/lib/finance`. Sem `GEMINI_API_KEY`, ou com a IA fora do ar, as regras respondem tudo.
 - **Webhooks:** `/api/twilio/webhook` (sandbox da Twilio) e `/api/whatsapp/webhook` (Meta). Número sem conta recebe um aviso de que não está conectado e o link da plataforma para se cadastrar e conectar o WhatsApp pelo app.
@@ -140,6 +146,7 @@ Para a demonstração com o sandbox da Twilio: preencha `NEXT_PUBLIC_WHATSAPP_NU
 - **Login sem senha:** decisão do hackathon para quem avalia testar sem cadastro. Para uso aberto ao público, falta entrar pelo WhatsApp com código ou e-mail.
 - **Sem IA:** a leitura de fatura usa um extrato de exemplo e o áudio não é transcrito. A tela avisa quando isso acontece.
 - **Avisos ao responsável:** compra alta, sofrimento intenso e sugestão de valor mensal aparecem no sino; ainda não chegam por e-mail ou WhatsApp ao profissional.
+- **Lembretes das metas:** a meta guarda se a pessoa quer lembrete, mas o envio automático nos dias de guardar ainda não existe (falta um agendador); hoje dá para pedir um lembrete na hora, no detalhe da meta.
 - **Exportar os dados** (LGPD): apagar já existe; exportar ainda não.
 
 Saúde mental: se uma mensagem indicar sofrimento intenso, a Luana acolhe, indica o CVV (188) e o SAMU (192) e avisa o responsável. Ela nunca faz diagnóstico.
