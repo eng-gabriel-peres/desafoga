@@ -1,34 +1,20 @@
-# Luana
+# Desafoga
 
-Uma assistente no WhatsApp que organiza seus gastos. Você manda a fatura do cartão, um print das compras ou escreve o que gastou; ela separa por categoria, soma o dia e o mês, mostra quanto foi de juros e IOF e onde dá para economizar.
+Finanças pessoais para quem está endividado e compra por impulso. O Desafoga junta três coisas que nenhum app junta:
 
-Projeto do Hack Brasil 2026, trilha Pagamentos & finanças.
+1. **A emoção em cada compra.** A pessoa marca como estava (de 1, muito triste, a 5, muito feliz) e vê a **nota do dia**, a média das emoções das compras do dia.
+2. **As dívidas.** Leitura de fatura, raio-x dos juros e plano de quitação.
+3. **Um profissional acompanhando.** Psicólogo ou economista escreve uma **memória** que a assistente usa para conversar com a pessoa.
+
+A assistente se chama **Luana** e conversa pelo WhatsApp e por um chat web igual ao WhatsApp.
+
+Projeto do Hack Brasil 2026, trilha 05, Pagamentos & finanças.
 
 **Demo:** https://desafoga-nine.vercel.app
 
-## O que faz
+## Regra de arquitetura
 
-- **Lê** fatura de cartão e extrato de conta em PDF, foto ou print de compras do app do banco, e gastos escritos em texto ("almoço 35 e uber 18,50").
-- **Classifica** cada lançamento: mercado, restaurantes, transporte, casa e contas, saúde, educação, lazer, compras, assinaturas.
-- **Soma** o dia, o mês e o mês anterior, por categoria; mostra quanto entrou, quanto saiu e quanto sobrou; separa juros, IOF e tarifas dos gastos.
-- **Orienta**: quanto custa pagar só o mínimo, qual categoria cortar, quanto guardar por mês a partir da renda.
-- **Ouve** mensagem de voz: você conta o que gastou ou pergunta por áudio.
-- **Responde "posso comprar?"**: compara a parcela com a sua renda e as suas contas e mostra a conta feita.
-- **Mostra um painel**: toque no nome da Luana para ver entradas, saídas e categorias de cada mês e os documentos enviados.
-- **Lembra** do que já anotou e não duplica uma fatura enviada duas vezes.
-
-As respostas são orientação educativa, não recomendação de investimento ou crédito.
-
-## Estado atual
-
-- [x] Base do projeto, CI e fluxo de ambientes
-- [x] Chat web e webhook do WhatsApp com a mesma conversa
-- [x] Leitura de documentos e mensagens com o Gemini
-- [x] Categorias, somas e sugestões calculadas pelo código, com testes
-- [x] Banco de dados (Postgres no Neon; sem `DATABASE_URL`, arquivo local para desenvolver)
-- [x] Vercel e Neon conectados ao repositório
-- [ ] WhatsApp validado com número real da Meta
-- [x] Limite de uso por visitante, por rede e total do site
+**A IA lê, o código calcula.** Nenhum número financeiro sai da IA. Juros, simulações, nota do dia e custo emocional vêm de funções puras e testadas em `src/lib/finance/`. A assistente só usa os números que o sistema entrega, como mostra o bloco "Ver o que o assistente recebe" na tela de memória.
 
 ## Rodando localmente
 
@@ -36,35 +22,90 @@ Requisitos: Node 24 e pnpm 11.
 
 ```bash
 pnpm install
-cp .env.example .env.local   # preencha GEMINI_API_KEY; DATABASE_URL é opcional
+cp .env.example .env.local   # só para a Luana com IA (/luana e WhatsApp); o app do Desafoga não precisa
 pnpm dev
 ```
 
-Abra http://localhost:3000 e clique em **Ler fatura de exemplo**.
+Abra http://localhost:3000 e escolha **Entrar como Ana** (app da pessoa) ou **Entrar como Paula Reis** (painel do responsável).
 
-Outros comandos: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm build`, `pnpm gerar:faturas`.
+Outros comandos: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm build`.
 
-## Arquitetura
+## Rotas
 
-A regra do projeto: **a IA lê e redige, o código calcula.** O modelo transcreve valores como estão escritos e escolhe a categoria; toda conversão, soma, percentual e sugestão numérica é feita em código testado.
+O sistema tem duas áreas separadas: o app de quem usa e o painel de quem acompanha.
 
-| Camada | Onde | Função |
+| Rota | Área | Tela |
 |---|---|---|
-| Canais | `src/app/api` | WhatsApp (API Cloud da Meta) e chat web |
-| Leitura | `src/lib/luana/ler.ts` | Gemini transcreve documentos e interpreta mensagens em formato fixo |
-| Contas | `src/lib/luana/resumo.ts` | Totais por dia, mês e categoria, encargos, poupança |
-| Conversa | `src/lib/luana/luana.ts` | Orquestra leitura, memória e resposta |
-| Memória | `src/lib/luana/repositorio.ts` | Gastos por pessoa no Postgres (tabela `contas`, criada sozinha) |
+| `/` | Entrada | Escolha do perfil da demonstração (no futuro, o login) |
+| `/app/hoje` | Pessoa | Nota do dia, compras de hoje, atalho para as dívidas, semana e padrões |
+| `/app/registrar` | Pessoa | Registrar compra em 3 passos: nome, valor e categoria; emoção; se era necessária |
+| `/app/assistente` | Pessoa | Chat com a Luana no estilo WhatsApp |
+| `/app/dividas` | Pessoa | Raio-x do mês, plano de quitação, lista de dívidas e custo emocional |
+| `/app/dividas/fatura` | Pessoa | Enviar fatura: upload, leitura em 3 etapas e classificação das compras novas |
+| `/painel` | Responsável | Pacientes: tabela no desktop, cartões no celular |
+| `/painel/[id]` | Responsável | Resumo do paciente: indicadores, humor e gasto por dia, padrões e avisos |
+| `/painel/[id]/dividas` | Responsável | Dívidas do paciente, só leitura, com "Sugerir valor mensal" |
+| `/painel/[id]/memoria` | Responsável | Memória da assistente: características, tom, objetivo, anotações e teste |
+| `/luana`, `/p` | Luana | Chat da Luana com IA (Gemini) e painel pelo link do WhatsApp |
+| `/api/*` | Luana | Chat, leitura de fatura, áudio e webhooks do WhatsApp |
 
-Stack: Next.js 16, TypeScript, Tailwind, Vitest, Gemini, Postgres (Neon), Vercel.
+Pacientes da demonstração: `ana`, `carlos`, `lucia` e `rafael`.
+
+## Estrutura de pastas
+
+```
+src/
+  app/
+    (desafoga)/           layout raiz do Desafoga (fonte, tokens claro/escuro, Letra maior)
+      page.tsx            entrada da demonstração
+      app/                área da pessoa (moldura com menu inferior / barra lateral)
+      painel/             área do responsável
+    (luana)/              chat da Luana com IA e painel pelo link (/luana, /p)
+    api/                  rotas do chat, da fatura e do WhatsApp
+  components/desafoga/
+    ui/                   botões, painel, KPI, etiquetas, avatar, carinha SVG
+    moldura/              moldura de cada área, menus, sino de avisos, Letra maior
+    telas/                uma tela por arquivo (hoje, registrar, assistente, dívidas, fatura, pacientes, resumo, memória)
+    dividas/, chat/       partes das telas de dívidas e do chat
+  hooks/                  consulta à camada de serviço, data atual, paciente aberto, Letra maior
+  services/
+    contratos.ts          interfaces que as telas usam (trocar pela API não muda as telas)
+    tipos.ts              tipos de domínio (persona, memória, aviso, mensagem…)
+    mock/                 implementação simulada, guardada no navegador
+  fixtures/desafoga/      dados fictícios tipados: 4 personas, dívidas, faturas, memória
+  lib/
+    finance/              motor financeiro em funções puras, com testes
+    assistente/           regras da conversa da Luana, detecção de sofrimento, contexto da IA, com testes
+    luana/, ia/, whatsapp/, twilio/   a Luana com IA e o WhatsApp
+docs/referencia/          protótipo usado como referência visual
+```
+
+### Motor financeiro (`src/lib/finance`)
+
+Valores em centavos e taxas como fração ao mês. Cada função tem teste.
+
+- `jurosDoMes`, `jurosMensaisTotais`, `dividaMaisCara`: juros do mês.
+- `simularQuitacao`: simulação mês a mês. Paga os mínimos e manda o restante para a dívida da estratégia (mais cara primeiro ou menor primeiro).
+- `projecaoSoMinimo`: juros dos próximos 12 meses pagando só o mínimo.
+- `compararExtra`: só o mínimo contra o mínimo mais um valor extra.
+- `encargosDasFaturas`, `custoEmocional`, `separarFatura`: juros, IOF, tarifas e quanto dos juros veio de compras feitas com emoção 1 ou 2.
+- `notaDoDia`, `resumoDaSemana`, `situacaoDoPaciente`, `padroesDeCompra`: emoção, semana e situação do paciente.
+
+## O que é simulado nesta etapa
+
+- **Dados:** tudo é fictício (`src/fixtures/desafoga`). As datas são relativas a hoje, e as mudanças ficam no navegador (`localStorage`). "Recomeçar demonstração" volta ao início.
+- **Login:** não existe. A entrada em `/` escolhe o perfil (Ana ou Paula Reis).
+- **Assistente no app:** responde por regras locais (`src/lib/assistente`), não por IA. Ela entende "comprei pão 12", "e se eu pagar 200 a mais?", "plano", "juros", "resumo" e conversa livre usando a memória.
+- **Leitura de fatura:** o arquivo enviado não sai do aparelho. Um extrato de exemplo fixo é lido no lugar dele.
+- **Avisos ao responsável:** compra alta, sofrimento intenso no chat e sugestão de valor mensal aparecem no sino, só dentro da demonstração.
+
+Saúde mental: se uma mensagem indicar sofrimento intenso, a Luana acolhe, indica o CVV (188) e o SAMU (192) e avisa o responsável. Ela nunca faz diagnóstico.
+
+As simulações são educativas e não são recomendação de crédito ou investimento.
 
 ## Contribuindo
 
 Fluxo de branches e ambientes em [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Dados
-
-Os exemplos do repositório e da demo são fictícios. Arquivos enviados são lidos pelo modelo e não são guardados; os lançamentos lidos ficam até a pessoa escrever "apagar tudo".
 
 ## Licença
 
