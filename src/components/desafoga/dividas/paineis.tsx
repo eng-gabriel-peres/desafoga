@@ -29,6 +29,7 @@ export function RaioX({
   estimativa,
   jurosEm12Meses,
   sujeito,
+  dono,
 }: {
   encargos: Encargos;
   /** Juros estimados pelas taxas quando não há fatura lida. */
@@ -36,6 +37,8 @@ export function RaioX({
   jurosEm12Meses: number;
   /** "você pagou" ou "Ana pagou". */
   sujeito: string;
+  /** "suas dívidas geram" ou "as dívidas de Ana geram", para a estimativa. */
+  dono: string;
 }) {
   const temFatura = encargos.total > 0;
   return (
@@ -49,8 +52,15 @@ export function RaioX({
         Raio-x dos juros
       </p>
       <p className="mt-2 text-[1.25rem] leading-snug">
-        Este mês {sujeito} <b className="text-[1.5rem]">{reais(temFatura ? encargos.total : estimativa)}</b>{" "}
-        {temFatura ? "em juros, IOF e tarifas." : "de juros (estimativa pelas taxas)."}
+        {temFatura ? (
+          <>
+            Este mês {sujeito} <b className="text-[1.5rem]">{reais(encargos.total)}</b> em juros, IOF e tarifas.
+          </>
+        ) : (
+          <>
+            Hoje {dono} cerca de <b className="text-[1.5rem]">{reais(estimativa)}</b> de juros por mês (estimativa pelas taxas).
+          </>
+        )}
       </p>
       <p className="mt-2 text-muted">
         Pagando só o mínimo, serão cerca de <b className="text-ink">{reais(jurosEm12Meses)}</b> de juros nos próximos 12 meses.

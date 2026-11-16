@@ -77,7 +77,7 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
           <button
             type="button"
             onClick={() => servicos.recomecar()}
-            className="flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-surface2 px-3 text-[0.9rem] font-bold hover:border-primary"
+            className="flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-surface2 px-3 text-left text-[0.9rem] font-bold hover:border-primary"
           >
             <RotateCcw aria-hidden="true" className="size-5" />
             Recomeçar demonstração

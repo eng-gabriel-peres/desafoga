@@ -59,6 +59,7 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
       estimativa={jurosMensaisTotais(dividas)}
       jurosEm12Meses={projecaoSoMinimo(dividas).jurosTotal}
       sujeito={daPessoa ? "você pagou" : `${persona.apelido} pagou`}
+      dono={daPessoa ? "suas dívidas geram" : `as dívidas de ${persona.apelido} geram`}
     />
   );
   const lista = <ListaDeDividas dividas={dividas} titulo={daPessoa ? "Suas dívidas" : `Dívidas de ${persona.apelido}`} />;
@@ -75,7 +76,7 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
     />
   );
   const kpis = !daPessoa && (
-    <div className="grid grid-cols-2 gap-3 desk:grid-cols-4 desk:gap-4">
+    <div className="grid grid-cols-2 gap-3 desk:gap-4">
       <Kpi rotulo="Total devido" valor={reais(saldoTotal(dividas))} />
       <Kpi rotulo="Juros por mês hoje" valor={reais(jurosMensaisTotais(dividas))} tom="ruim" />
       <Kpi rotulo="Mais cara" valor={maisCara ? percentual(maisCara.taxaMensal) : "–"} detalhe={maisCara?.nome} />

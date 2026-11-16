@@ -36,7 +36,7 @@ export function Kpi({ rotulo, valor, detalhe, tom }: { rotulo: string; valor: Re
   return (
     <div className="rounded-2xl border border-line bg-surface px-4 py-3.5">
       <span className="block text-[0.85rem] text-muted">{rotulo}</span>
-      <b className={`mt-1 block text-[1.35rem] leading-tight ${cor}`}>{valor}</b>
+      <b className={`mt-1 block text-[1.15rem] leading-tight break-words desk:text-[1.35rem] ${cor}`}>{valor}</b>
       {detalhe && <small className="text-[0.8rem] text-muted">{detalhe}</small>}
     </div>
   );

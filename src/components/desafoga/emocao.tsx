@@ -134,7 +134,14 @@ export function FaixaDaSemana({ dias, agora, sujeito }: { dias: DiaResumo[]; ago
                 />
               </span>
               <span aria-hidden="true" className="text-[0.72rem] whitespace-nowrap text-muted desk:text-[0.82rem]">
-                {d.gasto ? `R$ ${Math.round(d.gasto / 100)}` : "–"}
+                {d.gasto ? (
+                  <>
+                    <span className="hidden desk:inline">R$ </span>
+                    {Math.round(d.gasto / 100)}
+                  </>
+                ) : (
+                  "–"
+                )}
               </span>
               <span aria-hidden="true" className={`text-[0.85rem] font-bold ${hoje ? "text-primary" : ""}`}>
                 {hoje ? "Hoje" : diaDaSemanaCurto(d.chave)}
