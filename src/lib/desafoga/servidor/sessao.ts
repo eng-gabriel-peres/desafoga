@@ -88,7 +88,8 @@ export async function entrarNaDemo(perfil: PerfilDaDemo, atual: SessaoAtual | nu
 /** Volta a demonstração ao começo: um espaço novo, na mesma persona. */
 export async function recomecarDemo(atual: SessaoAtual): Promise<NovaSessao> {
   const perfil = (atual.slug ?? "ana") as PerfilDaDemo;
-  await prisma().sessao.deleteMany({ where: { id: atual.id } });
+  // O espaço antigo some com tudo dentro (e a sessão junto): recomeçar não acumula cópias.
+  await prisma().espaco.deleteMany({ where: { id: atual.espacoId, tipo: "DEMO" } });
   return entrarNaDemo(perfil, null);
 }
 

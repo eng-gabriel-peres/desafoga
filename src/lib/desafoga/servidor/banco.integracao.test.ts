@@ -53,6 +53,15 @@ describe.runIf(url)("Desafoga no Postgres", () => {
     expect((pacientes as { apelido: string }[]).map((p) => p.apelido).sort()).toEqual(["Ana", "Carlos", "Lúcia", "Rafael"]);
   });
 
+  it("recomeçar a demo apaga o espaço antigo em vez de acumular", async () => {
+    const ana = await entrar("ana");
+    const { nova } = await chamar("recomecar", [], ana);
+    const nova_ = await sessaoDe(nova!);
+    expect(nova_.espacoId).not.toBe(ana.espacoId);
+    const { prisma } = await import("./prisma");
+    expect(await prisma().espaco.count({ where: { id: ana.espacoId } })).toBe(0);
+  });
+
   it("cada visita da demo é isolada: a Paula de uma não vê a Ana da outra", async () => {
     const ana1 = await entrar("ana");
     const paula2 = await entrar("paula");

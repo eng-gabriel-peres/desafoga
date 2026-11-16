@@ -119,11 +119,16 @@ const ACOES = {
     await apagarConta(exigirSessao(ctx.sessao));
     ctx.definirSessao(null);
   }),
-  recomecar: acao(z.tuple([]), async (_, ctx) => {
-    const s = exigirSessao(ctx.sessao);
-    if (!s.demo) throw new SemPermissao("Só a demonstração pode ser recomeçada.");
-    ctx.definirSessao(await recomecarDemo(s));
-  }),
+  recomecar: acao(
+    z.tuple([]),
+    async (_, ctx) => {
+      const s = exigirSessao(ctx.sessao);
+      if (!s.demo) throw new SemPermissao("Só a demonstração pode ser recomeçada.");
+      ctx.definirSessao(await recomecarDemo(s));
+    },
+    // Recomeçar cria um espaço novo: mesmo limite de criar conta e demo.
+    "conta",
+  ),
 
   // ----- pessoas -----
   "pessoas.listar": acao(z.tuple([]), async (_, { sessao }) => {
