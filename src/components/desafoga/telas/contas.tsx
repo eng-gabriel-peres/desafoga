@@ -13,14 +13,14 @@ import {
   ResumoDasContas,
 } from "../contas";
 import type { Area } from "../moldura/navegacao";
-import { useMinhaPessoaId } from "../sessao";
+import { usePessoaDaSessao } from "../sessao";
 import { Carregando, Painel, Sub, TituloCelular } from "../ui/blocos";
 import { Botao } from "../ui/botao";
 
 /** Contas do mês: o que a pessoa paga todo mês e quando vence. O profissional vê só leitura, se a pessoa deixou. */
 export function TelaContas({ area = "pessoa", pessoaId: doPainel }: { area?: Area; pessoaId?: string }) {
-  const minha = useMinhaPessoaId();
-  const pessoaId = doPainel ?? minha;
+  const minha = usePessoaDaSessao();
+  const pessoaId = doPainel ?? minha ?? "";
   const dados = usePessoa(pessoaId);
   const agora = useAgora();
   const [dia, setDia] = useState<number | null>(null);

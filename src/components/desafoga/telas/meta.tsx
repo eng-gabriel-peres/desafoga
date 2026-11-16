@@ -11,7 +11,7 @@ import { servicos } from "@/services";
 import { CaixaDeDeposito } from "../metas/deposito";
 import { Anel, IconeDaMetaBadge, corDaMeta } from "../metas/visual";
 import type { Area } from "../moldura/navegacao";
-import { useMinhaPessoaId } from "../sessao";
+import { usePessoaDaSessao } from "../sessao";
 import { Carregando, Painel, Sub } from "../ui/blocos";
 import { Botao, BotaoIcone, BotaoLink } from "../ui/botao";
 import { Recado, rotaDasMetas } from "./metas";
@@ -30,8 +30,8 @@ function Numero({ rotulo, valor, detalhe }: { rotulo: string; valor: string; det
 
 /** Detalhe da meta: anel grande, ritmo, plano, histórico e lembretes. */
 export function TelaDaMeta({ metaId, area = "pessoa", pessoaId: doPainel }: { metaId: string; area?: Area; pessoaId?: string }) {
-  const minha = useMinhaPessoaId();
-  const pessoaId = doPainel ?? minha;
+  const minha = usePessoaDaSessao();
+  const pessoaId = doPainel ?? minha ?? "";
   const dados = usePessoa(pessoaId);
   const agora = useAgora();
   const [guardando, setGuardando] = useState(false);

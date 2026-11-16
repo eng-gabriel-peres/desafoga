@@ -9,7 +9,7 @@ import { reaisCurto } from "@/lib/assistente/textos";
 import { servicos } from "@/services";
 import { CartaoDaMeta } from "../metas/cartao";
 import type { Area } from "../moldura/navegacao";
-import { useMinhaPessoaId } from "../sessao";
+import { usePessoaDaSessao } from "../sessao";
 import { Carregando, TituloCelular } from "../ui/blocos";
 import { BotaoLink } from "../ui/botao";
 
@@ -26,8 +26,8 @@ export const rotaDasMetas = (area: Area, pessoaId: string) => (area === "pessoa"
 
 /** Metas da pessoa. O profissional vê só leitura e pode mandar incentivo. */
 export function TelaMetas({ area = "pessoa", pessoaId: doPainel }: { area?: Area; pessoaId?: string }) {
-  const minha = useMinhaPessoaId();
-  const pessoaId = doPainel ?? minha;
+  const minha = usePessoaDaSessao();
+  const pessoaId = doPainel ?? minha ?? "";
   const dados = usePessoa(pessoaId);
   const agora = useAgora();
   const [recado, setRecado] = useState("");

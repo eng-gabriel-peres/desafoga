@@ -18,7 +18,6 @@ import { ComRegistro } from "../registro";
 import { BotaoIcone } from "../ui/botao";
 
 const NOME_DA_AREA: Record<Area, string> = { pessoa: "Meu Desafoga", responsavel: "Painel do responsável" };
-const NOME_CURTO: Record<Area, string> = { pessoa: "Desafoga", responsavel: "Painel" };
 
 /**
  * Moldura de cada área. No celular: topo com sino e a bolinha
@@ -60,8 +59,8 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
       <header className="sticky top-0 z-20 border-b border-line bg-surface pt-[env(safe-area-inset-top)] desk:hidden">
         <div className="mx-auto flex h-16 max-w-[620px] items-center gap-1 px-3">
           <div className="mr-auto flex min-w-0 items-center gap-2">
-            <Marca comNome={false} />
-            <span className="truncate font-bold">{NOME_CURTO[area]}</span>
+            <Marca />
+            {area === "responsavel" && <span className="truncate text-[0.85rem] font-bold text-muted">Painel</span>}
           </div>
           <Sino area={area} />
           <MenuDoPerfil area={area} />

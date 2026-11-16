@@ -7,6 +7,8 @@ import {
   chaveDoDia,
   compararExtra,
   comprasDoDia,
+  compromissosDoMes,
+  totaisDoMes,
   custoEmocional,
   dividaMaisCara,
   encargosDasFaturas,
@@ -22,9 +24,29 @@ import {
 import type { ContextoAssistente } from "./conversa";
 import { NOME_DA_ESTRATEGIA, TONS, explicarOrcamento, fatoDaMeta, mesDaqui, meses, percentual, reais, umaCasa } from "./textos";
 
+/** Contas fixas e parcelas do mês, como no protótipo. */
+function numerosDasContas(ctx: ContextoAssistente): string {
+  if (!ctx.contas.length) return "Sem contas fixas cadastradas.";
+  const c = compromissosDoMes(ctx.contas, ctx.dividas, ctx.plano, ctx.pagamentos, ctx.agora);
+  const t = totaisDoMes(c, ctx.renda);
+  const proximas = c.filter((x) => !x.pago).slice(0, 3);
+  return [
+    `Contas fixas do mês: ${reais(t.contas)} (${ctx.contas.map((x) => `${x.nome} ${x.variavel ? "cerca de " : ""}${reais(x.valor)} dia ${x.vencimento}`).join("; ")}).`,
+    t.parcelas ? `Parcelas de dívidas pelo plano: ${reais(t.parcelas)}.` : "",
+    `Já pago neste mês: ${reais(t.pago)}. Falta pagar: ${reais(t.falta)}.`,
+    t.sobra !== null ? `Renda informada: ${reais(t.renda ?? 0)} por mês. Depois das contas fixas e parcelas sobram ${reais(t.sobra)}.` : "Renda não informada.",
+    proximas.length ? `Próximos vencimentos: ${proximas.map((x) => `${x.nome} dia ${x.dia} (${reais(x.valor)})${x.vencida ? " VENCIDA" : ""}`).join("; ")}.` : "Tudo pago neste mês.",
+    "Para marcar uma conta como paga, a pessoa escreve, por exemplo: paguei luz 87,50.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 function numerosDoMes(ctx: ContextoAssistente): string {
   const orcamento = orcamentoDoMes(ctx.orcamentos, ctx.compras, ctx.agora);
   return [
+    "CONTAS DO MÊS (calculadas por código)",
+    numerosDasContas(ctx),
     `Orçamento do mês: ${orcamento.length ? orcamento.map((s) => explicarOrcamento(s, ctx.pessoa.apelido)).join(" ") : "nenhum limite definido."}`,
     "METAS DE ECONOMIA (calculadas por código)",
     ctx.metas.length ? ctx.metas.map((m) => fatoDaMeta(m, situacaoDaMeta(m, ctx.agora))).join("\n") : "Sem metas.",

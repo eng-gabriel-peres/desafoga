@@ -37,6 +37,8 @@ export type Intencao =
   | { tipo: "compra"; item: string; valor: number | null }
   /** Dinheiro guardado numa meta. */
   | { tipo: "guardar"; valor: number }
+  /** "paguei luz 87,50", "paguei o aluguel", "paguei": conta fixa ou parcela do mês. */
+  | { tipo: "pagar"; nome: string; valor: number | null }
   /** "minhas metas", "como está minha meta" */
   | { tipo: "metas" }
   | { tipo: "vontade-de-comprar" }
@@ -112,6 +114,12 @@ export function entender(texto: string, nomesDasMetas: string[] = []): Intencao 
   if (!ehCompra && /(juros|divida|fatura|rotativo)/.test(t)) return { tipo: "juros" };
   if (/^resumo\b|nota do dia|como (foi|esta) (o )?meu dia/.test(t)) return { tipo: "resumo" };
   if (/^(minhas? metas?|metas?)$|como (esta|vai|anda)m? (a |as )?minhas? metas?/.test(t)) return { tipo: "metas" };
+
+  // "paguei luz 87,50": a conversa decide se é uma conta do mês ou uma compra ("paguei 30 no uber").
+  if (/^(eu )?(ja )?paguei\b/.test(t)) {
+    const nome = nomeDaCompra(texto);
+    return { tipo: "pagar", nome: nome === "Compra" ? "" : nome, valor };
+  }
 
   const palavras = t.split(/\s+/).length;
   if (ehCompra || (valor !== null && palavras <= 5)) {

@@ -19,6 +19,9 @@ const ctx: ContextoAssistente = {
   faturas: ana.faturas,
   orcamentos: ana.orcamentos,
   metas: ana.metas,
+  contas: ana.contas,
+  pagamentos: ana.pagamentos,
+  renda: ana.renda,
   agora: AGORA,
   canal: "whatsapp",
 };
@@ -230,3 +233,42 @@ describe("orçamento depois da compra", () => {
     expect(montarContexto(ctx)).toContain("Presente da mãe: meta R$ 200,00, guardado R$ 200,00 (100%), concluída");
   });
 });
+
+describe("contas do mês pela Luana", () => {
+  it("entende o pagamento de uma conta", () => {
+    expect(entender("paguei luz 87,50")).toEqual({ tipo: "pagar", nome: "Luz", valor: 8750 });
+    expect(entender("paguei")).toEqual({ tipo: "pagar", nome: "", valor: null });
+  });
+
+  it("paguei luz 87,50 marca a conta de luz com o valor do mês", () => {
+    const r = responder(ESTADO_INICIAL, "paguei luz 87,50", ctx);
+    expect(r.efeitos).toEqual([{ tipo: "pagar", alvo: "conta", id: "ana-luz", valor: 8750 }]);
+    expect(r.respostas[0].texto).toContain("Conta de luz paga, R$ 87,50.");
+    expect(r.respostas[0].texto).toContain("Falta pagar");
+  });
+
+  it("paguei sozinho marca a próxima que vence e lembra de mandar o valor exato", () => {
+    const r = responder(ESTADO_INICIAL, "paguei", ctx);
+    expect(r.efeitos).toEqual([{ tipo: "pagar", alvo: "conta", id: "ana-luz", valor: null }]);
+    expect(r.respostas[0].texto).toContain("paguei luz 87,50");
+  });
+
+  it("paga a parcela de uma dívida pelo nome", () => {
+    const r = responder(ESTADO_INICIAL, "paguei o empréstimo", ctx);
+    expect(r.efeitos[0]).toMatchObject({ tipo: "pagar", alvo: "divida" });
+    expect(r.respostas[0].texto).toContain("Mais um passo no plano!");
+  });
+
+  it("sem conta com esse nome, é uma compra", () => {
+    const r = responder(ESTADO_INICIAL, "paguei 30 no uber", ctx);
+    expect(r.estado).toMatchObject({ etapa: "emocao", compras: [{ item: "Uber", valor: 3000 }] });
+    expect(r.efeitos).toEqual([]);
+  });
+
+  it("a IA recebe as contas do mês calculadas pelo código", () => {
+    const texto = montarContexto(ctx);
+    expect(texto).toContain("CONTAS DO MÊS");
+    expect(texto).toContain("Renda informada: R$ 2.800,00 por mês.");
+  });
+});
+

@@ -45,3 +45,8 @@ export function useMinhaPessoaId(): string {
   if (!eu.pessoa) throw new Error("Sessão sem pessoa.");
   return eu.pessoa.id;
 }
+
+/** Id da pessoa da sessão, ou null quando quem entrou é um profissional (telas usadas nas duas áreas). */
+export function usePessoaDaSessao(): string | null {
+  return useEu().pessoa?.id ?? null;
+}

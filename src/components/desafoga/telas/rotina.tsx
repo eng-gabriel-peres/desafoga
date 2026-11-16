@@ -88,7 +88,7 @@ export function TelaRotina() {
                       <span className="sr-only">Horário {NOME_DO_PERIODO[p].toLowerCase()}</span>
                       <input
                         type="time"
-                        className={`${CAMPO} w-36 min-h-11!`}
+                        className={`${CAMPO} min-h-11! max-w-40`}
                         defaultValue={rotina.horarios[p]}
                         disabled={!rotina.ligados[p]}
                         onBlur={(e) => {

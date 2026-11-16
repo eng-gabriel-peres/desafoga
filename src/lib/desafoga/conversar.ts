@@ -116,7 +116,7 @@ export async function conversar(
   const porRegra =
     intencao.tipo === "sofrimento" ||
     estado.etapa !== "livre" ||
-    ["plano", "extra", "juros", "resumo", "guardar", "metas"].includes(intencao.tipo) ||
+    ["plano", "extra", "juros", "resumo", "guardar", "metas", "pagar"].includes(intencao.tipo) ||
     !ia;
 
   if (porRegra) {

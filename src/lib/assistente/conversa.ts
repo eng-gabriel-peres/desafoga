@@ -8,6 +8,7 @@
 import { lerValorEmReais } from "@/lib/dinheiro";
 import {
   compararExtra,
+  compromissosDoMes,
   chaveDoDia,
   comprasDoDia,
   dividaMaisCara,
@@ -21,7 +22,12 @@ import {
   situacaoDoOrcamento,
   somaDosMinimos,
   somaDosValores,
+  totaisDoMes,
+  NOME_DA_CATEGORIA_DA_CONTA,
   type Categoria,
+  type ContaFixa,
+  type Pagamento,
+  type Renda,
   type Compra,
   type Divida,
   type Emocao,
@@ -39,7 +45,7 @@ import type {
   RespostaRapida,
   TipoAviso,
 } from "@/services/tipos";
-import { adivinharCategoria, apelidosDaMeta, entender, lerEmocao, lerNecessidade, normalizar, temPalavra } from "./entender";
+import { adivinharCategoria, apelidosDaMeta, entender, lerEmocao, lerNecessidade, nomeDaCompra, normalizar, temPalavra } from "./entender";
 import {
   AVISO_EDUCATIVO,
   NOME_DA_EMOCAO,
@@ -50,6 +56,7 @@ import {
   explicarOrcamento,
   reaisCurto,
   respostaDoDeposito,
+  respostaDoPagamento,
   mesDaqui,
   meses,
   reais,
@@ -69,6 +76,10 @@ export interface ContextoAssistente {
   /** Limites do mês por categoria. */
   orcamentos: Orcamento[];
   metas: Meta[];
+  /** Contas fixas, pagamentos do mês e renda (para "paguei luz 87,50"). */
+  contas: ContaFixa[];
+  pagamentos: Pagamento[];
+  renda: Renda | null;
   agora: Date;
   /** Por onde a conversa acontece: a compra registrada guarda a origem. */
   canal: "app" | "whatsapp";
@@ -95,7 +106,9 @@ export type Efeito =
   | { tipo: "registrar-compra"; compra: NovaCompra }
   | { tipo: "avisar-responsavel"; aviso: { tipo: TipoAviso; texto: string } }
   /** Dinheiro guardado na meta: um registro só, que já conta. */
-  | { tipo: "guardar-na-meta"; metaId: string; valor: number; descricao: string };
+  | { tipo: "guardar-na-meta"; metaId: string; valor: number; descricao: string }
+  /** Conta fixa ou parcela marcada como paga neste mês (valor null: o valor da conta). */
+  | { tipo: "pagar"; alvo: "conta" | "divida"; id: string; valor: number | null };
 
 export interface Resposta {
   texto: string;
@@ -339,6 +352,46 @@ function respostaGuardar(ctx: ContextoAssistente, texto: string, valor: number):
   return so({ etapa: "meta", valor, descricao }, { texto: `Boa! Em qual meta você guardou ${reaisCurto(valor)}?`, respostasRapidas: rapidasDasMetas(ativas) });
 }
 
+/** Nome que a pessoa usaria: "conta de luz" vira "luz". */
+const apelidoDaConta = (nome: string) => normalizar(nome).replace(/^conta (de |do |da )?/, "");
+
+/**
+ * "paguei luz 87,50" marca a conta (ou parcela) do mês como paga; "paguei"
+ * sozinho marca a próxima que vence. Sem conta com esse nome, é uma compra.
+ */
+function respostaPagar(ctx: ContextoAssistente, texto: string, nome: string, valor: number | null): Resultado {
+  const compromissos = compromissosDoMes(ctx.contas, ctx.dividas, ctx.plano, ctx.pagamentos, ctx.agora);
+  const pendentes = compromissos.filter((c) => !c.pago);
+  const w = normalizar(nome);
+  const generico = !w || /^(a|o|conta|parcela|boleto|fatura)$/.test(w);
+  const alvo = generico
+    ? pendentes[0]
+    : (pendentes.find((c) => normalizar(c.nome).includes(w)) ??
+      pendentes.find((c) => c.tipo === "conta" && normalizar(NOME_DA_CATEGORIA_DA_CONTA[c.categoria]).includes(w)));
+
+  if (!alvo) {
+    if (!generico || !compromissos.length) {
+      // Não é uma conta do mês: "paguei 30 no uber" é uma compra.
+      if (valor === null) return so(ESTADO_INICIAL, { texto: `Quanto foi ${nome ? nome.toLowerCase() : "isso"}?` });
+      return iniciarRegistro([{ item: nomeDaCompra(texto), valor }]);
+    }
+    return so(ESTADO_INICIAL, { texto: "Todas as contas e parcelas do mês já estão pagas. Parabéns!" });
+  }
+
+  const conta = alvo.tipo === "conta" ? ctx.contas.find((c) => c.id === alvo.id) : undefined;
+  const pago = valor ?? alvo.valor;
+  const falta = totaisDoMes(compromissos, ctx.renda).falta - pago;
+  const resposta =
+    alvo.tipo === "divida"
+      ? `Anotado: ${alvo.nome} pago neste mês. Mais um passo no plano!${falta > 0 ? `\nFalta pagar ${reaisCurto(falta)} este mês.` : ""}`
+      : respostaDoPagamento(alvo.nome, valor, falta, Boolean(conta?.variavel) && valor === null, apelidoDaConta(alvo.nome));
+  return {
+    estado: ESTADO_INICIAL,
+    respostas: [{ texto: resposta }],
+    efeitos: [{ tipo: "pagar", alvo: alvo.tipo, id: alvo.id, valor: valor ?? (alvo.tipo === "divida" ? alvo.valor : null) }],
+  };
+}
+
 function respostaMetas(ctx: ContextoAssistente): string {
   const ativas = metasAtivas(ctx);
   if (!ativas.length) return "Você ainda não tem uma meta ativa. Crie uma na aba Metas e eu acompanho com você.";
@@ -398,6 +451,8 @@ export function responder(estado: EstadoConversa, texto: string, ctx: ContextoAs
       return respostaGuardar(ctx, texto, intencao.valor);
     case "metas":
       return so(estado, { texto: respostaMetas(ctx) });
+    case "pagar":
+      return respostaPagar(ctx, texto, intencao.nome, intencao.valor);
     case "compra":
       if (intencao.valor === null) {
         return so({ etapa: "valor", item: intencao.item }, { texto: `Quanto custou ${intencao.item.toLowerCase()}?` });

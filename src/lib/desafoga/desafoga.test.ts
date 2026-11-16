@@ -42,6 +42,7 @@ function anaEmMemoria() {
   const compras: Compra[] = [...d.compras];
   const avisos: Aviso[] = [...d.avisos];
   const metas = d.metas.map((m) => ({ ...m, depositos: [...m.depositos] }));
+  const pagamentos = [...d.pagamentos];
   const dados: DadosDaConversa = {
     contexto: async (_p, canal, agora) => ({
       pessoa: d.persona,
@@ -54,6 +55,9 @@ function anaEmMemoria() {
       faturas: d.faturas,
       orcamentos: d.orcamentos,
       metas,
+      contas: d.contas,
+      pagamentos,
+      renda: d.renda,
       agora,
       canal,
     }),
@@ -62,7 +66,10 @@ function anaEmMemoria() {
     async concluir(_p, canal, resultado, agora) {
       for (const e of resultado.efeitos) {
         if (e.tipo === "registrar-compra") compras.push({ ...e.compra, id: `nova-${compras.length}`, quando: agora.toISOString(), avaliacaoProfissional: null });
-        else if (e.tipo === "guardar-na-meta") {
+        else if (e.tipo === "pagar") {
+          const c = d.contas.find((x) => x.id === e.id);
+          pagamentos.push({ tipo: e.alvo, alvoId: e.id, mes: agora.toISOString().slice(0, 7), valor: e.valor ?? c?.valor ?? 0, quando: agora.toISOString() });
+        } else if (e.tipo === "guardar-na-meta") {
           metas.find((m) => m.id === e.metaId)?.depositos.push({ id: `v${Date.now()}`, valor: e.valor, descricao: e.descricao, quando: agora.toISOString(), via: canal });
         }
         else avisos.unshift({ id: `aviso-${avisos.length}`, pessoaId: "ana", tipo: e.aviso.tipo, texto: e.aviso.texto, quando: agora.toISOString() });

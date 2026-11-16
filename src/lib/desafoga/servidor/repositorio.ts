@@ -226,7 +226,7 @@ export async function acompanhados(profissionalId: string): Promise<Persona[]> {
 }
 
 export async function contextoDoAssistente(pessoaId: string, canal: Canal, agora = new Date()): Promise<ContextoAssistente> {
-  const [p, c, d, pl, f, m, profs, orc, mt] = await Promise.all([
+  const [p, c, d, pl, f, m, profs, orc, mt, contas, pags, rd] = await Promise.all([
     persona(pessoaId),
     compras(pessoaId),
     dividas(pessoaId),
@@ -236,6 +236,9 @@ export async function contextoDoAssistente(pessoaId: string, canal: Canal, agora
     acompanhantes(pessoaId),
     orcamentos(pessoaId),
     metas(pessoaId),
+    contasFixas(pessoaId),
+    pagamentos(pessoaId, agora),
+    renda(pessoaId),
   ]);
   if (!p) throw new Error("Pessoa não encontrada");
   return {
@@ -249,6 +252,9 @@ export async function contextoDoAssistente(pessoaId: string, canal: Canal, agora
     faturas: f,
     orcamentos: orc,
     metas: mt,
+    contas,
+    pagamentos: pags,
+    renda: rd,
     agora,
     canal,
   };

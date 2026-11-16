@@ -143,7 +143,7 @@ export function GradeDeHumor({ checkins, rotina, agora }: { checkins: CheckIn[];
   return (
     <>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[420px] border-separate border-spacing-y-1 text-center text-[0.85rem]">
+        <table className="w-full min-w-[340px] border-separate border-spacing-y-1 text-center text-[0.85rem]">
           <caption className="sr-only">Como estava em cada check-in dos últimos 7 dias</caption>
           <thead>
             <tr>

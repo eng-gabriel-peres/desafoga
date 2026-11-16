@@ -9,8 +9,7 @@ import {
   PiggyBank,
   ShoppingBag,
   TrendingDown,
-  type LucideIcon,
-} from "lucide-react";
+  type LucideIcon, CalendarCheck } from "lucide-react";
 import { useEffect, useId, useRef } from "react";
 
 export interface Comando {
@@ -24,6 +23,7 @@ export interface Comando {
 export const COMANDOS: Comando[] = [
   { Icone: ShoppingBag, titulo: "Registrar uma compra", descricao: "Ex.: comprei pão 12", acao: { tipo: "escrever", texto: "comprei " } },
   { Icone: PiggyBank, titulo: "Guardei dinheiro", descricao: "Ex.: guardei 50. Coloca o valor numa meta e mostra quanto falta", acao: { tipo: "escrever", texto: "guardei " } },
+  { Icone: CalendarCheck, titulo: "Paguei uma conta", descricao: "Ex.: paguei luz 87,50. Marca a conta do mês como paga", acao: { tipo: "escrever", texto: "paguei " } },
   { Icone: TrendingDown, titulo: "E se eu pagar mais?", descricao: "Simula pagar R$ 200 a mais por mês", acao: { tipo: "enviar", texto: "e se eu pagar 200 a mais?" } },
   { Icone: Calculator, titulo: "Meu plano", descricao: "Quando você fica livre das dívidas", acao: { tipo: "enviar", texto: "plano" } },
   { Icone: Percent, titulo: "Juros do mês", descricao: "Juros, IOF e tarifas", acao: { tipo: "enviar", texto: "quanto eu pago de juros?" } },
