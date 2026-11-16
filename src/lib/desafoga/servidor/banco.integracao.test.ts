@@ -62,6 +62,58 @@ describe.runIf(url)("Desafoga no Postgres", () => {
     expect(await prisma().espaco.count({ where: { id: ana.espacoId } })).toBe(0);
   });
 
+  it("orçamento: a pessoa define o limite; o profissional só lê; outra visita não vê", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    const { dados: inicial } = await chamar("orcamentos.listar", [p], ana);
+    expect((inicial as { categoria: string }[]).map((o) => o.categoria)).toContain("Mercado");
+    const { dados: depois } = await chamar("orcamentos.salvar", [p, "Lazer", 15000], ana);
+    expect(depois).toContainEqual({ categoria: "Lazer", limite: 15000 });
+    const { dados: semMercado } = await chamar("orcamentos.salvar", [p, "Mercado", 0], ana);
+    expect((semMercado as { categoria: string }[]).map((o) => o.categoria)).not.toContain("Mercado");
+
+    const paula = await entrar("paula", ana);
+    expect(await chamar("orcamentos.listar", [p], paula)).toBeTruthy();
+    await expect(chamar("orcamentos.salvar", [p, "Lazer", 1], paula)).rejects.toThrow();
+    const estranha = await entrar("paula");
+    await expect(chamar("orcamentos.listar", [p], estranha)).rejects.toThrow("não tem acesso");
+  });
+
+  it("metas: a transferência pelo app ou pela Luana já conta na meta; concluir avisa quem acompanha", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    type M = { id: string; nome: string; alvo: number; depositos: { id: string; valor: number; via: string }[] };
+    const total = (m: M) => m.depositos.reduce((s, v) => s + v.valor, 0);
+    const { dados: metas } = await chamar("metas.listar", [p], ana);
+    const reserva = (metas as M[]).find((m) => m.nome === "Reserva de emergência")!;
+    expect(total(reserva)).toBe(27000);
+
+    const { dados: pelaTela } = await chamar("metas.guardar", [p, reserva.id, { valor: 20000, descricao: "Transferência da conta" }], ana);
+    expect(total(pelaTela as M)).toBe(47000);
+
+    await chamar("assistente.enviar", [p, "Vou transferir 1k da minha conta para a reserva"], ana);
+    const { dados: depois } = await chamar("metas.listar", [p], ana);
+    const r = (depois as M[]).find((m) => m.id === reserva.id)!;
+    expect(total(r)).toBe(147000);
+    expect(r.depositos.at(-1)).toMatchObject({ valor: 100000, via: "app" });
+
+    const paula = await entrar("paula", ana);
+    const { dados: avisos } = await chamar("avisos.daPessoa", [p], paula);
+    expect((avisos as { tipo: string; texto: string }[])[0]).toMatchObject({ tipo: "meta", texto: "Ana completou a meta Reserva de emergência (R$ 1.000)." });
+
+    // Apagar depósito, só a dona; o profissional só incentiva.
+    const { dados: semUltimo } = await chamar("metas.apagarDeposito", [p, reserva.id, r.depositos.at(-1)!.id], ana);
+    expect(total(semUltimo as M)).toBe(47000);
+    await expect(chamar("metas.guardar", [p, reserva.id, { valor: 100, descricao: "" }], paula)).rejects.toThrow();
+    expect((await chamar("metas.incentivar", [p, reserva.id], paula)).dados).toEqual({ whatsapp: false });
+    const { dados: conversa } = await chamar("assistente.conversa", [p], ana);
+    expect((conversa as { texto: string }[]).at(-1)!.texto).toContain("está acompanhando sua meta Reserva de emergência");
+
+    // A meta de outra pessoa não aceita depósito, nem pelo id.
+    const outra = await entrar("ana");
+    await expect(chamar("metas.guardar", [outra.pessoa!.id, reserva.id, { valor: 100, descricao: "" }], outra)).rejects.toThrow("Meta não encontrada");
+  });
+
   it("cada visita da demo é isolada: a Paula de uma não vê a Ana da outra", async () => {
     const ana1 = await entrar("ana");
     const paula2 = await entrar("paula");

@@ -1,0 +1,9 @@
+-- AlterTable
+ALTER TABLE "metas" ADD COLUMN     "cor" TEXT NOT NULL DEFAULT 'azul',
+ADD COLUMN     "frequencia" TEXT NOT NULL DEFAULT 'mes',
+ADD COLUMN     "icone" TEXT NOT NULL DEFAULT 'piggy-bank',
+ADD COLUMN     "inicial" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "lembrete" BOOLEAN NOT NULL DEFAULT true,
+ADD COLUMN     "modo" TEXT NOT NULL DEFAULT 'valor',
+ADD COLUMN     "valorPorPeriodo" INTEGER NOT NULL DEFAULT 0;
+

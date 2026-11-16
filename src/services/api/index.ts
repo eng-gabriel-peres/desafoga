@@ -75,6 +75,19 @@ export const servicosDaApi: Servicos = {
     salvarPlano: (id, m) => chamar("dividas.salvarPlano", [id, m], true),
     sugerirValor: (id, valor) => chamar("dividas.sugerirValor", [id, valor], true),
   },
+  orcamentos: {
+    listar: (id) => chamar("orcamentos.listar", [id]),
+    salvar: (id, categoria, limite) => chamar("orcamentos.salvar", [id, categoria, limite], true),
+  },
+  metas: {
+    listar: (id) => chamar("metas.listar", [id]),
+    salvar: (id, meta) => chamar("metas.salvar", [id, meta], true),
+    remover: (id, metaId) => chamar("metas.remover", [id, metaId], true),
+    guardar: (id, metaId, dep) => chamar("metas.guardar", [id, metaId, dep], true),
+    apagarDeposito: (id, metaId, depId) => chamar("metas.apagarDeposito", [id, metaId, depId], true),
+    incentivar: (id, metaId) => chamar("metas.incentivar", [id, metaId], true),
+    lembrar: (id, metaId) => chamar("metas.lembrar", [id, metaId], true),
+  },
   faturas: {
     listar: (id) => chamar("faturas.listar", [id]),
     ler: (id, arquivo) => enviarArquivo("faturas.ler", id, arquivo),

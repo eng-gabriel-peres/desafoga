@@ -6,12 +6,23 @@ import { useLayoutEffect, useState } from "react";
 import { useAgora } from "@/hooks/use-agora";
 import { useConsulta } from "@/hooks/use-consulta";
 import { lerValorEmReais } from "@/lib/dinheiro";
-import { chaveDoDia, comprasDoDia, notaMedia, type Categoria, type Emocao, type Necessidade } from "@/lib/finance";
+import {
+  chaveDoDia,
+  comprasDoDia,
+  gastoDoMes,
+  notaMedia,
+  situacaoDoOrcamento,
+  type Categoria,
+  type Emocao,
+  type Necessidade,
+} from "@/lib/finance";
 import { NOME_DA_EMOCAO } from "@/lib/assistente/textos";
 import { reais } from "@/lib/formatar";
 import { servicos } from "@/services";
 import { CATEGORIAS, ICONE_DA_CATEGORIA } from "../categorias";
 import { NotaDoDia } from "../emocao";
+import { ListaDoOrcamento } from "../orcamento";
+import { Painel } from "../ui/blocos";
 import { useMinhaPessoaId } from "../sessao";
 import { Botao } from "../ui/botao";
 import { Carinha, COR_DA_EMOCAO } from "../ui/carinha";
@@ -32,7 +43,7 @@ export function TelaRegistrar() {
   const [rascunho, setRascunho] = useState<Rascunho>(VAZIO);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
-  const [salva, setSalva] = useState<{ item: string; valor: number } | null>(null);
+  const [salva, setSalva] = useState<{ item: string; valor: number; categoria: Categoria } | null>(null);
 
   const reiniciar = () => {
     setPasso(1);
@@ -68,12 +79,12 @@ export function TelaRegistrar() {
       via: "app",
     });
     setSalvando(false);
-    setSalva({ item, valor });
+    setSalva({ item, valor, categoria: rascunho.categoria });
     setPasso(4);
   }
 
   if (passo === 4 && salva) {
-    return <Concluido item={salva.item} valor={salva.valor} outra={reiniciar} sair={() => router.push("/app/hoje")} />;
+    return <Concluido {...salva} outra={reiniciar} sair={() => router.push("/app/hoje")} />;
   }
 
   const voltar = () => (passo === 1 ? router.push("/app/hoje") : setPasso((p) => (p - 1) as 1 | 2 | 3));
@@ -247,11 +258,15 @@ function OpcaoNecessidade({
 }
 
 /** Fim do fluxo: confirmação e a nota do dia já atualizada. */
-function Concluido({ item, valor, outra, sair }: { item: string; valor: number; outra: () => void; sair: () => void }) {
+function Concluido({ item, valor, categoria, outra, sair }: { item: string; valor: number; categoria: Categoria; outra: () => void; sair: () => void }) {
   const pessoaId = useMinhaPessoaId();
   const agora = useAgora();
   const compras = useConsulta(`compras:${pessoaId}`, () => servicos.compras.listar(pessoaId));
+  const orcamentos = useConsulta(`orcamentos:${pessoaId}`, () => servicos.orcamentos.listar(pessoaId));
   const deHoje = compras && agora ? comprasDoDia(compras, chaveDoDia(agora)) : [];
+  const orcamento = orcamentos?.find((o) => o.categoria === categoria);
+  // O orçamento da categoria já com esta compra: quanto resta e quanto dá por dia.
+  const situacao = orcamento && compras && agora ? situacaoDoOrcamento(orcamento, gastoDoMes(compras, categoria, agora), agora) : null;
   return (
     <div className="mx-auto max-w-[620px]">
       <div aria-hidden="true" className="mx-auto mt-2.5 mb-3.5 grid size-24 place-items-center rounded-full bg-good-soft text-good">
@@ -264,6 +279,11 @@ function Concluido({ item, valor, outra, sair }: { item: string; valor: number; 
         {item}, {reais(valor)}
       </p>
       {compras && <NotaDoDia nota={notaMedia(deHoje)} quantidade={deHoje.length} sujeito="você estava" />}
+      {situacao && (
+        <Painel titulo="Seu orçamento" className="mt-4">
+          <ListaDoOrcamento situacoes={[situacao]} />
+        </Painel>
+      )}
       <div className="mt-4.5 grid grid-cols-2 gap-2.5">
         <Botao variante="secundario" onClick={outra}>
           Registrar outra

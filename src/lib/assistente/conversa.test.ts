@@ -17,6 +17,8 @@ const ctx: ContextoAssistente = {
   dividas: ana.dividas,
   plano: ana.plano,
   faturas: ana.faturas,
+  orcamentos: ana.orcamentos,
+  metas: ana.metas,
   agora: AGORA,
   canal: "whatsapp",
 };
@@ -157,5 +159,68 @@ describe("contexto da assistente", () => {
   it("não manda o texto das notas privadas, só a orientação de tom", () => {
     expect(texto).not.toContain("conflito no trabalho");
     expect(texto).toContain("anotações privadas recentes");
+  });
+});
+
+describe("metas: a transferência já conta na meta", () => {
+  it("entende guardei, juntei e transferência para a meta", () => {
+    expect(entender("Vou transferir 1k da minha conta para o cofrinho")).toEqual({ tipo: "guardar", valor: 100000 });
+    expect(entender("transferi 1000 pro cofinho")).toEqual({ tipo: "guardar", valor: 100000 });
+    expect(entender("guardei 50")).toEqual({ tipo: "guardar", valor: 5000 });
+    expect(entender("juntei 30,50")).toEqual({ tipo: "guardar", valor: 3050 });
+    expect(entender("coloquei 300 na viagem", ["Viagem para a praia"])).toEqual({ tipo: "guardar", valor: 30000 });
+    // Transferir para alguém não é guardar.
+    expect(entender("transferi 200 pro joão").tipo).not.toBe("guardar");
+    expect(entender("comprei pão 12").tipo).toBe("compra");
+    expect(entender("minhas metas").tipo).toBe("metas");
+  });
+
+  it("com mais de uma meta ativa, pergunta qual (a concluída fica de fora)", () => {
+    const r1 = responder(ESTADO_INICIAL, "guardei 50", ctx);
+    expect(r1.estado).toEqual({ etapa: "meta", valor: 5000, descricao: "guardei 50" });
+    expect(r1.respostas[0].texto).toBe("Boa! Em qual meta você guardou R$ 50?");
+    expect(r1.respostas[0].respostasRapidas?.map((r) => r.rotulo)).toEqual(["Reserva de emergência", "Viagem para a praia"]);
+    const r2 = responder(r1.estado, "Viagem para a praia", ctx);
+    expect(r2.efeitos).toEqual([{ tipo: "guardar-na-meta", metaId: "ana-praia", valor: 5000, descricao: "guardei 50" }]);
+    // Tinha R$ 180; agora R$ 230 de R$ 1.500.
+    expect(r2.respostas[0].texto).toBe("Anotado ✅ R$ 50 em Viagem para a praia. Agora você tem 15% e faltam R$ 1.270.");
+    expect(r2.estado).toEqual(ESTADO_INICIAL);
+  });
+
+  it("um movimento só: a transferência citando a meta já conta nela", () => {
+    const r = responder(ESTADO_INICIAL, "Vou transferir 1k da minha conta para a reserva", ctx);
+    expect(r.efeitos).toEqual([
+      { tipo: "guardar-na-meta", metaId: "ana-reserva", valor: 100000, descricao: "Vou transferir 1k da minha conta para a reserva" },
+    ]);
+    expect(r.respostas[0].texto).toContain("Meta completa: Reserva de emergência");
+  });
+
+  it("com uma meta ativa só, vai direto nela", () => {
+    const uma = { ...ctx, metas: ctx.metas.filter((m) => m.id !== "ana-praia") };
+    expect(responder(ESTADO_INICIAL, "guardei 52", uma).efeitos[0]).toMatchObject({ metaId: "ana-reserva", valor: 5200 });
+  });
+
+  it("sem meta ativa, explica como criar", () => {
+    const r = responder(ESTADO_INICIAL, "guardei 100", { ...ctx, metas: ctx.metas.filter((m) => m.id === "ana-mae") });
+    expect(r.efeitos).toEqual([]);
+    expect(r.respostas[0].texto).toBe("Você ainda não tem uma meta ativa. Crie uma na aba Metas e eu acompanho com você.");
+  });
+
+  it("conta como está a meta", () => {
+    expect(responder(ESTADO_INICIAL, "minhas metas", ctx).respostas[0].texto).toMatch(/^Sua meta Reserva de emergência está com 27%/);
+  });
+});
+
+describe("orçamento depois da compra", () => {
+  it("diz quanto resta na categoria e o limite por dia", () => {
+    let estado = iniciarRegistro([{ item: "Feira", valor: 5000, categoria: "Mercado" }]).estado;
+    estado = responder(estado, "3", ctx).estado;
+    const r = responder(estado, "Sim", ctx);
+    expect(r.respostas[0].texto).toMatch(/Você já utilizou \d+% do seu orçamento de mercado\. Restam R\$ [\d.,]+ até o final do mês\./);
+  });
+
+  it("vai para a IA no contexto, com os números do código", () => {
+    expect(montarContexto(ctx)).toContain("Ana já usou 53% do orçamento de mercado");
+    expect(montarContexto(ctx)).toContain("Presente da mãe: meta R$ 200,00, guardado R$ 200,00 (100%), concluída");
   });
 });

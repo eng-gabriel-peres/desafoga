@@ -70,6 +70,8 @@ model Pessoa {
   estados         EstadoConversa[]
   acompanhamentos Acompanhamento[]
   sessoes         Sessao[]
+  orcamentos      Orcamento[]
+  metas           Meta[]
 
   @@unique([espacoId, slug])
   @@map("pessoas")
@@ -256,4 +258,70 @@ model Registro {
   atualizadoEm DateTime @default(now()) @updatedAt
 
   @@map("registros")
+}
+
+/// Quanto a pessoa se permite gastar por mês numa categoria.
+model Orcamento {
+  pessoaId  String
+  pessoa    Pessoa @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  categoria String
+  /// Centavos por mês.
+  limite    Int
+
+  @@id([pessoaId, categoria])
+  @@map("orcamentos")
+}
+
+/// Meta de guardar dinheiro (viagem, reserva, cofrinho).
+model Meta {
+  id              String            @id @default(uuid())
+  pessoaId        String
+  pessoa          Pessoa            @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  nome            String
+  /// piggy-bank, shield, plane, home, car, graduation-cap, gift, smartphone, heart.
+  icone           String            @default("piggy-bank")
+  /// azul, amarelo, coral, violeta, petroleo.
+  cor             String            @default("azul")
+  /// Centavos.
+  alvo            Int
+  /// Quanto já tinha ao criar (centavos).
+  inicial         Int               @default(0)
+  /// "prazo" (escolheu uma data) ou "valor" (escolheu quanto guardar).
+  modo            String            @default("valor")
+  /// dia, semana ou mes.
+  frequencia      String            @default("mes")
+  /// Quanto guardar por período (centavos).
+  valorPorPeriodo Int               @default(0)
+  lembrete        Boolean           @default(true)
+  prazo           DateTime?         @db.Date
+  criadaEm        DateTime          @default(now())
+  movimentos      MovimentoDaMeta[]
+
+  @@index([pessoaId])
+  @@map("metas")
+}
+
+/// Dinheiro guardado na meta: a transferência é registrada uma vez só e já conta.
+model MovimentoDaMeta {
+  id        String   @id @default(uuid())
+  metaId    String
+  meta      Meta     @relation(fields: [metaId], references: [id], onDelete: Cascade)
+  /// Centavos.
+  valor     Int
+  descricao String   @default("")
+  quando    DateTime
+  via       String
+
+  @@index([metaId, quando])
+  @@map("movimentos_das_metas")
+}
+
+/// Contador de uso por dia (limites contra abuso). Criado também em tempo de execução por `lib/limite.ts`.
+model Uso {
+  chave String
+  dia   DateTime @db.Date
+  total Int
+
+  @@id([chave, dia])
+  @@map("uso")
 }

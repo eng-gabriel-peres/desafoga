@@ -29,6 +29,7 @@ const dadosNoBanco: DadosDaConversa = {
   async concluir(pessoaId, canal, resultado, agora) {
     for (const e of resultado.efeitos) {
       if (e.tipo === "registrar-compra") await repo.registrarCompra(pessoaId, e.compra, agora);
+      else if (e.tipo === "guardar-na-meta") await repo.guardarNaMeta(pessoaId, e.metaId, { valor: e.valor, descricao: e.descricao, via: canal }, agora);
       else await repo.avisar(pessoaId, e.aviso.tipo, e.aviso.texto, agora);
     }
     await repo.guardarEstado(pessoaId, canal, resultado.estado);

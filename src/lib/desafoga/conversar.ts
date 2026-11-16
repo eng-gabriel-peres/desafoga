@@ -2,7 +2,8 @@
  * Conversa da Luana no Desafoga, igual no app e no WhatsApp.
  *
  * Ordem: sofrimento intenso e compras em andamento são tratados por regras
- * (resposta segura e previsível). Plano, simulação, juros e resumo também,
+ * (resposta segura e previsível). Plano, simulação, juros, resumo e dinheiro
+ * guardado nas metas também,
  * porque os números vêm do código. O resto passa pela IA, quando existe:
  * ela lê gastos escritos do jeito da pessoa e conversa usando a memória dos
  * profissionais e os números do sistema. Sem IA, as regras respondem tudo.
@@ -109,13 +110,13 @@ export async function conversar(
   const agora = opcoes.agora ?? new Date();
   const ia = opcoes.ia ?? null;
   const [estado, ctx] = await Promise.all([dados.estado(pessoaId, canal), dados.contexto(pessoaId, canal, agora)]);
-  const intencao = entender(texto);
+  const intencao = entender(texto, ctx.metas.map((m) => m.nome));
 
   let resultado: Resultado;
   const porRegra =
     intencao.tipo === "sofrimento" ||
     estado.etapa !== "livre" ||
-    ["plano", "extra", "juros", "resumo"].includes(intencao.tipo) ||
+    ["plano", "extra", "juros", "resumo", "guardar", "metas"].includes(intencao.tipo) ||
     !ia;
 
   if (porRegra) {

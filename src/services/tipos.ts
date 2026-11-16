@@ -5,10 +5,16 @@ import type {
   Emocao,
   Estrategia,
   Fatura,
+  Deposito,
+  Meta,
   Necessidade,
+  Orcamento,
 } from "@/lib/finance";
 
-export type { Categoria, Compra, Divida, Emocao, Estrategia, Fatura, Necessidade };
+export type { Categoria, Compra, Deposito, Divida, Emocao, Estrategia, Fatura, Meta, Necessidade, Orcamento };
+
+/** Meta nova ou ajustada pela pessoa (os depósitos vêm de "guardar"). */
+export type MetaEditada = Omit<Meta, "id" | "criadaEm" | "depositos"> & { id?: string };
 
 export interface Persona {
   id: string;
@@ -29,7 +35,7 @@ export interface Profissional {
   cor: string;
 }
 
-export type TipoAviso = "gasto-alto" | "nota-baixa" | "sofrimento" | "sugestao";
+export type TipoAviso = "gasto-alto" | "nota-baixa" | "sofrimento" | "sugestao" | "meta";
 
 export interface Aviso {
   id: string;

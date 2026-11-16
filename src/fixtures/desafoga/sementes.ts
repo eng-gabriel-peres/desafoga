@@ -10,6 +10,8 @@ import type {
   Fatura,
   Mensagem,
   Memoria,
+  Meta,
+  Orcamento,
   Persona,
   Plano,
   TipoAviso,
@@ -35,6 +37,13 @@ export type SementeMensagem = Omit<Mensagem, "quando" | "id"> & Quando;
 export type SementeAviso = { id: string; tipo: TipoAviso; texto: string } & Quando;
 export type SementeAnotacao = { id: string; autorId: string; texto: string; privada?: boolean } & Quando;
 
+export interface SementeMeta extends Omit<Meta, "prazo" | "criadaEm" | "depositos"> {
+  /** Prazo daqui a N dias (negativo: já passou), ou sem prazo. */
+  prazoEmDias: number | null;
+  criadaHaDias: number;
+  depositos: ({ valor: number } & Quando)[];
+}
+
 export interface SementePessoa {
   persona: Persona;
   compras: SementeCompra[];
@@ -44,6 +53,8 @@ export interface SementePessoa {
   memoria: Omit<Memoria, "anotacoes"> & { anotacoes: SementeAnotacao[] };
   avisos: SementeAviso[];
   conversa: SementeMensagem[];
+  orcamentos?: Orcamento[];
+  metas?: SementeMeta[];
 }
 
 export interface DadosDaPessoa {
@@ -55,6 +66,8 @@ export interface DadosDaPessoa {
   memoria: Memoria;
   avisos: Aviso[];
   conversa: Mensagem[];
+  orcamentos: Orcamento[];
+  metas: Meta[];
 }
 
 /** Data real de "N dias atrás, às HH:MM". Nunca cai no futuro. */
@@ -105,5 +118,21 @@ export function materializar(s: SementePessoa, agora: Date): DadosDaPessoa {
     },
     avisos: s.avisos.map(({ dias, hora, ...a }) => ({ ...a, pessoaId: s.persona.id, quando: iso({ dias, hora }) })),
     conversa: s.conversa.map(({ dias, hora, ...m }, i) => ({ ...m, id: `${s.persona.id}-m${i}`, quando: iso({ dias, hora }) })),
+    orcamentos: s.orcamentos ?? [],
+    metas: (s.metas ?? []).map(({ prazoEmDias, criadaHaDias, depositos, ...m }) => {
+      const dia = (n: number) => chaveDoDia(new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + n));
+      return {
+        ...m,
+        prazo: prazoEmDias === null ? null : dia(prazoEmDias),
+        criadaEm: dia(-criadaHaDias),
+        depositos: depositos.map(({ dias, hora, valor }, i) => ({
+          id: `${m.id}-d${i}`,
+          valor,
+          descricao: "Guardado",
+          quando: iso({ dias, hora }),
+          via: "app" as const,
+        })),
+      };
+    }),
   };
 }

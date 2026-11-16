@@ -12,7 +12,10 @@ import type {
   Fatura,
   Memoria,
   Mensagem,
+  Meta,
+  MetaEditada,
   NovaCompra,
+  Orcamento,
   Persona,
   Plano,
   Profissional,
@@ -85,6 +88,26 @@ export interface DividasService {
   sugerirValor(pessoaId: string, valor: number): Promise<void>;
 }
 
+export interface OrcamentosService {
+  listar(pessoaId: string): Promise<Orcamento[]>;
+  /** Limite do mês da categoria; 0 tira o orçamento dela. */
+  salvar(pessoaId: string, categoria: Orcamento["categoria"], limite: number): Promise<Orcamento[]>;
+}
+
+export interface MetasService {
+  listar(pessoaId: string): Promise<Meta[]>;
+  /** Cria (sem id) ou ajusta a meta. */
+  salvar(pessoaId: string, meta: MetaEditada): Promise<Meta>;
+  remover(pessoaId: string, metaId: string): Promise<void>;
+  /** Dinheiro guardado: a transferência é registrada uma vez só e já conta na meta. */
+  guardar(pessoaId: string, metaId: string, deposito: { valor: number; descricao: string }): Promise<Meta>;
+  apagarDeposito(pessoaId: string, metaId: string, depositoId: string): Promise<Meta>;
+  /** O profissional manda um incentivo pela Luana. */
+  incentivar(pessoaId: string, metaId: string): Promise<{ whatsapp: boolean }>;
+  /** Manda agora o lembrete de guardar (no WhatsApp, se conectado; senão no chat do app). */
+  lembrar(pessoaId: string, metaId: string): Promise<{ whatsapp: boolean }>;
+}
+
 export interface FaturasService {
   listar(pessoaId: string): Promise<Fatura[]>;
   /** Lê o arquivo enviado com a IA. Sem IA ou sem arquivo, lê um documento de exemplo. */
@@ -127,6 +150,8 @@ export interface Servicos {
   pessoas: PessoasService;
   compras: ComprasService;
   dividas: DividasService;
+  orcamentos: OrcamentosService;
+  metas: MetasService;
   faturas: FaturasService;
   memoria: MemoriaService;
   assistente: AssistenteService;

@@ -5,6 +5,8 @@
  */
 import { z } from "zod";
 import { montarContexto } from "@/lib/assistente/contexto";
+import { mensagemDeIncentivo, mensagemDeLembrete } from "@/lib/assistente/textos";
+import { situacaoDaMeta } from "@/lib/finance";
 import type { Fatura } from "@/services/tipos";
 import { exigirAPropriaPessoa, exigirProfissionalDe, exigirSessao, exigirVer, SemPermissao } from "./acesso";
 import { responderTexto, testarResposta } from "./acoes";
@@ -24,6 +26,19 @@ import {
 import { cancelarPedido, confirmarCodigo, desconectar, desistirDoPedido, pedirCodigo, PedidoRecusado } from "./vinculo-whatsapp";
 
 const id = z.string().uuid();
+
+/** Manda pelo WhatsApp conectado da pessoa, se houver; falha não derruba o pedido. */
+async function tentarWhatsapp(pessoaId: string, texto: string): Promise<boolean> {
+  const numero = await repo.telefone(pessoaId);
+  if (!numero || !whatsappConfigurado()) return false;
+  return enviarPeloWhatsapp(numero, texto).then(
+    () => true,
+    (e: unknown) => {
+      console.error("Desafoga: WhatsApp não enviado,", e instanceof Error ? e.message.slice(0, 200) : "erro");
+      return false;
+    },
+  );
+}
 const centavos = z.number().int().min(0).max(1e10);
 const emocao = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]);
 const necessidade = z.enum(["sim", "nao", "talvez"]);
@@ -253,6 +268,75 @@ const ACOES = {
   "dividas.sugerirValor": acao(z.tuple([id, centavos.min(1)]), async ([p, valor], { sessao }) => {
     const s = await exigirProfissionalDe(sessao, p);
     await repo.sugerirValor(p, valor, s.profissional);
+  }),
+
+  // ----- orçamento e metas -----
+  "orcamentos.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
+    await exigirVer(sessao, p);
+    return repo.orcamentos(p);
+  }),
+  "orcamentos.salvar": acao(z.tuple([id, categoria, centavos]), async ([p, c, limite], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    return repo.salvarOrcamento(p, c, limite);
+  }),
+  "metas.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
+    await exigirVer(sessao, p);
+    return repo.metas(p);
+  }),
+  "metas.salvar": acao(
+    z.tuple([
+      id,
+      z.object({
+        id: id.optional(),
+        nome: texto(60),
+        icone: z.enum(["piggy-bank", "shield", "plane", "home", "car", "graduation-cap", "gift", "smartphone", "heart"]),
+        cor: z.enum(["azul", "amarelo", "coral", "violeta", "petroleo"]),
+        alvo: centavos.min(1),
+        inicial: centavos,
+        modo: z.enum(["prazo", "valor"]),
+        frequencia: z.enum(["dia", "semana", "mes"]),
+        valorPorPeriodo: centavos,
+        prazo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+        lembrete: z.boolean(),
+      }),
+    ]),
+    async ([p, m], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      return repo.salvarMeta(p, m);
+    },
+  ),
+  "metas.remover": acao(z.tuple([id, id]), async ([p, m], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await repo.removerMeta(p, m);
+  }),
+  /** Dinheiro guardado: a transferência é registrada uma vez só e já conta na meta. */
+  "metas.guardar": acao(
+    z.tuple([id, id, z.object({ valor: centavos.min(1), descricao: z.string().trim().max(120) })]),
+    async ([p, m, dep], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      return repo.guardarNaMeta(p, m, { ...dep, via: "app" });
+    },
+  ),
+  "metas.apagarDeposito": acao(z.tuple([id, id, id]), async ([p, m, d], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    return repo.apagarDeposito(p, m, d);
+  }),
+  /** O profissional manda um incentivo: chega pela Luana no app e, se der, no WhatsApp. */
+  "metas.incentivar": acao(z.tuple([id, id]), async ([p, m], { sessao }) => {
+    const s = await exigirProfissionalDe(sessao, p);
+    const meta = await repo.metaPorId(p, m);
+    const texto = mensagemDeIncentivo(s.profissional.nome, meta, situacaoDaMeta(meta, new Date()));
+    await repo.mensagemDaLuana(p, texto);
+    return { whatsapp: await tentarWhatsapp(p, texto) };
+  }),
+  /** Lembrete de guardar agora (o envio programado nos dias de guardar ainda não existe). */
+  "metas.lembrar": acao(z.tuple([id, id]), async ([p, m], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    const meta = await repo.metaPorId(p, m);
+    const texto = mensagemDeLembrete(meta, situacaoDaMeta(meta, new Date()));
+    if (await tentarWhatsapp(p, texto)) return { whatsapp: true };
+    await repo.mensagemDaLuana(p, texto);
+    return { whatsapp: false };
   }),
 
   // ----- faturas -----

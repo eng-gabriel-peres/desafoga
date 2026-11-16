@@ -91,3 +91,50 @@ export interface Fatura {
   mes: string;
   lancamentos: Lancamento[];
 }
+
+/** Quanto a pessoa se permite gastar por mês numa categoria. */
+export interface Orcamento {
+  categoria: Categoria;
+  /** Centavos por mês. */
+  limite: number;
+}
+
+export type IconeDaMeta = "piggy-bank" | "shield" | "plane" | "home" | "car" | "graduation-cap" | "gift" | "smartphone" | "heart";
+export type CorDaMeta = "azul" | "amarelo" | "coral" | "violeta" | "petroleo";
+/** De quanto em quanto tempo a pessoa guarda. */
+export type Frequencia = "dia" | "semana" | "mes";
+
+/** Meta de economia: viagem, reserva de emergência, o "cofrinho". */
+export interface Meta {
+  id: string;
+  nome: string;
+  icone: IconeDaMeta;
+  cor: CorDaMeta;
+  /** Centavos. */
+  alvo: number;
+  /** Quanto já tinha guardado ao criar (centavos); entra como primeiro depósito. */
+  inicial: number;
+  /** "prazo": a pessoa escolheu uma data; "valor": escolheu quanto guardar. */
+  modo: "prazo" | "valor";
+  frequencia: Frequencia;
+  /** Quanto guardar a cada período, em centavos. */
+  valorPorPeriodo: number;
+  /** YYYY-MM-DD, ou null sem data. */
+  prazo: string | null;
+  /** YYYY-MM-DD */
+  criadaEm: string;
+  /** Lembrar no WhatsApp nos dias de guardar. */
+  lembrete: boolean;
+  depositos: Deposito[];
+}
+
+/** Dinheiro guardado na meta. A transferência para o cofrinho é registrada uma vez só e já conta. */
+export interface Deposito {
+  id: string;
+  /** Centavos, sempre positivo. */
+  valor: number;
+  descricao: string;
+  /** Data e hora em ISO 8601. */
+  quando: string;
+  via: "app" | "whatsapp";
+}

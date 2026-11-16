@@ -10,12 +10,15 @@ import {
   encargosDasFaturas,
   jurosMensaisTotais,
   notaMedia,
+  orcamentoDoMes,
   padroesDeCompra,
   resumoDaSemana,
   somaDosValores,
 } from "@/lib/finance";
 import { dataPorExtenso, reais } from "@/lib/formatar";
 import { FaixaDaSemana, LinhaDeCompra, ListaDePadroes, NotaDoDia } from "../emocao";
+import { MetasEmMiniatura } from "../metas/miniaturas";
+import { ListaDoOrcamento } from "../orcamento";
 import { useMinhaPessoaId } from "../sessao";
 import { Carregando, Painel, Sub, Vazio } from "../ui/blocos";
 import { BotaoLink } from "../ui/botao";
@@ -26,7 +29,8 @@ export function TelaHoje() {
   const agora = useAgora();
   if (!dados || !agora) return <Carregando />;
 
-  const { persona, compras, dividas, faturas } = dados;
+  const { persona, compras, dividas, faturas, orcamentos, metas } = dados;
+  const doMes = orcamentoDoMes(orcamentos, compras, agora);
   const deHoje = comprasDoDia(compras, chaveDoDia(agora)).reverse();
   const semana = resumoDaSemana(compras, agora);
   const encargos = encargosDasFaturas(faturas).total || jurosMensaisTotais(dividas);
@@ -54,6 +58,24 @@ export function TelaHoje() {
     </Link>
   );
 
+  const verOrcamento = (
+    <Link href="/app/orcamento" className="text-[0.92rem] font-bold text-primary">
+      {doMes.length ? "Ver tudo" : "Definir"}
+    </Link>
+  );
+  // As categorias mais usadas primeiro: é onde o aviso ajuda.
+  const painelOrcamento = (
+    <Painel titulo="Orçamento do mês" acao={verOrcamento}>
+      {doMes.length ? (
+        <ListaDoOrcamento situacoes={doMes.slice(0, 2)} />
+      ) : (
+        <Sub>Defina quanto quer gastar em cada categoria. A Luana avisa quanto resta e quanto dá para gastar por dia.</Sub>
+      )}
+    </Painel>
+  );
+
+  const atalhoMetas = metas.length > 0 && <MetasEmMiniatura metas={metas} agora={agora} />;
+
   const listaDeHoje = deHoje.length ? (
     <Painel titulo="Compras de hoje" acao={<Sub>Total {reais(somaDosValores(deHoje))}</Sub>}>
       <ul>
@@ -78,6 +100,8 @@ export function TelaHoje() {
           <NotaDoDia nota={notaMedia(deHoje)} quantidade={deHoje.length} sujeito="você estava" />
           <div className="grid gap-4 desk:hidden">
             {registrar}
+            {painelOrcamento}
+            {atalhoMetas}
             {atalhoDividas}
           </div>
           {listaDeHoje}
@@ -91,6 +115,8 @@ export function TelaHoje() {
             <Sub className="mb-3.5">Leva menos de 30 segundos. Também dá para mandar para a Luana pelo WhatsApp.</Sub>
             {registrar}
           </Painel>
+          <div className="hidden desk:block">{painelOrcamento}</div>
+          <div className="hidden desk:block">{atalhoMetas}</div>
           <div className="hidden desk:block">{atalhoDividas}</div>
           <Painel titulo="O que dá para perceber">
             <ListaDePadroes padroes={padroesDeCompra(compras, agora)} sujeito="você estava" />

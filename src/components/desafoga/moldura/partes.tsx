@@ -35,7 +35,7 @@ export function MenuInferior({ itens, caminho }: { itens: ItemDoMenu[]; caminho:
       className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-[540px] desk:hidden rounded-[22px] border border-line bg-surface shadow-[0_10px_30px_rgb(0_0_0/0.14)]"
     >
       <ul className="grid auto-cols-fr grid-flow-col px-1">
-        {itens.map(({ href, rotulo, Icone, ativo, destaque }) => {
+        {itens.filter((i) => !i.soDesktop).map(({ href, rotulo, Icone, ativo, destaque }) => {
           const atual = ativo(caminho);
           return (
             <li key={href}>
@@ -97,7 +97,7 @@ export function MenuLateral({ itens, caminho }: { itens: ItemDoMenu[]; caminho: 
   return (
     <nav aria-label="Menu">
       <ul className="grid gap-1">
-        {itens.filter((i) => !i.soCelular).map(({ href, rotulo, Icone, ativo }) => (
+        {itens.map(({ href, rotulo, Icone, ativo }) => (
           <li key={href}>
             <Link
               href={href}

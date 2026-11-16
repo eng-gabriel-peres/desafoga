@@ -1,4 +1,4 @@
-import { Brain, ClipboardList, House, MessageCircle, Plus, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
+import { Brain, ChartPie, ClipboardList, House, MessageCircle, Plus, Target, Users, Wallet, type LucideIcon } from "lucide-react";
 
 /**
  * O Desafoga tem duas áreas separadas:
@@ -15,8 +15,8 @@ export interface ItemDoMenu {
   ativo: (caminho: string) => boolean;
   /** Item principal, em destaque no meio da barra. */
   destaque?: boolean;
-  /** Só na barra do celular; no desktop o acesso fica no menu do perfil. */
-  soCelular?: boolean;
+  /** Só na barra lateral do desktop; no celular o acesso fica na tela Hoje. */
+  soDesktop?: boolean;
 }
 
 export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
@@ -26,7 +26,8 @@ export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
       { href: "/app/registrar", rotulo: "Registrar", Icone: Plus, ativo: (c) => c === "/app/registrar" },
       { href: "/app/assistente", rotulo: "Assistente", Icone: MessageCircle, ativo: (c) => c === "/app/assistente", destaque: true },
       { href: "/app/dividas", rotulo: "Dívidas", Icone: Wallet, ativo: (c) => c.startsWith("/app/dividas") },
-      { href: "/app/perfil", rotulo: "Perfil", Icone: UserRound, ativo: (c) => c === "/app/perfil", soCelular: true },
+      { href: "/app/metas", rotulo: "Metas", Icone: Target, ativo: (c) => c.startsWith("/app/metas") },
+      { href: "/app/orcamento", rotulo: "Orçamento", Icone: ChartPie, ativo: (c) => c === "/app/orcamento", soDesktop: true },
     ];
   }
   const base = `/painel/${pacienteId}`;
@@ -34,6 +35,7 @@ export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
     { href: "/painel", rotulo: "Pacientes", Icone: Users, ativo: (c) => c === "/painel" },
     { href: base, rotulo: "Resumo", Icone: ClipboardList, ativo: (c) => /^\/painel\/[^/]+$/.test(c) },
     { href: `${base}/dividas`, rotulo: "Dívidas", Icone: Wallet, ativo: (c) => /^\/painel\/[^/]+\/dividas$/.test(c) },
+    { href: `${base}/metas`, rotulo: "Metas", Icone: Target, ativo: (c) => /^\/painel\/[^/]+\/metas/.test(c) },
     { href: `${base}/memoria`, rotulo: "Memória", Icone: Brain, ativo: (c) => c.endsWith("/memoria") },
   ];
 }
@@ -48,6 +50,12 @@ export function tituloDaRota(caminho: string): Titulo {
   if (caminho === "/app/registrar") return { titulo: "Registrar compra", subtitulo: "Leva menos de 30 segundos" };
   if (caminho === "/app/assistente") return { titulo: "Assistente", subtitulo: "Converse com a Luana como no WhatsApp" };
   if (caminho === "/app/dividas/fatura") return { titulo: "Enviar fatura", subtitulo: "A Luana lê os lançamentos e separa juros e tarifas" };
+  if (caminho === "/app/orcamento") return { titulo: "Orçamento", subtitulo: "Quanto você quer gastar por categoria no mês" };
+  if (caminho === "/app/metas") return { titulo: "Metas", subtitulo: "Junte dinheiro para o que importa" };
+  if (caminho === "/app/metas/nova") return { titulo: "Nova meta", subtitulo: "Junte dinheiro para o que importa" };
+  if (/^\/app\/metas\/[^/]+\/ajustar$/.test(caminho)) return { titulo: "Ajustar meta" };
+  if (caminho.startsWith("/app/metas/")) return { titulo: "Meta", subtitulo: "Seu ritmo, o plano e o histórico" };
+  if (/^\/painel\/[^/]+\/metas/.test(caminho)) return { titulo: "Metas", subtitulo: "Só leitura. Você pode mandar um incentivo." };
   if (caminho === "/app/perfil") return { titulo: "Perfil", subtitulo: "WhatsApp, quem te acompanha e seus dados" };
   if (caminho === "/app/dividas") return { titulo: "Dívidas", subtitulo: "Quanto suas dívidas custam e como sair delas" };
   if (caminho === "/painel") return { titulo: "Pacientes", subtitulo: "Quem você acompanha, nos últimos 7 dias" };
@@ -59,6 +67,8 @@ export function tituloDaRota(caminho: string): Titulo {
 
 /** Troca o paciente mantendo a mesma tela: /painel/ana/dividas -> /painel/lucia/dividas. */
 export function rotaDeOutroPaciente(caminho: string, pacienteId: string): string {
+  // A meta aberta é de outra pessoa: volta para a lista de metas.
+  if (/^\/painel\/[^/]+\/metas\//.test(caminho)) return `/painel/${pacienteId}/metas`;
   const m = caminho.match(/^\/painel\/[^/]+(\/.*)?$/);
   return `/painel/${pacienteId}${m?.[1] ?? ""}`;
 }

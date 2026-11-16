@@ -144,3 +144,30 @@ button {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Anel de progresso das metas: enche ao guardar dinheiro. */
+.anel-arco {
+  animation: anel-encher 1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.anel-ponta {
+  animation: anel-aparecer 0.3s ease-out 0.85s both;
+}
+@keyframes anel-encher {
+  from {
+    stroke-dashoffset: var(--cheio);
+  }
+  to {
+    stroke-dashoffset: var(--resto);
+  }
+}
+@keyframes anel-aparecer {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .anel-arco,
+  .anel-ponta {
+    animation: none;
+  }
+}

@@ -5,7 +5,8 @@
  */
 import type { ContextoAssistente, EstadoConversa } from "@/lib/assistente/conversa";
 import { ESTADO_INICIAL } from "@/lib/assistente/conversa";
-import type { Categoria, Emocao, Estrategia, Necessidade, TipoDivida, TipoLancamento } from "@/lib/finance";
+import { chaveDoDia, situacaoDaMeta, type Categoria, type Emocao, type Estrategia, type Necessidade, type TipoDivida, type TipoLancamento } from "@/lib/finance";
+import { avisoDeMetaConcluida } from "@/lib/assistente/textos";
 import { Prisma } from "@/generated/prisma/client";
 import type {
   Anotacao,
@@ -16,7 +17,10 @@ import type {
   Fatura,
   Memoria,
   Mensagem,
+  Meta,
+  MetaEditada,
   NovaCompra,
+  Orcamento,
   Persona,
   Plano,
   Profissional,
@@ -102,6 +106,27 @@ function paraAviso(a: Prisma.AvisoModel): Aviso {
   return { id: a.id, pessoaId: a.pessoaId, tipo: a.tipo as Aviso["tipo"], texto: a.texto, quando: iso(a.quando) };
 }
 
+type MetaDoBanco = Prisma.MetaModel & { movimentos: Prisma.MovimentoDaMetaModel[] };
+const COM_DEPOSITOS = { movimentos: { orderBy: { quando: "asc" } } } as const;
+
+function paraMeta(m: MetaDoBanco): Meta {
+  return {
+    id: m.id,
+    nome: m.nome,
+    icone: m.icone as Meta["icone"],
+    cor: m.cor as Meta["cor"],
+    alvo: m.alvo,
+    inicial: m.inicial,
+    modo: m.modo as Meta["modo"],
+    frequencia: m.frequencia as Meta["frequencia"],
+    valorPorPeriodo: m.valorPorPeriodo,
+    prazo: m.prazo ? m.prazo.toISOString().slice(0, 10) : null,
+    criadaEm: chaveDoDia(m.criadaEm),
+    lembrete: m.lembrete,
+    depositos: m.movimentos.map((v) => ({ id: v.id, valor: v.valor, descricao: v.descricao, quando: iso(v.quando), via: v.via as "app" | "whatsapp" })),
+  };
+}
+
 const PLANO_VAZIO: Plano = { valorMensal: 0, estrategia: "mais-cara", valorSugerido: null };
 
 // ---------- leituras ----------
@@ -122,6 +147,16 @@ export async function compras(pessoaId: string): Promise<Compra[]> {
 
 export async function dividas(pessoaId: string): Promise<Divida[]> {
   return (await prisma().divida.findMany({ where: { pessoaId }, orderBy: { taxaMensal: "desc" } })).map(paraDivida);
+}
+
+export async function orcamentos(pessoaId: string): Promise<Orcamento[]> {
+  const lista = await prisma().orcamento.findMany({ where: { pessoaId }, orderBy: { categoria: "asc" } });
+  return lista.map((o) => ({ categoria: o.categoria as Categoria, limite: o.limite }));
+}
+
+export async function metas(pessoaId: string): Promise<Meta[]> {
+  const lista = await prisma().meta.findMany({ where: { pessoaId }, include: COM_DEPOSITOS, orderBy: { criadaEm: "asc" } });
+  return lista.map(paraMeta);
 }
 
 export async function plano(pessoaId: string): Promise<Plano> {
@@ -189,7 +224,7 @@ export async function acompanhados(profissionalId: string): Promise<Persona[]> {
 }
 
 export async function contextoDoAssistente(pessoaId: string, canal: Canal, agora = new Date()): Promise<ContextoAssistente> {
-  const [p, c, d, pl, f, m, profs] = await Promise.all([
+  const [p, c, d, pl, f, m, profs, orc, mt] = await Promise.all([
     persona(pessoaId),
     compras(pessoaId),
     dividas(pessoaId),
@@ -197,6 +232,8 @@ export async function contextoDoAssistente(pessoaId: string, canal: Canal, agora
     faturas(pessoaId),
     memoria(pessoaId, true),
     acompanhantes(pessoaId),
+    orcamentos(pessoaId),
+    metas(pessoaId),
   ]);
   if (!p) throw new Error("Pessoa não encontrada");
   return {
@@ -208,6 +245,8 @@ export async function contextoDoAssistente(pessoaId: string, canal: Canal, agora
     dividas: d,
     plano: pl,
     faturas: f,
+    orcamentos: orc,
+    metas: mt,
     agora,
     canal,
   };
@@ -249,6 +288,99 @@ export async function salvarDivida(pessoaId: string, d: Omit<Divida, "id"> & { i
 
 export async function removerDivida(pessoaId: string, dividaId: string): Promise<void> {
   await prisma().divida.deleteMany({ where: { id: dividaId, pessoaId } });
+}
+
+/** Define o limite do mês de uma categoria; limite 0 tira o orçamento dela. */
+export async function salvarOrcamento(pessoaId: string, categoria: Categoria, limite: number): Promise<Orcamento[]> {
+  if (limite > 0) {
+    await prisma().orcamento.upsert({
+      where: { pessoaId_categoria: { pessoaId, categoria } },
+      create: { pessoaId, categoria, limite },
+      update: { limite },
+    });
+  } else {
+    await prisma().orcamento.deleteMany({ where: { pessoaId, categoria } });
+  }
+  return orcamentos(pessoaId);
+}
+
+const dataDoPrazo = (prazo: string | null) => (prazo ? new Date(`${prazo}T00:00:00Z`) : null);
+
+async function metaDaPessoa(pessoaId: string, metaId: string): Promise<Meta> {
+  const m = await prisma().meta.findFirst({ where: { id: metaId, pessoaId }, include: COM_DEPOSITOS });
+  if (!m) throw new NaoEncontrado("Meta não encontrada.");
+  return paraMeta(m);
+}
+
+/** Cria (sem id) ou ajusta uma meta. O que já tinha guardado entra como primeiro depósito. */
+export async function salvarMeta(pessoaId: string, m: MetaEditada, agora = new Date()): Promise<Meta> {
+  const dados = {
+    nome: m.nome,
+    icone: m.icone,
+    cor: m.cor,
+    alvo: m.alvo,
+    modo: m.modo,
+    frequencia: m.frequencia,
+    valorPorPeriodo: m.valorPorPeriodo,
+    prazo: dataDoPrazo(m.prazo),
+    lembrete: m.lembrete,
+  };
+  if (m.id) {
+    // Só ajusta meta desta pessoa (o id veio do navegador); o valor inicial não muda depois de criada.
+    const r = await prisma().meta.updateMany({ where: { id: m.id, pessoaId }, data: dados });
+    if (!r.count) throw new NaoEncontrado("Meta não encontrada.");
+    return metaDaPessoa(pessoaId, m.id);
+  }
+  const criada = await prisma().meta.create({
+    data: {
+      pessoaId,
+      ...dados,
+      inicial: m.inicial,
+      criadaEm: agora,
+      movimentos: m.inicial > 0 ? { create: { valor: m.inicial, descricao: "Já tinha guardado", quando: agora, via: "app" } } : undefined,
+    },
+    include: COM_DEPOSITOS,
+  });
+  return paraMeta(criada);
+}
+
+export async function removerMeta(pessoaId: string, metaId: string): Promise<void> {
+  await prisma().meta.deleteMany({ where: { id: metaId, pessoaId } });
+}
+
+/**
+ * Dinheiro guardado na meta: a transferência é registrada uma vez só e já
+ * conta. Se a meta acabou de ser concluída, quem acompanha é avisado.
+ */
+export async function guardarNaMeta(
+  pessoaId: string,
+  metaId: string,
+  dep: { valor: number; descricao: string; via: "app" | "whatsapp" },
+  quando = new Date(),
+): Promise<Meta> {
+  const antes = await metaDaPessoa(pessoaId, metaId);
+  await prisma().movimentoDaMeta.create({ data: { metaId, ...dep, quando } });
+  const depois = await metaDaPessoa(pessoaId, metaId);
+  if (!situacaoDaMeta(antes, quando).concluida && situacaoDaMeta(depois, quando).concluida) {
+    const p = await prisma().pessoa.findUniqueOrThrow({ where: { id: pessoaId }, select: { apelido: true } });
+    await avisar(pessoaId, "meta", avisoDeMetaConcluida(p.apelido, depois), quando);
+  }
+  return depois;
+}
+
+export async function apagarDeposito(pessoaId: string, metaId: string, depositoId: string): Promise<Meta> {
+  await metaDaPessoa(pessoaId, metaId);
+  await prisma().movimentoDaMeta.deleteMany({ where: { id: depositoId, metaId } });
+  return metaDaPessoa(pessoaId, metaId);
+}
+
+/** Mensagem da Luana no chat do app (incentivo do profissional, lembrete). */
+export async function mensagemDaLuana(pessoaId: string, texto: string, quando = new Date()): Promise<void> {
+  await prisma().mensagem.create({ data: { pessoaId, canal: "app", de: "assistente", texto, quando } });
+}
+
+export async function metaPorId(pessoaId: string, metaId: string): Promise<Meta> {
+  return metaDaPessoa(pessoaId, metaId);
 }
 
 export async function salvarPlano(pessoaId: string, mudancas: Partial<Pick<Plano, "valorMensal" | "estrategia">>): Promise<Plano> {

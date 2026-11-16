@@ -7,6 +7,7 @@ import {
   divisaoPorNecessidade,
   emocaoDaNota,
   notaDoDia,
+  orcamentoDoMes,
   padroesDeCompra,
   resumoDaSemana,
   situacaoDoPaciente,
@@ -16,6 +17,7 @@ import { reais } from "@/lib/formatar";
 import { servicos } from "@/services";
 import { ListaDeAvisos } from "../avisos";
 import { FaixaDaSemana, ListaDePadroes } from "../emocao";
+import { ListaDoOrcamento } from "../orcamento";
 import { Carregando, EtiquetaSituacao, Kpi, Painel } from "../ui/blocos";
 import { Carinha } from "../ui/carinha";
 
@@ -63,7 +65,8 @@ export function TelaResumo({ pessoaId }: { pessoaId: string }) {
   const agora = useAgora();
   if (!dados || !agora || !avisos) return <Carregando />;
 
-  const { persona, compras } = dados;
+  const { persona, compras, orcamentos } = dados;
+  const doMes = orcamentoDoMes(orcamentos, compras, agora);
   const semana = resumoDaSemana(compras, agora);
   const sujeito = `${persona.apelido} estava`;
 
@@ -96,6 +99,12 @@ export function TelaResumo({ pessoaId }: { pessoaId: string }) {
           <Painel titulo="Avisos recentes">
             <ListaDeAvisos avisos={avisos.slice(0, 5)} agora={agora} />
           </Painel>
+          {doMes.length > 0 && (
+            <Painel titulo="Orçamento do mês">
+              <ListaDoOrcamento situacoes={doMes} pessoa={persona.apelido} />
+            </Painel>
+          )}
+
         </div>
       </div>
     </div>

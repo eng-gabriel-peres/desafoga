@@ -12,13 +12,25 @@ import {
   encargosDasFaturas,
   jurosMensaisTotais,
   notaMedia,
+  orcamentoDoMes,
   projecaoSoMinimo,
   rotuloDaNota,
   simularQuitacao,
+  situacaoDaMeta,
   somaDosMinimos,
 } from "@/lib/finance";
 import type { ContextoAssistente } from "./conversa";
-import { NOME_DA_ESTRATEGIA, TONS, mesDaqui, meses, percentual, reais, umaCasa } from "./textos";
+import { NOME_DA_ESTRATEGIA, TONS, explicarOrcamento, fatoDaMeta, mesDaqui, meses, percentual, reais, umaCasa } from "./textos";
+
+function numerosDoMes(ctx: ContextoAssistente): string {
+  const orcamento = orcamentoDoMes(ctx.orcamentos, ctx.compras, ctx.agora);
+  return [
+    `Orçamento do mês: ${orcamento.length ? orcamento.map((s) => explicarOrcamento(s, ctx.pessoa.apelido)).join(" ") : "nenhum limite definido."}`,
+    "METAS DE ECONOMIA (calculadas por código)",
+    ctx.metas.length ? ctx.metas.map((m) => fatoDaMeta(m, situacaoDaMeta(m, ctx.agora))).join("\n") : "Sem metas.",
+    "Para registrar dinheiro guardado numa meta, a pessoa escreve, por exemplo: guardei 50.",
+  ].join("\n");
+}
 
 function numerosDasDividas(ctx: ContextoAssistente): string {
   const { dividas, plano, faturas, agora } = ctx;
@@ -91,5 +103,6 @@ COMO A PESSOA ESTÁ HOJE
 - Compras hoje: ${hoje.length}${nota !== null ? `, nota do dia ${umaCasa(nota)} de 5 (${rotuloDaNota(nota)})` : ""}.
 
 NÚMEROS DO SISTEMA (calculados por código; use exatamente)
-${numerosDasDividas(ctx)}`;
+${numerosDasDividas(ctx)}
+${numerosDoMes(ctx)}`;
 }

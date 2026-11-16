@@ -41,6 +41,7 @@ function anaEmMemoria() {
   const mensagens: Record<Canal, Mensagem[]> = { app: [...d.conversa], whatsapp: [] };
   const compras: Compra[] = [...d.compras];
   const avisos: Aviso[] = [...d.avisos];
+  const metas = d.metas.map((m) => ({ ...m, depositos: [...m.depositos] }));
   const dados: DadosDaConversa = {
     contexto: async (_p, canal, agora) => ({
       pessoa: d.persona,
@@ -51,6 +52,8 @@ function anaEmMemoria() {
       dividas: d.dividas,
       plano: d.plano,
       faturas: d.faturas,
+      orcamentos: d.orcamentos,
+      metas,
       agora,
       canal,
     }),
@@ -59,6 +62,9 @@ function anaEmMemoria() {
     async concluir(_p, canal, resultado, agora) {
       for (const e of resultado.efeitos) {
         if (e.tipo === "registrar-compra") compras.push({ ...e.compra, id: `nova-${compras.length}`, quando: agora.toISOString(), avaliacaoProfissional: null });
+        else if (e.tipo === "guardar-na-meta") {
+          metas.find((m) => m.id === e.metaId)?.depositos.push({ id: `v${Date.now()}`, valor: e.valor, descricao: e.descricao, quando: agora.toISOString(), via: canal });
+        }
         else avisos.unshift({ id: `aviso-${avisos.length}`, pessoaId: "ana", tipo: e.aviso.tipo, texto: e.aviso.texto, quando: agora.toISOString() });
       }
       estados[canal] = resultado.estado;
@@ -67,7 +73,7 @@ function anaEmMemoria() {
       return novas;
     },
   };
-  return { dados, compras, avisos, estados, mensagens };
+  return { dados, compras, avisos, estados, mensagens, metas };
 }
 
 describe("telefone do cadastro", () => {

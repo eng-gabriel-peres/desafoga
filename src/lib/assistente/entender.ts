@@ -35,6 +35,10 @@ export type Intencao =
   | { tipo: "juros" }
   | { tipo: "resumo" }
   | { tipo: "compra"; item: string; valor: number | null }
+  /** Dinheiro guardado numa meta. */
+  | { tipo: "guardar"; valor: number }
+  /** "minhas metas", "como está minha meta" */
+  | { tipo: "metas" }
   | { tipo: "vontade-de-comprar" }
   | { tipo: "livre" };
 
@@ -60,9 +64,37 @@ export function nomeDaCompra(texto: string): string {
   return nome.charAt(0).toUpperCase() + nome.slice(1);
 }
 
-export function entender(texto: string): Intencao {
+/** Palavras que indicam o lugar onde a pessoa junta dinheiro. */
+const LUGAR_DE_GUARDAR = /\b(cofr?inho|cofre|meta|poupanca|reserva|caixinha|porquinho)\b/;
+/** "guardei 50", "juntei 30", "economizei 20", "separei 100": sempre é para uma meta. */
+const GUARDEI = /^(eu )?(ja )?(guardei|juntei|economizei|separei|poupei)\b/;
+/** "transferi 1000 pro cofrinho", "vou transferir 1k da conta para a viagem": só com a meta citada. */
+const TRANSFERI = /^(eu )?(vou |acabei de |ja )?(transfer|deposit|coloc|coloq|mand|botei|pus)\w*\b/;
+
+/** Como a pessoa chama a meta: o nome inteiro ou a primeira palavra ("reserva", "viagem"). */
+export function apelidosDaMeta(nome: string): string[] {
+  const n = normalizar(nome);
+  const primeira = n.split(/\s+/).find((p) => p.length >= 4);
+  return primeira && primeira !== n ? [n, primeira] : [n];
+}
+
+/**
+ * Dinheiro guardado numa meta. A transferência para o cofrinho conta direto
+ * na meta, sem registrar duas vezes. `nomesDasMetas` reconhece a meta pelo nome.
+ */
+function lerGuardar(t: string, nomesDasMetas: string[]): Intencao | null {
+  const valor = lerValorEmReais(t);
+  if (!valor) return null;
+  const citaMeta = LUGAR_DE_GUARDAR.test(t) || nomesDasMetas.some((n) => n && apelidosDaMeta(n).some((a) => new RegExp(`\\b${a}\\b`).test(t)));
+  if (GUARDEI.test(t) || (TRANSFERI.test(t) && citaMeta)) return { tipo: "guardar", valor };
+  return null;
+}
+
+export function entender(texto: string, nomesDasMetas: string[] = []): Intencao {
   const t = normalizar(texto);
   if (indicaSofrimentoIntenso(t)) return { tipo: "sofrimento" };
+  const guardar = lerGuardar(t, nomesDasMetas);
+  if (guardar) return guardar;
   if (/^(meu )?plano\b|como (eu )?saio das dividas/.test(t)) return { tipo: "plano" };
 
   const valor = lerValorEmReais(t);
@@ -72,6 +104,7 @@ export function entender(texto: string): Intencao {
   }
   if (!ehCompra && /(juros|divida|fatura|rotativo)/.test(t)) return { tipo: "juros" };
   if (/^resumo\b|nota do dia|como (foi|esta) (o )?meu dia/.test(t)) return { tipo: "resumo" };
+  if (/^(minhas? metas?|metas?)$|como (esta|vai|anda)m? (a |as )?minhas? metas?/.test(t)) return { tipo: "metas" };
 
   const palavras = t.split(/\s+/).length;
   if (ehCompra || (valor !== null && palavras <= 5)) {

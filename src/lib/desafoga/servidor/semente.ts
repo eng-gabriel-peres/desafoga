@@ -86,6 +86,29 @@ export async function criarEspacoDemo(db: Transacao, agora = new Date()): Promis
       })),
     });
 
+    if (d.orcamentos.length) {
+      await db.orcamento.createMany({ data: d.orcamentos.map((o) => ({ pessoaId: pessoa.id, categoria: o.categoria, limite: o.limite })) });
+    }
+    for (const m of d.metas) {
+      await db.meta.create({
+        data: {
+          pessoaId: pessoa.id,
+          nome: m.nome,
+          icone: m.icone,
+          cor: m.cor,
+          alvo: m.alvo,
+          inicial: m.inicial,
+          modo: m.modo,
+          frequencia: m.frequencia,
+          valorPorPeriodo: m.valorPorPeriodo,
+          lembrete: m.lembrete,
+          prazo: m.prazo ? new Date(`${m.prazo}T00:00:00Z`) : null,
+          criadaEm: new Date(`${m.criadaEm}T12:00:00`),
+          movimentos: { create: m.depositos.map((v) => ({ valor: v.valor, descricao: v.descricao, quando: new Date(v.quando), via: v.via })) },
+        },
+      });
+    }
+
     for (const f of d.faturas) {
       await db.fatura.create({
         data: {

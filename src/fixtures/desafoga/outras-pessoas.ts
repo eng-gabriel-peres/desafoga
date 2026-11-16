@@ -29,6 +29,26 @@ export const carlos: SementePessoa = {
   ],
   dividas: [],
   plano: { valorMensal: 0, estrategia: "mais-cara", valorSugerido: null },
+  metas: [
+    {
+      id: "carlos-ingles",
+      nome: "Curso de inglês",
+      icone: "graduation-cap",
+      cor: "violeta",
+      alvo: 60000,
+      inicial: 0,
+      modo: "valor",
+      frequencia: "mes",
+      valorPorPeriodo: 12000,
+      prazoEmDias: null,
+      criadaHaDias: 62,
+      lembrete: true,
+      depositos: [
+        { dias: 62, hora: "09:00", valor: 12000 },
+        { dias: 31, hora: "09:00", valor: 12000 },
+      ],
+    },
+  ],
   faturas: [],
   memoria: {
     ...memoriaVazia,
