@@ -2,6 +2,7 @@ import { after, type NextRequest } from "next/server";
 import { receberArquivo, receberAudio, receberTexto } from "@/lib/luana/luana";
 import { enviarTexto } from "@/lib/whatsapp/enviar";
 import { consumir, type Recurso } from "@/lib/limite";
+import { mensagemDoPainel, origemDoSite, pedidoDePainel } from "@/lib/link";
 import { mascarar, registrar } from "@/lib/whatsapp/diagnostico";
 import { baixarMidia } from "@/lib/whatsapp/midia";
 import { assinaturaValida, extrairMensagens, type MensagemRecebida } from "@/lib/whatsapp/webhook";
@@ -53,10 +54,11 @@ export async function POST(request: NextRequest) {
   registrar("webhook aceito", `${novas.length} mensagem(ns) nova(s)`);
   if (jaProcessadas.size > 5000) jaProcessadas.clear();
 
+  const origem = origemDoSite(request.headers);
   after(async () => {
     for (const m of novas) {
       try {
-        await atender(m);
+        await atender(m, origem);
         registrar("respondida", `${m.tipo} de ${mascarar(m.de)}`);
       } catch (erro) {
         console.error("Falha ao responder mensagem do WhatsApp:", erro);
@@ -68,7 +70,7 @@ export async function POST(request: NextRequest) {
   return new Response("ok", { status: 200 });
 }
 
-async function atender(m: MensagemRecebida): Promise<void> {
+async function atender(m: MensagemRecebida, origem: string): Promise<void> {
   const usuario = `wa:${m.de}`;
   let mensagens: string[];
 
@@ -77,6 +79,11 @@ async function atender(m: MensagemRecebida): Promise<void> {
   const uso = await consumir(recurso, usuario, null);
   if (!uso.permitido) {
     await enviarTexto(m.de, uso.mensagem ?? "Cheguei ao limite de hoje. Volto amanhã.");
+    return;
+  }
+
+  if (m.tipo === "text" && m.texto && pedidoDePainel(m.texto)) {
+    await enviarTexto(m.de, mensagemDoPainel(usuario, origem));
     return;
   }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { formatarReais } from "@/lib/dinheiro";
 import { NOME_DA_CATEGORIA } from "@/lib/luana/lancamentos";
 import type { UsoDeHoje } from "@/lib/limite";
@@ -19,29 +19,42 @@ const NOME_DO_TIPO: Record<string, string> = {
 };
 
 /** Resumo geral: meses, categorias abertas por item e documentos enviados. */
-export function Painel({ usuario, aoFechar }: { usuario: string; aoFechar: () => void }) {
+export function Painel({
+  acesso,
+  aoFechar,
+  controles,
+}: {
+  /** No site, o identificador do navegador; pelo WhatsApp, o código do link. */
+  acesso: { usuario: string } | { codigo: string };
+  /** Sem isto não há botão de voltar (painel aberto pelo link). */
+  aoFechar?: () => void;
+  /** Botões extras à direita do título. */
+  controles?: ReactNode;
+}) {
   const [dados, setDados] = useState<Dados | null>(null);
-  const [falhou, setFalhou] = useState(false);
+  const [falhou, setFalhou] = useState<false | "erro" | "link">(false);
+  const pedido = JSON.stringify(acesso);
+  const peloLink = "codigo" in acesso;
 
   useEffect(() => {
     let vivo = true;
-    fetch("/api/painel", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ usuario }),
-    })
+    fetch("/api/painel", { method: "POST", headers: { "Content-Type": "application/json" }, body: pedido })
       .then(async (r) => {
+        if (r.status === 401) {
+          if (vivo) setFalhou("link");
+          return;
+        }
         if (!r.ok) throw new Error(String(r.status));
         const corpo: Dados = await r.json();
         if (vivo) setDados(corpo);
       })
       .catch(() => {
-        if (vivo) setFalhou(true);
+        if (vivo) setFalhou("erro");
       });
     return () => {
       vivo = false;
     };
-  }, [usuario]);
+  }, [pedido]);
 
   const vazio =
     dados &&
@@ -54,20 +67,28 @@ export function Painel({ usuario, aoFechar }: { usuario: string; aoFechar: () =>
   return (
     <div className="mx-auto flex h-dvh w-full max-w-2xl flex-col">
       <header className="flex items-center gap-2 border-b border-line px-2 py-3">
-        <button
-          type="button"
-          onClick={aoFechar}
-          aria-label="Voltar para a conversa"
-          title="Voltar para a conversa"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-muted hover:bg-accent-soft hover:text-accent"
-        >
-          <IconeVoltar />
-        </button>
-        <h1 className="text-lg font-semibold">Resumo geral</h1>
+        {aoFechar && (
+          <button
+            type="button"
+            onClick={aoFechar}
+            aria-label="Voltar para a conversa"
+            title="Voltar para a conversa"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-muted hover:bg-accent-soft hover:text-accent"
+          >
+            <IconeVoltar />
+          </button>
+        )}
+        <h1 className={`min-w-0 flex-1 text-lg font-semibold ${aoFechar ? "" : "pl-2"}`}>Resumo geral</h1>
+        {controles}
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-        {falhou && <p className="text-muted">Não consegui carregar o resumo agora. Volte e tente de novo.</p>}
+        {falhou === "link" && <p className="text-muted">Este link venceu ou não é válido. Escreva <em>painel</em> para a Luana no WhatsApp que ela manda outro.</p>}
+        {falhou === "erro" && (
+          <p className="text-muted">
+            Não consegui carregar o resumo agora. {peloLink ? "Recarregue a página para tentar de novo." : "Volte e tente de novo."}
+          </p>
+        )}
         {!falhou && !dados && <p className="text-muted">Carregando…</p>}
         {vazio && (
           <p className="text-muted">
