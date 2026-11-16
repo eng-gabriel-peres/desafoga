@@ -1,6 +1,7 @@
 import { after, type NextRequest } from "next/server";
 import { consumir, type Recurso } from "@/lib/limite";
 import { mensagemDoPainel, origemDoSite, pedidoDePainel } from "@/lib/link";
+import { atenderNoDesafoga } from "@/lib/desafoga/servidor/whatsapp";
 import { receberArquivo, receberAudio, receberTexto } from "@/lib/luana/luana";
 import { enviarTexto } from "@/lib/twilio/enviar";
 import { baixarMidia } from "@/lib/twilio/midia";
@@ -74,6 +75,22 @@ async function atender(m: MensagemTwilio, origem: string): Promise<void> {
   const uso = await consumir(recurso, usuario, null);
   if (!uso.permitido) {
     await enviarTexto(m.de, uso.mensagem ?? "Cheguei ao limite de hoje. Volto amanhã.");
+    return;
+  }
+
+  // Número cadastrado no Desafoga: a Luana responde com os dados da pessoa.
+  const midia = m.midiaUrl;
+  const doDesafoga = await atenderNoDesafoga(
+    {
+      de: m.de,
+      tipo: m.tipo,
+      texto: m.texto,
+      baixar: midia ? () => baixarMidia(midia, m.midiaMime ?? "application/octet-stream") : undefined,
+    },
+    () => enviarTexto(m.de, "Recebi. Lendo, leva alguns segundos…"),
+  );
+  if (doDesafoga) {
+    for (const texto of doDesafoga) await enviarTexto(m.de, texto);
     return;
   }
 

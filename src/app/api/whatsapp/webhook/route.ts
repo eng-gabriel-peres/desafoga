@@ -6,6 +6,7 @@ import { mensagemDoPainel, origemDoSite, pedidoDePainel } from "@/lib/link";
 import { mascarar, registrar } from "@/lib/whatsapp/diagnostico";
 import { baixarMidia } from "@/lib/whatsapp/midia";
 import { assinaturaValida, extrairMensagens, type MensagemRecebida } from "@/lib/whatsapp/webhook";
+import { atenderNoDesafoga } from "@/lib/desafoga/servidor/whatsapp";
 
 /** A leitura de fatura por IA pode levar algumas dezenas de segundos. */
 export const maxDuration = 180;
@@ -79,6 +80,17 @@ async function atender(m: MensagemRecebida, origem: string): Promise<void> {
   const uso = await consumir(recurso, usuario, null);
   if (!uso.permitido) {
     await enviarTexto(m.de, uso.mensagem ?? "Cheguei ao limite de hoje. Volto amanhã.");
+    return;
+  }
+
+  // Número cadastrado no Desafoga: a Luana responde com os dados da pessoa.
+  const midia = m.midiaId;
+  const doDesafoga = await atenderNoDesafoga(
+    { de: m.de, tipo: m.tipo, texto: m.texto, baixar: midia ? () => baixarMidia(midia) : undefined },
+    () => enviarTexto(m.de, "Recebi. Lendo, leva alguns segundos…"),
+  );
+  if (doDesafoga) {
+    for (const texto of doDesafoga) await enviarTexto(m.de, texto);
     return;
   }
 
