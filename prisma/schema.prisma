@@ -72,6 +72,14 @@ model Pessoa {
   sessoes         Sessao[]
   orcamentos      Orcamento[]
   metas           Meta[]
+  rotina          Rotina?
+  checkins        CheckIn[]
+  contasFixas     ContaFixa[]
+  pagamentos      Pagamento[]
+  /// Quanto entra por mês (centavos); null se não informou.
+  rendaMensal     Int?
+  /// Dia do mês em que recebe.
+  diaDaRenda      Int?
 
   @@unique([espacoId, slug])
   @@map("pessoas")
@@ -324,4 +332,79 @@ model Uso {
 
   @@id([chave, dia])
   @@map("uso")
+}
+
+/// Horários dos check-ins e escolhas de privacidade da pessoa.
+model Rotina {
+  pessoaId           String  @id
+  pessoa             Pessoa  @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  /// "HH:MM".
+  horarioManha       String  @default("08:00")
+  horarioTarde       String  @default("12:00")
+  horarioNoite       String  @default("20:00")
+  manhaLigado        Boolean @default(true)
+  tardeLigado        Boolean @default(true)
+  noiteLigado        Boolean @default(true)
+  /// Quem acompanha recebe aviso quando a pessoa responde 1 ou 2.
+  avisarQuandoTriste Boolean @default(true)
+  /// Profissionais podem ver as contas fixas e a renda.
+  compartilharContas Boolean @default(true)
+
+  @@map("rotinas")
+}
+
+/// Como a pessoa está ao acordar, ao meio-dia e à noite (uma resposta por período por dia).
+model CheckIn {
+  id       String   @id @default(uuid())
+  pessoaId String
+  pessoa   Pessoa   @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  dia      DateTime @db.Date
+  /// manha, tarde ou noite.
+  periodo  String
+  /// 1 (muito triste) a 5 (muito feliz).
+  humor    Int
+  quando   DateTime @default(now())
+
+  @@unique([pessoaId, dia, periodo])
+  @@map("checkins")
+}
+
+/// O que a pessoa paga todo mês.
+model ContaFixa {
+  id               String   @id @default(uuid())
+  pessoaId         String
+  pessoa           Pessoa   @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  nome             String
+  /// moradia, luz, agua, internet, transporte, saude, educacao, assinatura, outra.
+  categoria        String   @default("outra")
+  /// Centavos; nas contas que mudam todo mês, a média.
+  valor            Int
+  /// Dia do mês (1 a 31).
+  vencimento       Int
+  variavel         Boolean  @default(false)
+  debitoAutomatico Boolean  @default(false)
+  lembrete         Boolean  @default(true)
+  criadaEm         DateTime @default(now())
+
+  @@index([pessoaId])
+  @@map("contas_fixas")
+}
+
+/// Pagamento do mês de uma conta fixa ou da parcela de uma dívida.
+model Pagamento {
+  id       String   @id @default(uuid())
+  pessoaId String
+  pessoa   Pessoa   @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  /// conta ou divida.
+  tipo     String
+  alvoId   String
+  /// "YYYY-MM".
+  mes      String
+  /// Centavos.
+  valor    Int
+  quando   DateTime @default(now())
+
+  @@unique([tipo, alvoId, mes])
+  @@index([pessoaId, mes])
+  @@map("pagamentos")
 }

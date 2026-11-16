@@ -41,6 +41,26 @@ export const ana: SementePessoa = {
     { categoria: "Comida pronta", limite: 25000 },
   ],
   // Metas do protótipo: uma em dia, uma no ritmo "por dia" e uma concluída.
+  renda: { valor: 280000, dia: 5 },
+  parcelasEmDia: true,
+  contas: [
+    { id: "ana-aluguel", nome: "Aluguel", categoria: "moradia", valor: 20000, vencimento: 10, variavel: false, debitoAutomatico: false, lembrete: true },
+    { id: "ana-luz", nome: "Conta de luz", categoria: "luz", valor: 9500, vencimento: 12, variavel: true, debitoAutomatico: false, lembrete: true, emAberto: true },
+    { id: "ana-agua", nome: "Conta de água", categoria: "agua", valor: 4800, vencimento: 18, variavel: true, debitoAutomatico: false, lembrete: true },
+    { id: "ana-internet", nome: "Internet", categoria: "internet", valor: 9990, vencimento: 15, variavel: false, debitoAutomatico: true, lembrete: true },
+    { id: "ana-celular", nome: "Celular", categoria: "internet", valor: 4990, vencimento: 22, variavel: false, debitoAutomatico: false, lembrete: true },
+    { id: "ana-onibus", nome: "Cartão de ônibus", categoria: "transporte", valor: 18000, vencimento: 5, variavel: false, debitoAutomatico: false, lembrete: true },
+    { id: "ana-streaming", nome: "Streaming de vídeo", categoria: "assinatura", valor: 3990, vencimento: 9, variavel: false, debitoAutomatico: true, lembrete: true },
+  ],
+  checkins: [
+    { diasAtras: 6, humores: [3, 3, 2] },
+    { diasAtras: 5, humores: [3, 4, 3] },
+    { diasAtras: 4, humores: [2, 2, 1] },
+    { diasAtras: 3, humores: [4, 4, 4] },
+    { diasAtras: 2, humores: [4, 5, 4] },
+    { diasAtras: 1, humores: [3, 3, 2] },
+  ],
+  checkinsDeHoje: { manha: 2 },
   metas: [
     {
       id: "ana-reserva",

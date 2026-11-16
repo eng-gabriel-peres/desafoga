@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import { montarContexto } from "@/lib/assistente/contexto";
-import { mensagemDeIncentivo, mensagemDeLembrete } from "@/lib/assistente/textos";
+import { avisoDeCheckInTriste, mensagemDeIncentivo, mensagemDeLembrete, NOME_DA_EMOCAO, perguntaDoCheckIn, respostaDoCheckIn } from "@/lib/assistente/textos";
 import { situacaoDaMeta } from "@/lib/finance";
 import type { Fatura } from "@/services/tipos";
 import { exigirAPropriaPessoa, exigirProfissionalDe, exigirSessao, exigirVer, SemPermissao } from "./acesso";
@@ -52,6 +52,9 @@ const emocao = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), 
 const necessidade = z.enum(["sim", "nao", "talvez"]);
 const categoria = z.enum(["Mercado", "Roupa", "Comida pronta", "Farmácia", "Casa", "Lazer", "Presente", "Outro"]);
 const texto = (max: number) => z.string().trim().min(1).max(max);
+const hora = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+const periodo = z.enum(["manha", "tarde", "noite"]);
+const tipoDePagamento = z.enum(["conta", "divida"]);
 
 const lancamento = z.object({
   id: z.string().max(80),
@@ -277,6 +280,93 @@ const ACOES = {
     const s = await exigirProfissionalDe(sessao, p);
     await repo.sugerirValor(p, valor, s.profissional);
   }),
+
+  // ----- rotina e check-ins -----
+  "rotina.obter": acao(z.tuple([id]), async ([p], { sessao }) => {
+    await exigirVer(sessao, p);
+    const [rotina, checkins] = await Promise.all([repo.rotina(p), repo.checkins(p)]);
+    return { rotina, checkins };
+  }),
+  "rotina.salvar": acao(
+    z.tuple([
+      id,
+      z.object({
+        horarios: z.object({ manha: hora.optional(), tarde: hora.optional(), noite: hora.optional() }).optional(),
+        ligados: z.object({ manha: z.boolean().optional(), tarde: z.boolean().optional(), noite: z.boolean().optional() }).optional(),
+        avisarQuandoTriste: z.boolean().optional(),
+        compartilharContas: z.boolean().optional(),
+      }),
+    ]),
+    async ([p, m], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      return repo.salvarRotina(p, m);
+    },
+  ),
+  // Responder pelo app: a pergunta, a resposta e o retorno da Luana ficam também no chat, como no WhatsApp.
+  "rotina.responder": acao(z.tuple([id, periodo, z.number().int().min(1).max(5)]), async ([p, periodoDoDia, n], { sessao }) => {
+    const s = exigirAPropriaPessoa(sessao, p);
+    const humor = n as 1 | 2 | 3 | 4 | 5;
+    const apelido = s.pessoa?.apelido ?? "";
+    const [rotina, memoria] = await Promise.all([repo.rotina(p), repo.memoria(p, false)]);
+    await repo.responderCheckIn(p, periodoDoDia, humor);
+    const resposta = respostaDoCheckIn(apelido, periodoDoDia, humor, memoria.caracteristicas, memoria.objetivo);
+    if (humor <= 2 && rotina.avisarQuandoTriste) await repo.avisar(p, "checkin", avisoDeCheckInTriste(apelido, periodoDoDia, humor));
+    await repo.guardarMensagens(p, "app", [
+      { de: "assistente", texto: perguntaDoCheckIn(apelido, periodoDoDia) },
+      { de: "pessoa", texto: NOME_DA_EMOCAO[humor] },
+      { de: "assistente", texto: resposta },
+    ]);
+    return { resposta };
+  }),
+
+  // ----- contas do mês -----
+  "contas.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
+    const s = await exigirVer(sessao, p);
+    // O profissional só vê as contas e a renda se a pessoa deixou (Rotina e privacidade).
+    if (s.pessoa?.id !== p && !(await repo.rotina(p)).compartilharContas) {
+      return { compartilhadas: false, contas: [], pagamentos: [], renda: null };
+    }
+    const [contas, pagamentos, renda] = await Promise.all([repo.contasFixas(p), repo.pagamentos(p), repo.renda(p)]);
+    return { compartilhadas: true, contas, pagamentos, renda };
+  }),
+  "contas.salvar": acao(
+    z.tuple([
+      id,
+      z.object({
+        id: id.optional(),
+        nome: texto(60),
+        categoria: z.enum(["moradia", "luz", "agua", "internet", "transporte", "saude", "educacao", "assinatura", "outra"]),
+        valor: centavos.min(1),
+        vencimento: z.number().int().min(1).max(31),
+        variavel: z.boolean(),
+        debitoAutomatico: z.boolean(),
+        lembrete: z.boolean(),
+      }),
+    ]),
+    async ([p, c], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      return repo.salvarConta(p, c);
+    },
+  ),
+  "contas.remover": acao(z.tuple([id, id]), async ([p, c], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await repo.removerConta(p, c);
+  }),
+  "contas.pagar": acao(z.tuple([id, tipoDePagamento, id, centavos.min(1).nullable()]), async ([p, tipo, alvo, valor], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await repo.pagar(p, tipo, alvo, valor);
+  }),
+  "contas.desfazer": acao(z.tuple([id, tipoDePagamento, id]), async ([p, tipo, alvo], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await repo.desfazerPagamento(p, tipo, alvo);
+  }),
+  "contas.salvarRenda": acao(
+    z.tuple([id, z.object({ valor: centavos.min(1), dia: z.number().int().min(1).max(31) }).nullable()]),
+    async ([p, r], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      await repo.salvarRenda(p, r);
+    },
+  ),
 
   // ----- orçamento e metas -----
   "orcamentos.listar": acao(z.tuple([id]), async ([p], { sessao }) => {

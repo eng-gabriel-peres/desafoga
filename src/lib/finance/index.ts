@@ -11,3 +11,5 @@ export * from "./fatura";
 export * from "./padroes";
 export * from "./orcamento";
 export * from "./metas";
+export * from "./contas";
+export * from "./checkins";

@@ -5,7 +5,13 @@
  */
 import type {
   Aviso,
+  CheckIn,
   Compra,
+  ContaFixa,
+  Emocao,
+  Pagamento,
+  Periodo,
+  Renda,
   Divida,
   Fatura,
   Mensagem,
@@ -16,7 +22,7 @@ import type {
   Plano,
   TipoAviso,
 } from "@/services/tipos";
-import { chaveDoDia, chaveDoMes, type Lancamento } from "@/lib/finance";
+import { chaveDoDia, chaveDoMes, compromissosDoMes, type Lancamento } from "@/lib/finance";
 
 interface Quando {
   dias: number;
@@ -55,6 +61,14 @@ export interface SementePessoa {
   conversa: SementeMensagem[];
   orcamentos?: Orcamento[];
   metas?: SementeMeta[];
+  /** Contas fixas; as que já venceram neste mês entram como pagas (menos as marcadas `emAberto`). */
+  contas?: (ContaFixa & { emAberto?: boolean })[];
+  renda?: Renda;
+  /** Humor de cada dia, do mais antigo (N dias atrás) até ontem: [manhã, meio-dia, noite]. Hoje: só os períodos de `checkinsDeHoje`. */
+  checkins?: { diasAtras: number; humores: [Emocao, Emocao, Emocao] }[];
+  checkinsDeHoje?: Partial<Record<Periodo, Emocao>>;
+  /** As parcelas do plano que venceram antes de hoje entram como pagas neste mês. */
+  parcelasEmDia?: boolean;
 }
 
 export interface DadosDaPessoa {
@@ -68,7 +82,13 @@ export interface DadosDaPessoa {
   conversa: Mensagem[];
   orcamentos: Orcamento[];
   metas: Meta[];
+  contas: ContaFixa[];
+  pagamentos: Pagamento[];
+  renda: Renda | null;
+  checkins: CheckIn[];
 }
+
+const HORA_DO_CHECKIN: Record<Periodo, string> = { manha: "08:05", tarde: "12:05", noite: "20:05" };
 
 /** Data real de "N dias atrás, às HH:MM". Nunca cai no futuro. */
 export function emData({ dias, hora }: Quando, agora: Date): Date {
@@ -119,6 +139,28 @@ export function materializar(s: SementePessoa, agora: Date): DadosDaPessoa {
     avisos: s.avisos.map(({ dias, hora, ...a }) => ({ ...a, pessoaId: s.persona.id, quando: iso({ dias, hora }) })),
     conversa: s.conversa.map(({ dias, hora, ...m }, i) => ({ ...m, id: `${s.persona.id}-m${i}`, quando: iso({ dias, hora }) })),
     orcamentos: s.orcamentos ?? [],
+    contas: (s.contas ?? []).map(({ emAberto, ...c }) => (void emAberto, c)),
+    pagamentos: [
+      ...(s.contas ?? [])
+        .filter((c) => !c.emAberto && !c.debitoAutomatico && c.vencimento < agora.getDate())
+        .map((c) => ({ tipo: "conta" as const, alvoId: c.id, mes: chaveDoMes(agora), valor: c.valor, quando: emData({ dias: 0, hora: "09:00" }, agora).toISOString() })),
+      ...(s.parcelasEmDia ? compromissosDoMes([], s.dividas, s.plano, [], agora) : [])
+        .filter((c) => c.dia < agora.getDate())
+        .map((c) => ({ tipo: "divida" as const, alvoId: c.id, mes: chaveDoMes(agora), valor: c.valor, quando: emData({ dias: 0, hora: "09:00" }, agora).toISOString() })),
+    ],
+    renda: s.renda ?? null,
+    checkins: [
+      ...(s.checkins ?? []).flatMap(({ diasAtras, humores }) =>
+        (["manha", "tarde", "noite"] as Periodo[]).map((periodo, i) => {
+          const quando = emData({ dias: diasAtras, hora: HORA_DO_CHECKIN[periodo] }, agora);
+          return { dia: chaveDoDia(quando), periodo, humor: humores[i], quando: quando.toISOString() };
+        }),
+      ),
+      ...Object.entries(s.checkinsDeHoje ?? {}).map(([periodo, humor]) => {
+        const quando = emData({ dias: 0, hora: HORA_DO_CHECKIN[periodo as Periodo] }, agora);
+        return { dia: chaveDoDia(agora), periodo: periodo as Periodo, humor: humor as Emocao, quando: quando.toISOString() };
+      }),
+    ],
     metas: (s.metas ?? []).map(({ prazoEmDias, criadaHaDias, depositos, ...m }) => {
       const dia = (n: number) => chaveDoDia(new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + n));
       return {

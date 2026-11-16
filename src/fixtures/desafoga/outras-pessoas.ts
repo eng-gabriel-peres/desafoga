@@ -50,6 +50,7 @@ export const carlos: SementePessoa = {
     },
   ],
   faturas: [],
+  contas: [{ id: "carlos-aluguel", nome: "Aluguel", categoria: "moradia", valor: 90000, vencimento: 5, variavel: false, debitoAutomatico: false, lembrete: true }],
   memoria: {
     ...memoriaVazia,
     caracteristicas: ["Prefere mensagens curtas", "Responde bem a elogios"],

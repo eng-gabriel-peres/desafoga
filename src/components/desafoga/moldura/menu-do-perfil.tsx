@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronsUpDown, LogOut, RotateCcw, UserRound, Users, type LucideIcon } from "lucide-react";
+import { AlarmClock, ChevronDown, ChevronsUpDown, LogOut, RotateCcw, UserRound, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useId, useRef, useState, type ReactNode } from "react";
@@ -107,9 +107,14 @@ export function MenuDoPerfil({
 
           <ul className="grid gap-0.5 pt-2">
             {area === "pessoa" ? (
-              <ItemLink href="/app/perfil" Icone={UserRound} aoEscolher={() => setAberto(false)}>
-                Meu perfil
-              </ItemLink>
+              <>
+                <ItemLink href="/app/perfil" Icone={UserRound} aoEscolher={() => setAberto(false)}>
+                  Meu perfil
+                </ItemLink>
+                <ItemLink href="/app/rotina" Icone={AlarmClock} aoEscolher={() => setAberto(false)}>
+                  Rotina e privacidade
+                </ItemLink>
+              </>
             ) : (
               <ItemLink href="/painel" Icone={Users} aoEscolher={() => setAberto(false)}>
                 Pacientes e convite

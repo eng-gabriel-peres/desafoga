@@ -19,6 +19,15 @@ import type {
   Persona,
   Plano,
   Profissional,
+  ContaEditada,
+  ContaFixa,
+  DadosDasContas,
+  DadosDaRotina,
+  Emocao,
+  Pagamento,
+  Periodo,
+  Renda,
+  Rotina,
 } from "./tipos";
 
 /** Quem está usando o app neste navegador. */
@@ -108,6 +117,26 @@ export interface MetasService {
   lembrar(pessoaId: string, metaId: string): Promise<{ whatsapp: boolean }>;
 }
 
+export interface RotinaService {
+  obter(pessoaId: string): Promise<DadosDaRotina>;
+  salvar(
+    pessoaId: string,
+    mudancas: { horarios?: Partial<Rotina["horarios"]>; ligados?: Partial<Rotina["ligados"]>; avisarQuandoTriste?: boolean; compartilharContas?: boolean },
+  ): Promise<Rotina>;
+  /** Responde o check-in de hoje naquele período; devolve o que a Luana responde. */
+  responder(pessoaId: string, periodo: Periodo, humor: Emocao): Promise<{ resposta: string }>;
+}
+
+export interface ContasService {
+  listar(pessoaId: string): Promise<DadosDasContas>;
+  salvar(pessoaId: string, conta: ContaEditada): Promise<ContaFixa>;
+  remover(pessoaId: string, contaId: string): Promise<void>;
+  /** Marca como paga neste mês. Sem valor, usa o da conta. */
+  pagar(pessoaId: string, tipo: Pagamento["tipo"], alvoId: string, valor: number | null): Promise<void>;
+  desfazer(pessoaId: string, tipo: Pagamento["tipo"], alvoId: string): Promise<void>;
+  salvarRenda(pessoaId: string, renda: Renda | null): Promise<void>;
+}
+
 export interface FaturasService {
   listar(pessoaId: string): Promise<Fatura[]>;
   /** Lê o arquivo enviado com a IA. Sem IA ou sem arquivo, lê um documento de exemplo. */
@@ -152,6 +181,8 @@ export interface Servicos {
   dividas: DividasService;
   orcamentos: OrcamentosService;
   metas: MetasService;
+  rotina: RotinaService;
+  contas: ContasService;
   faturas: FaturasService;
   memoria: MemoriaService;
   assistente: AssistenteService;

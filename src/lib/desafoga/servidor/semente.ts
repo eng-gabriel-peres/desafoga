@@ -44,6 +44,8 @@ export async function criarEspacoDemo(db: Transacao, agora = new Date()): Promis
         idade: d.persona.idade,
         cor: d.persona.cor,
         perfil: d.persona.perfil,
+        rendaMensal: d.renda?.valor ?? null,
+        diaDaRenda: d.renda?.dia ?? null,
         plano: { create: { valorMensal: d.plano.valorMensal, estrategia: d.plano.estrategia, valorSugerido: d.plano.valorSugerido } },
         memoria: {
           create: { caracteristicas: d.memoria.caracteristicas, tom: d.memoria.tom, objetivo: d.memoria.objetivo, evitar: d.memoria.evitar },
@@ -73,22 +75,44 @@ export async function criarEspacoDemo(db: Transacao, agora = new Date()): Promis
       compraNova.set(c.id, criada.id);
     }
 
-    await db.divida.createMany({
-      data: d.dividas.map((x) => ({
-        pessoaId: pessoa.id,
-        tipo: x.tipo,
-        nome: x.nome,
-        detalhe: x.detalhe,
-        saldo: x.saldo,
-        taxaMensal: x.taxaMensal,
-        parcelaMinima: x.parcelaMinima,
-        vencimento: x.vencimento,
-      })),
-    });
+    // Dívidas uma a uma: os pagamentos do mês apontam para o id novo.
+    const dividaNova = new Map<string, string>();
+    for (const x of d.dividas) {
+      const criada = await db.divida.create({
+        data: {
+          pessoaId: pessoa.id,
+          tipo: x.tipo,
+          nome: x.nome,
+          detalhe: x.detalhe,
+          saldo: x.saldo,
+          taxaMensal: x.taxaMensal,
+          parcelaMinima: x.parcelaMinima,
+          vencimento: x.vencimento,
+        },
+      });
+      dividaNova.set(x.id, criada.id);
+    }
 
     if (d.orcamentos.length) {
       await db.orcamento.createMany({ data: d.orcamentos.map((o) => ({ pessoaId: pessoa.id, categoria: o.categoria, limite: o.limite })) });
     }
+    const contaNova = new Map<string, string>();
+    for (const c of d.contas) {
+      const { id, ...dados } = c;
+      contaNova.set(id, (await db.contaFixa.create({ data: { pessoaId: pessoa.id, ...dados } })).id);
+    }
+    if (d.pagamentos.length) {
+      await db.pagamento.createMany({
+        data: d.pagamentos.map((p) => ({ pessoaId: pessoa.id, tipo: p.tipo, alvoId: (p.tipo === "conta" ? contaNova : dividaNova).get(p.alvoId) ?? p.alvoId, mes: p.mes, valor: p.valor, quando: new Date(p.quando) })),
+      });
+    }
+    if (d.checkins.length) {
+      await db.checkIn.createMany({
+        data: d.checkins.map((c) => ({ pessoaId: pessoa.id, dia: new Date(`${c.dia}T00:00:00Z`), periodo: c.periodo, humor: c.humor, quando: new Date(c.quando) })),
+        skipDuplicates: true,
+      });
+    }
+
     for (const m of d.metas) {
       await db.meta.create({
         data: {

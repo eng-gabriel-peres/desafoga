@@ -1,6 +1,13 @@
 import type {
   Categoria,
+  CategoriaDaConta,
+  CheckIn,
   Compra,
+  ContaFixa,
+  Pagamento,
+  Periodo,
+  Renda,
+  Rotina,
   Divida,
   Emocao,
   Estrategia,
@@ -12,6 +19,27 @@ import type {
 } from "@/lib/finance";
 
 export type { Categoria, Compra, Deposito, Divida, Emocao, Estrategia, Fatura, Meta, Necessidade, Orcamento };
+export type { CategoriaDaConta, CheckIn, ContaFixa, Pagamento, Periodo, Renda, Rotina };
+
+/** Conta fixa nova (sem id) ou editada. */
+export type ContaEditada = Omit<ContaFixa, "id"> & { id?: string };
+
+/**
+ * Contas do mês de uma pessoa. Para o profissional, `compartilhadas` é false
+ * quando a pessoa não deixou ver: as listas vêm vazias.
+ */
+export interface DadosDasContas {
+  compartilhadas: boolean;
+  contas: ContaFixa[];
+  pagamentos: Pagamento[];
+  renda: Renda | null;
+}
+
+export interface DadosDaRotina {
+  rotina: Rotina;
+  /** Os check-ins das últimas duas semanas. */
+  checkins: CheckIn[];
+}
 
 /** Meta nova ou ajustada pela pessoa (os depósitos vêm de "guardar"). */
 export type MetaEditada = Omit<Meta, "id" | "criadaEm" | "depositos"> & { id?: string };
@@ -35,7 +63,7 @@ export interface Profissional {
   cor: string;
 }
 
-export type TipoAviso = "gasto-alto" | "nota-baixa" | "sofrimento" | "sugestao" | "meta";
+export type TipoAviso = "gasto-alto" | "nota-baixa" | "sofrimento" | "sugestao" | "meta" | "checkin";
 
 export interface Aviso {
   id: string;

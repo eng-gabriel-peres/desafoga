@@ -1,4 +1,4 @@
-import { HeartHandshake, Lightbulb, Target, TriangleAlert, Wallet, type LucideIcon } from "lucide-react";
+import { Frown, HeartHandshake, Lightbulb, Target, TriangleAlert, Wallet, type LucideIcon } from "lucide-react";
 import { quando } from "@/lib/formatar";
 import type { Aviso, TipoAviso } from "@/services";
 
@@ -8,6 +8,7 @@ const ICONE: Record<TipoAviso, [LucideIcon, string]> = {
   sofrimento: [HeartHandshake, "text-bad"],
   sugestao: [Lightbulb, "text-primary"],
   meta: [Target, "text-good"],
+  checkin: [Frown, "text-maybe"],
 };
 
 export function ListaDeAvisos({ avisos, agora, vazio = "Nenhum aviso ainda." }: { avisos: Aviso[]; agora: Date; vazio?: string }) {

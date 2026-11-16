@@ -3,6 +3,7 @@
 import { useAgora } from "@/hooks/use-agora";
 import { useConsulta } from "@/hooks/use-consulta";
 import { usePessoa } from "@/hooks/use-pessoa";
+import { GradeDeHumor } from "../rotina";
 import {
   divisaoPorNecessidade,
   emocaoDaNota,
@@ -87,6 +88,9 @@ export function TelaResumo({ pessoaId }: { pessoaId: string }) {
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           <Painel titulo="Humor e gasto por dia">
             <FaixaDaSemana dias={semana.dias} agora={agora} sujeito={sujeito} />
+          </Painel>
+          <Painel titulo="Humor ao longo do dia">
+            <GradeDeHumor checkins={dados.rotina.checkins} rotina={dados.rotina.rotina} agora={agora} />
           </Painel>
           <Painel titulo="Para onde foi o dinheiro da semana">
             <Divisao {...divisaoPorNecessidade(semana.compras)} />

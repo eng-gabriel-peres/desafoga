@@ -138,3 +138,62 @@ export interface Deposito {
   quando: string;
   via: "app" | "whatsapp";
 }
+
+/** Categorias das contas fixas, como no protótipo. */
+export type CategoriaDaConta = "moradia" | "luz" | "agua" | "internet" | "transporte" | "saude" | "educacao" | "assinatura" | "outra";
+
+/** O que a pessoa paga todo mês: aluguel, luz, internet… */
+export interface ContaFixa {
+  id: string;
+  nome: string;
+  categoria: CategoriaDaConta;
+  /** Centavos. Nas contas que mudam todo mês (luz, água), é a média. */
+  valor: number;
+  /** Dia do mês em que vence (1 a 31; em meses mais curtos, o último dia). */
+  vencimento: number;
+  /** O valor muda todo mês. */
+  variavel: boolean;
+  debitoAutomatico: boolean;
+  /** Lembrar no WhatsApp um dia antes. */
+  lembrete: boolean;
+}
+
+/** Pagamento do mês de uma conta fixa ou da parcela de uma dívida. */
+export interface Pagamento {
+  tipo: "conta" | "divida";
+  /** Id da conta ou da dívida. */
+  alvoId: string;
+  /** "YYYY-MM". */
+  mes: string;
+  /** Centavos pagos. */
+  valor: number;
+  quando: string;
+}
+
+/** Quanto entra por mês e em que dia. */
+export interface Renda {
+  valor: number;
+  dia: number;
+}
+
+/** Os três check-ins do dia. */
+export type Periodo = "manha" | "tarde" | "noite";
+
+export interface CheckIn {
+  /** "YYYY-MM-DD". */
+  dia: string;
+  periodo: Periodo;
+  humor: Emocao;
+  quando: string;
+}
+
+/** Horários dos check-ins e escolhas de privacidade da pessoa. */
+export interface Rotina {
+  /** "HH:MM" de cada check-in. */
+  horarios: Record<Periodo, string>;
+  ligados: Record<Periodo, boolean>;
+  /** Quem acompanha recebe aviso quando a pessoa responde 1 ou 2. */
+  avisarQuandoTriste: boolean;
+  /** Profissionais podem ver as contas fixas e a renda. */
+  compartilharContas: boolean;
+}

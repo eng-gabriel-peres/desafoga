@@ -1,5 +1,5 @@
 import { formatarReais } from "@/lib/dinheiro";
-import type { Emocao, Estrategia, Frequencia, Meta, Necessidade, SituacaoDaMeta, SituacaoDoOrcamento } from "@/lib/finance";
+import type { Emocao, Estrategia, Frequencia, Meta, Necessidade, Periodo, SituacaoDaMeta, SituacaoDoOrcamento } from "@/lib/finance";
 import type { Tom } from "@/services/tipos";
 
 export const reais = formatarReais;
@@ -135,4 +135,62 @@ export function fatoDaMeta(meta: Meta, s: SituacaoDaMeta): string {
   if (s.concluida) return `${base}, concluída`;
   const fim = s.previsao ? `, termina em ${dataLonga(s.previsao.data)}` : "";
   return `${base}, plano ${reais(meta.valorPorPeriodo)} ${NOME_DA_FREQUENCIA[meta.frequencia].por}, ${rotuloDoRitmo(s).toLowerCase()}${fim}`;
+}
+
+// ---------- check-ins da rotina ----------
+
+/** A pergunta de cada check-in, como a Luana manda no horário da rotina. */
+export function perguntaDoCheckIn(apelido: string, periodo: Periodo): string {
+  if (periodo === "manha") return `Bom dia, ${apelido}! Como você acordou hoje?`;
+  if (periodo === "tarde") return `Oi, ${apelido}! Como está sendo o seu dia até agora?`;
+  return `Boa noite, ${apelido}. Como você está se sentindo agora à noite?`;
+}
+
+/** Resposta ao check-in, adaptada ao humor e ao que os profissionais anotaram. */
+export function respostaDoCheckIn(apelido: string, periodo: Periodo, humor: Emocao, caracteristicas: string[], objetivo: string): string {
+  if (humor <= 2) {
+    const base =
+      periodo === "manha"
+        ? `Obrigada por contar, ${apelido}. Começar o dia assim pesa. Vá no seu ritmo hoje.`
+        : periodo === "tarde"
+          ? "Sinto que o dia está difícil. Quer me contar o que aconteceu?"
+          : "Noites assim cansam. Que bom que você me contou.";
+    const compraTriste = caracteristicas.includes("Compra quando está triste") || (periodo === "noite" && caracteristicas.includes("Compra à noite"));
+    return compraTriste
+      ? `${base} Nos dias difíceis a vontade de comprar costuma aparecer ${periodo === "noite" ? "agora à noite" : "mais tarde"}. Se aparecer, coloque no carrinho e decida amanhã. Combinado?`
+      : `${base} Se bater vontade de comprar algo, me chama antes.`;
+  }
+  if (humor === 3) {
+    return periodo === "manha"
+      ? `Um dia de cada vez, ${apelido}. Estou por aqui se precisar.`
+      : periodo === "tarde"
+        ? "Obrigada pela atualização. Seguimos juntos."
+        : "Obrigada por contar. Descanse bem hoje.";
+  }
+  const base = periodo === "manha" ? `Que bom, ${apelido}! Aproveite essa energia.` : periodo === "tarde" ? "Que ótimo ouvir isso!" : "Que bom terminar o dia assim!";
+  return [
+    base,
+    caracteristicas.includes("Responde bem a elogios") ? "Você está cuidando bem de si." : "",
+    objetivo ? `Cada dia assim te deixa mais perto de: ${objetivo.charAt(0).toLowerCase()}${objetivo.slice(1)}.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+const NOME_DO_PERIODO_NA_FRASE: Record<Periodo, string> = { manha: "ao acordar", tarde: "do meio-dia", noite: "da noite" };
+
+export const avisoDeCheckInTriste = (apelido: string, periodo: Periodo, humor: Emocao) =>
+  `${apelido} respondeu "${NOME_DA_EMOCAO[humor].toLowerCase()}" no check-in ${NOME_DO_PERIODO_NA_FRASE[periodo]}.`;
+
+// ---------- contas do mês ----------
+
+/** "Anotado: Conta de luz paga: R$ 87,50. Falta pagar R$ 300 este mês." */
+export function respostaDoPagamento(nome: string, valor: number | null, falta: number, variavelSemValor: boolean, apelidoDaConta: string): string {
+  return [
+    `Anotado: ${nome} paga${valor ? `, ${reais(valor)}` : ""}.`,
+    falta > 0 ? `Falta pagar ${reaisCurto(falta)} este mês.` : "Tudo pago neste mês. Parabéns!",
+    variavelSemValor ? `Se quiser registrar o valor exato, me escreva, por exemplo: paguei ${apelidoDaConta} 87,50` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }

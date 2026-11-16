@@ -5,10 +5,11 @@
  */
 import type { ContextoAssistente, EstadoConversa } from "@/lib/assistente/conversa";
 import { ESTADO_INICIAL } from "@/lib/assistente/conversa";
-import { chaveDoDia, situacaoDaMeta, type Categoria, type Emocao, type Estrategia, type Necessidade, type TipoDivida, type TipoLancamento } from "@/lib/finance";
+import { chaveDoDia, ROTINA_PADRAO, situacaoDaMeta, type CategoriaDaConta, type CheckIn, type ContaFixa, type Pagamento, type Periodo, type Renda, type Rotina, type Categoria, type Emocao, type Estrategia, type Necessidade, type TipoDivida, type TipoLancamento } from "@/lib/finance";
 import { avisoDeMetaConcluida } from "@/lib/assistente/textos";
 import { Prisma } from "@/generated/prisma/client";
 import type {
+  ContaEditada,
   Anotacao,
   Aviso,
   Classificacao,
@@ -28,6 +29,7 @@ import type {
   Tom,
 } from "@/services/tipos";
 import { avisoDeCompraAlta, avisoDeSugestao, mensagemDeSugestao, nomeDeCompraDaFatura } from "../regras";
+import { hojeEmBrasilia } from "@/lib/luana/lancamentos";
 import { prisma } from "./prisma";
 
 export type Canal = "app" | "whatsapp";
@@ -288,6 +290,7 @@ export async function salvarDivida(pessoaId: string, d: Omit<Divida, "id"> & { i
 
 export async function removerDivida(pessoaId: string, dividaId: string): Promise<void> {
   await prisma().divida.deleteMany({ where: { id: dividaId, pessoaId } });
+  await prisma().pagamento.deleteMany({ where: { pessoaId, tipo: "divida", alvoId: dividaId } });
 }
 
 /** Define o limite do mês de uma categoria; limite 0 tira o orçamento dela. */
@@ -485,4 +488,147 @@ export async function conversaRecente(pessoaId: string, canal: Canal, quantas = 
     .reverse()
     .map((m) => `${m.de === "pessoa" ? "Pessoa" : "Luana"}: ${m.texto.slice(0, 400)}`)
     .join("\n");
+}
+
+// ---------- rotina e check-ins ----------
+
+export async function rotina(pessoaId: string): Promise<Rotina> {
+  const r = await prisma().rotina.findUnique({ where: { pessoaId } });
+  if (!r) return ROTINA_PADRAO;
+  return {
+    horarios: { manha: r.horarioManha, tarde: r.horarioTarde, noite: r.horarioNoite },
+    ligados: { manha: r.manhaLigado, tarde: r.tardeLigado, noite: r.noiteLigado },
+    avisarQuandoTriste: r.avisarQuandoTriste,
+    compartilharContas: r.compartilharContas,
+  };
+}
+
+export interface MudancasNaRotina {
+  horarios?: Partial<Record<Periodo, string>>;
+  ligados?: Partial<Record<Periodo, boolean>>;
+  avisarQuandoTriste?: boolean;
+  compartilharContas?: boolean;
+}
+
+export async function salvarRotina(pessoaId: string, m: MudancasNaRotina): Promise<Rotina> {
+  const dados = {
+    ...(m.horarios?.manha !== undefined ? { horarioManha: m.horarios.manha } : {}),
+    ...(m.horarios?.tarde !== undefined ? { horarioTarde: m.horarios.tarde } : {}),
+    ...(m.horarios?.noite !== undefined ? { horarioNoite: m.horarios.noite } : {}),
+    ...(m.ligados?.manha !== undefined ? { manhaLigado: m.ligados.manha } : {}),
+    ...(m.ligados?.tarde !== undefined ? { tardeLigado: m.ligados.tarde } : {}),
+    ...(m.ligados?.noite !== undefined ? { noiteLigado: m.ligados.noite } : {}),
+    ...(m.avisarQuandoTriste !== undefined ? { avisarQuandoTriste: m.avisarQuandoTriste } : {}),
+    ...(m.compartilharContas !== undefined ? { compartilharContas: m.compartilharContas } : {}),
+  };
+  await prisma().rotina.upsert({ where: { pessoaId }, create: { pessoaId, ...dados }, update: dados });
+  return rotina(pessoaId);
+}
+
+const dataDoDia = (dia: string) => new Date(`${dia}T00:00:00Z`);
+const diaDaData = (d: Date) => d.toISOString().slice(0, 10);
+
+export async function checkins(pessoaId: string, dias = 14, agora = new Date()): Promise<CheckIn[]> {
+  const desde = new Date(dataDoDia(hojeEmBrasilia(agora)).getTime() - dias * 86_400_000);
+  const lista = await prisma().checkIn.findMany({ where: { pessoaId, dia: { gte: desde } }, orderBy: { quando: "asc" } });
+  return lista.map((c) => ({ dia: diaDaData(c.dia), periodo: c.periodo as Periodo, humor: c.humor as Emocao, quando: iso(c.quando) }));
+}
+
+/** Grava (ou troca) a resposta do check-in de hoje naquele período. */
+export async function responderCheckIn(pessoaId: string, periodo: Periodo, humor: Emocao, agora = new Date()): Promise<CheckIn> {
+  const dia = hojeEmBrasilia(agora);
+  await prisma().checkIn.upsert({
+    where: { pessoaId_dia_periodo: { pessoaId, dia: dataDoDia(dia), periodo } },
+    create: { pessoaId, dia: dataDoDia(dia), periodo, humor, quando: agora },
+    update: { humor, quando: agora },
+  });
+  return { dia, periodo, humor, quando: iso(agora) };
+}
+
+// ---------- contas fixas, pagamentos e renda ----------
+
+function paraConta(c: Prisma.ContaFixaModel): ContaFixa {
+  return {
+    id: c.id,
+    nome: c.nome,
+    categoria: c.categoria as CategoriaDaConta,
+    valor: c.valor,
+    vencimento: c.vencimento,
+    variavel: c.variavel,
+    debitoAutomatico: c.debitoAutomatico,
+    lembrete: c.lembrete,
+  };
+}
+
+export async function contasFixas(pessoaId: string): Promise<ContaFixa[]> {
+  return (await prisma().contaFixa.findMany({ where: { pessoaId }, orderBy: [{ vencimento: "asc" }, { criadaEm: "asc" }] })).map(paraConta);
+}
+
+/** Pagamentos dos últimos meses (o mês atual é o que importa na tela). */
+export async function pagamentos(pessoaId: string, agora = new Date()): Promise<Pagamento[]> {
+  const [a, m] = hojeEmBrasilia(agora).split("-").map(Number);
+  const anterior = m === 1 ? `${a - 1}-12` : `${a}-${String(m - 1).padStart(2, "0")}`;
+  const lista = await prisma().pagamento.findMany({ where: { pessoaId, mes: { gte: anterior } }, orderBy: { quando: "asc" } });
+  return lista.map((p) => ({ tipo: p.tipo as Pagamento["tipo"], alvoId: p.alvoId, mes: p.mes, valor: p.valor, quando: iso(p.quando) }));
+}
+
+export async function renda(pessoaId: string): Promise<Renda | null> {
+  const p = await prisma().pessoa.findUnique({ where: { id: pessoaId }, select: { rendaMensal: true, diaDaRenda: true } });
+  return p?.rendaMensal ? { valor: p.rendaMensal, dia: p.diaDaRenda ?? 5 } : null;
+}
+
+export async function salvarRenda(pessoaId: string, r: Renda | null): Promise<void> {
+  await prisma().pessoa.update({ where: { id: pessoaId }, data: { rendaMensal: r?.valor || null, diaDaRenda: r?.dia ?? null } });
+}
+
+export async function salvarConta(pessoaId: string, c: ContaEditada): Promise<ContaFixa> {
+  const dados = {
+    nome: c.nome,
+    categoria: c.categoria,
+    valor: c.valor,
+    vencimento: c.vencimento,
+    variavel: c.variavel,
+    debitoAutomatico: c.debitoAutomatico,
+    lembrete: c.lembrete,
+  };
+  if (c.id) {
+    const r = await prisma().contaFixa.updateMany({ where: { id: c.id, pessoaId }, data: dados });
+    if (!r.count) throw new NaoEncontrado("Conta não encontrada.");
+    return paraConta(await prisma().contaFixa.findUniqueOrThrow({ where: { id: c.id } }));
+  }
+  return paraConta(await prisma().contaFixa.create({ data: { pessoaId, ...dados } }));
+}
+
+export async function removerConta(pessoaId: string, contaId: string): Promise<void> {
+  await prisma().contaFixa.deleteMany({ where: { id: contaId, pessoaId } });
+  await prisma().pagamento.deleteMany({ where: { pessoaId, tipo: "conta", alvoId: contaId } });
+}
+
+/** A conta ou a dívida é desta pessoa? Devolve o valor previsto (conta) ou null (dívida). */
+async function alvoDaPessoa(pessoaId: string, tipo: Pagamento["tipo"], alvoId: string): Promise<{ nome: string; valor: number | null }> {
+  if (tipo === "conta") {
+    const c = await prisma().contaFixa.findFirst({ where: { id: alvoId, pessoaId } });
+    if (!c) throw new NaoEncontrado("Conta não encontrada.");
+    return { nome: c.nome, valor: c.valor };
+  }
+  const d = await prisma().divida.findFirst({ where: { id: alvoId, pessoaId } });
+  if (!d) throw new NaoEncontrado("Dívida não encontrada.");
+  return { nome: d.nome, valor: null };
+}
+
+/** Marca como paga no mês (de Brasília). Sem valor, usa o valor da conta. */
+export async function pagar(pessoaId: string, tipo: Pagamento["tipo"], alvoId: string, valor: number | null, agora = new Date()): Promise<void> {
+  const alvo = await alvoDaPessoa(pessoaId, tipo, alvoId);
+  const v = valor ?? alvo.valor;
+  if (!v) throw new NaoEncontrado("Informe quanto foi pago.");
+  const mes = hojeEmBrasilia(agora).slice(0, 7);
+  await prisma().pagamento.upsert({
+    where: { tipo_alvoId_mes: { tipo, alvoId, mes } },
+    create: { pessoaId, tipo, alvoId, mes, valor: v, quando: agora },
+    update: { valor: v, quando: agora },
+  });
+}
+
+export async function desfazerPagamento(pessoaId: string, tipo: Pagamento["tipo"], alvoId: string, agora = new Date()): Promise<void> {
+  await prisma().pagamento.deleteMany({ where: { pessoaId, tipo, alvoId, mes: hojeEmBrasilia(agora).slice(0, 7) } });
 }

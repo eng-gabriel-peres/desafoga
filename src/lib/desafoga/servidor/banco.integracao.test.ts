@@ -115,6 +115,57 @@ describe.runIf(url)("Desafoga no Postgres", () => {
     await expect(chamar("metas.guardar", [outra.pessoa!.id, reserva.id, { valor: 100, descricao: "" }], outra)).rejects.toThrow("Meta não encontrada");
   });
 
+  it("check-in triste avisa quem acompanha e entra no chat; com o aviso desligado, não avisa", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    const { dados } = await chamar("rotina.responder", [p, "tarde", 1], ana);
+    expect((dados as { resposta: string }).resposta).toContain("Quer me contar o que aconteceu?");
+    const { dados: rotina } = await chamar("rotina.obter", [p], ana);
+    expect((rotina as { checkins: { periodo: string; humor: number }[] }).checkins.at(-1)).toMatchObject({ periodo: "tarde", humor: 1 });
+    const { dados: conversa } = await chamar("assistente.conversa", [p], ana);
+    expect((conversa as { de: string; texto: string }[]).slice(-2).map((m) => m.de)).toEqual(["pessoa", "assistente"]);
+
+    const paula = await entrar("paula", ana);
+    const { dados: avisos } = await chamar("avisos.daPessoa", [p], paula);
+    expect((avisos as { tipo: string; texto: string }[])[0]).toMatchObject({ tipo: "checkin", texto: 'Ana respondeu "muito triste" no check-in do meio-dia.' });
+
+    const ana2 = await entrar("ana", paula);
+    await chamar("rotina.salvar", [p, { avisarQuandoTriste: false }], ana2);
+    await chamar("rotina.responder", [p, "noite", 2], ana2);
+    const { dados: depois } = await chamar("avisos.daPessoa", [p], await entrar("paula", ana2));
+    expect((depois as { tipo: string }[]).filter((a) => a.tipo === "checkin")).toHaveLength(1);
+    await expect(chamar("rotina.responder", [p, "manha", 3], await entrar("paula", ana2))).rejects.toThrow();
+  });
+
+  it("contas: a dona marca paga; a profissional só vê se a pessoa compartilhar", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    type D = { compartilhadas: boolean; contas: { id: string; nome: string }[]; pagamentos: { alvoId: string; valor: number }[]; renda: { valor: number } | null };
+    const { dados } = await chamar("contas.listar", [p], ana);
+    const contas = dados as D;
+    expect(contas.contas).toHaveLength(7);
+    expect(contas.renda).toEqual({ valor: 280000, dia: 5 });
+    const luz = contas.contas.find((c) => c.nome === "Conta de luz")!;
+    expect(contas.pagamentos.some((x) => x.alvoId === luz.id)).toBe(false);
+
+    await chamar("contas.pagar", [p, "conta", luz.id, 8750], ana);
+    const { dados: pago } = await chamar("contas.listar", [p], ana);
+    expect((pago as D).pagamentos.find((x) => x.alvoId === luz.id)?.valor).toBe(8750);
+
+    const paula = await entrar("paula", ana);
+    expect(((await chamar("contas.listar", [p], paula)).dados as D).contas).toHaveLength(7);
+    await expect(chamar("contas.pagar", [p, "conta", luz.id, null], paula)).rejects.toThrow();
+
+    const ana2 = await entrar("ana", paula);
+    await chamar("rotina.salvar", [p, { compartilharContas: false }], ana2);
+    const fechadas = (await chamar("contas.listar", [p], await entrar("paula", ana2))).dados as D;
+    expect(fechadas).toEqual({ compartilhadas: false, contas: [], pagamentos: [], renda: null });
+
+    // Conta de outra pessoa não pode ser paga por esta.
+    const rafael = await entrar("rafael", ana2);
+    await expect(chamar("contas.pagar", [rafael.pessoa!.id, "conta", luz.id, null], rafael)).rejects.toThrow("não encontrada");
+  });
+
   it("cada visita da demo é isolada: a Paula de uma não vê a Ana da outra", async () => {
     const ana1 = await entrar("ana");
     const paula2 = await entrar("paula");

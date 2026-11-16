@@ -7,6 +7,8 @@ import { usePessoa } from "@/hooks/use-pessoa";
 import {
   chaveDoDia,
   comprasDoDia,
+  compromissosDoMes,
+  totaisDoMes,
   encargosDasFaturas,
   jurosMensaisTotais,
   notaMedia,
@@ -19,6 +21,8 @@ import { dataPorExtenso, reais } from "@/lib/formatar";
 import { FaixaDaSemana, LinhaDeCompra, ListaDePadroes, NotaDoDia } from "../emocao";
 import { MetasEmMiniatura } from "../metas/miniaturas";
 import { ListaDoOrcamento } from "../orcamento";
+import { ProximasContas } from "../contas";
+import { CartaoDeCheckIns } from "../rotina";
 import { useMinhaPessoaId } from "../sessao";
 import { Carregando, Painel, Sub, Vazio } from "../ui/blocos";
 import { useAbrirRegistro } from "../registro";
@@ -31,7 +35,10 @@ export function TelaHoje() {
   const agora = useAgora();
   if (!dados || !agora) return <Carregando />;
 
-  const { persona, compras, dividas, faturas, orcamentos, metas } = dados;
+  const { persona, compras, dividas, faturas, orcamentos, metas, plano, contas, rotina } = dados;
+  const compromissos = compromissosDoMes(contas.contas, dividas, plano, contas.pagamentos, agora);
+  const checkIns = <CartaoDeCheckIns pessoaId={pessoaId} apelido={persona.apelido} rotina={rotina.rotina} checkins={rotina.checkins} agora={agora} />;
+  const proximasContas = <ProximasContas compromissos={compromissos} totais={totaisDoMes(compromissos, contas.renda)} agora={agora} />;
   const doMes = orcamentoDoMes(orcamentos, compras, agora);
   const deHoje = comprasDoDia(compras, chaveDoDia(agora)).reverse();
   const semana = resumoDaSemana(compras, agora);
@@ -102,6 +109,8 @@ export function TelaHoje() {
           <NotaDoDia nota={notaMedia(deHoje)} quantidade={deHoje.length} sujeito="você estava" />
           <div className="grid gap-4 desk:hidden">
             {registrar}
+            {checkIns}
+            {proximasContas}
             {painelOrcamento}
             {atalhoMetas}
             {atalhoDividas}
@@ -117,6 +126,8 @@ export function TelaHoje() {
             <Sub className="mb-3.5">Leva menos de 30 segundos. Também dá para mandar para a Luana pelo WhatsApp.</Sub>
             {registrar}
           </Painel>
+          <div className="hidden desk:block">{checkIns}</div>
+          <div className="hidden desk:block">{proximasContas}</div>
           <div className="hidden desk:block">{painelOrcamento}</div>
           <div className="hidden desk:block">{atalhoMetas}</div>
           <div className="hidden desk:block">{atalhoDividas}</div>

@@ -1,4 +1,4 @@
-import { Brain, ChartPie, ClipboardList, House, MessageCircle, Plus, Target, Users, Wallet, type LucideIcon } from "lucide-react";
+import { AlarmClock, Brain, CalendarCheck, ChartPie, ClipboardList, House, MessageCircle, Plus, Target, Users, Wallet, type LucideIcon } from "lucide-react";
 
 /**
  * O Desafoga tem duas áreas separadas:
@@ -29,7 +29,9 @@ export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
       { href: "/app/assistente", rotulo: "Assistente", Icone: MessageCircle, ativo: (c) => c === "/app/assistente", destaque: true },
       { href: "/app/dividas", rotulo: "Dívidas", Icone: Wallet, ativo: (c) => c.startsWith("/app/dividas") },
       { href: "/app/metas", rotulo: "Metas", Icone: Target, ativo: (c) => c.startsWith("/app/metas") },
+      { href: "/app/contas", rotulo: "Contas", Icone: CalendarCheck, ativo: (c) => c === "/app/contas", soDesktop: true },
       { href: "/app/orcamento", rotulo: "Orçamento", Icone: ChartPie, ativo: (c) => c === "/app/orcamento", soDesktop: true },
+      { href: "/app/rotina", rotulo: "Rotina", Icone: AlarmClock, ativo: (c) => c === "/app/rotina", soDesktop: true },
     ];
   }
   const base = `/painel/${pacienteId}`;
@@ -37,6 +39,7 @@ export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
     { href: "/painel", rotulo: "Pacientes", Icone: Users, ativo: (c) => c === "/painel" },
     { href: base, rotulo: "Resumo", Icone: ClipboardList, ativo: (c) => /^\/painel\/[^/]+$/.test(c) },
     { href: `${base}/dividas`, rotulo: "Dívidas", Icone: Wallet, ativo: (c) => /^\/painel\/[^/]+\/dividas$/.test(c) },
+    { href: `${base}/contas`, rotulo: "Contas", Icone: CalendarCheck, ativo: (c) => /^\/painel\/[^/]+\/contas$/.test(c) },
     { href: `${base}/metas`, rotulo: "Metas", Icone: Target, ativo: (c) => /^\/painel\/[^/]+\/metas/.test(c) },
     { href: `${base}/memoria`, rotulo: "Memória", Icone: Brain, ativo: (c) => c.endsWith("/memoria") },
   ];
@@ -52,6 +55,9 @@ export function tituloDaRota(caminho: string): Titulo {
   if (caminho === "/app/registrar") return { titulo: "Registrar compra", subtitulo: "Leva menos de 30 segundos" };
   if (caminho === "/app/assistente") return { titulo: "Assistente", subtitulo: "Converse com a Luana como no WhatsApp" };
   if (caminho === "/app/dividas/fatura") return { titulo: "Enviar fatura", subtitulo: "A Luana lê os lançamentos e separa juros e tarifas" };
+  if (caminho === "/app/contas") return { titulo: "Contas do mês", subtitulo: "O que você paga todo mês e quando vence" };
+  if (caminho === "/app/rotina") return { titulo: "Rotina e privacidade", subtitulo: "Seus horários e o que quem te acompanha vê" };
+  if (/^\/painel\/[^/]+\/contas$/.test(caminho)) return { titulo: "Contas do paciente", subtitulo: "Só leitura, se a pessoa compartilhou" };
   if (caminho === "/app/orcamento") return { titulo: "Orçamento", subtitulo: "Quanto você quer gastar por categoria no mês" };
   if (caminho === "/app/metas") return { titulo: "Metas", subtitulo: "Junte dinheiro para o que importa" };
   if (caminho === "/app/metas/nova") return { titulo: "Nova meta", subtitulo: "Junte dinheiro para o que importa" };
