@@ -22,7 +22,7 @@ Requisitos: Node 24 e pnpm 11.
 
 ```bash
 pnpm install
-cp .env.example .env.local   # só para a Luana com IA (/luana e WhatsApp); o app do Desafoga não precisa
+cp .env.example .env.local   # GEMINI_API_KEY liga a IA; sem ela, a Luana responde por regras
 pnpm dev
 ```
 
@@ -46,8 +46,9 @@ O sistema tem duas áreas separadas: o app de quem usa e o painel de quem acompa
 | `/painel/[id]` | Responsável | Resumo do paciente: indicadores, humor e gasto por dia, padrões e avisos |
 | `/painel/[id]/dividas` | Responsável | Dívidas do paciente, só leitura, com "Sugerir valor mensal" |
 | `/painel/[id]/memoria` | Responsável | Memória da assistente: características, tom, objetivo, anotações e teste |
-| `/luana`, `/p` | Luana | Chat da Luana com IA (Gemini) e painel pelo link do WhatsApp |
-| `/api/*` | Luana | Chat, leitura de fatura, áudio e webhooks do WhatsApp |
+| `/api/desafoga/[acao]` | API | Dados e conversa do Desafoga (uma ação por chamada, com o visitante no cabeçalho) |
+| `/api/twilio/webhook`, `/api/whatsapp/webhook` | WhatsApp | Mensagens que chegam pelo WhatsApp |
+| `/luana`, `/p` | Luana antiga | Chat de antes e painel pelo link, para números sem cadastro |
 
 Pacientes da demonstração: `ana`, `carlos`, `lucia` e `rafael`.
 
@@ -69,13 +70,16 @@ src/
     dividas/, chat/       partes das telas de dívidas e do chat
   hooks/                  consulta à camada de serviço, data atual, paciente aberto, Letra maior
   services/
-    contratos.ts          interfaces que as telas usam (trocar pela API não muda as telas)
+    contratos.ts          interfaces que as telas usam
     tipos.ts              tipos de domínio (persona, memória, aviso, mensagem…)
-    mock/                 implementação simulada, guardada no navegador
+    nucleo.ts             operações sobre os dados, iguais no servidor e no navegador
+    api/                  implementação padrão: chama /api/desafoga
+    mock/                 implementação local, sem servidor (NEXT_PUBLIC_DESAFOGA_DADOS=local)
   fixtures/desafoga/      dados fictícios tipados: 4 personas, dívidas, faturas, memória
   lib/
     finance/              motor financeiro em funções puras, com testes
     assistente/           regras da conversa da Luana, detecção de sofrimento, contexto da IA, com testes
+    desafoga/             conversa com IA, leitura de fatura, telefone; servidor/ (banco, ações, rotas, WhatsApp)
     luana/, ia/, whatsapp/, twilio/   a Luana com IA e o WhatsApp
 docs/referencia/          protótipo usado como referência visual
 ```
@@ -91,13 +95,23 @@ Valores em centavos e taxas como fração ao mês. Cada função tem teste.
 - `encargosDasFaturas`, `custoEmocional`, `separarFatura`: juros, IOF, tarifas e quanto dos juros veio de compras feitas com emoção 1 ou 2.
 - `notaDoDia`, `resumoDaSemana`, `situacaoDoPaciente`, `padroesDeCompra`: emoção, semana e situação do paciente.
 
-## O que é simulado nesta etapa
+## A Luana no app e no WhatsApp
 
-- **Dados:** tudo é fictício (`src/fixtures/desafoga`). As datas são relativas a hoje, e as mudanças ficam no navegador (`localStorage`). "Recomeçar demonstração" volta ao início.
-- **Login:** não existe. A entrada em `/` escolhe o perfil (Ana ou Paula Reis).
-- **Assistente no app:** responde por regras locais (`src/lib/assistente`), não por IA. Ela entende "comprei pão 12", "e se eu pagar 200 a mais?", "plano", "juros", "resumo" e conversa livre usando a memória.
-- **Leitura de fatura:** o arquivo enviado não sai do aparelho. Um extrato de exemplo fixo é lido no lugar dele.
-- **Avisos ao responsável:** compra alta, sofrimento intenso no chat e sugestão de valor mensal aparecem no sino, só dentro da demonstração.
+A Luana é a mesma nos dois canais: mesmo código no servidor (`src/lib/desafoga`), mesma memória do profissional e mesmos números.
+
+- **Dados unificados:** no cadastro, a pessoa informa o número de WhatsApp (hoje, em "Conectar WhatsApp", no chat do app). Tudo o que ela manda por esse número (compras, faturas, áudios) cai na conta dela e aparece no app e no painel do responsável.
+- **Conversas separadas:** o chat do app e o do WhatsApp são conversas diferentes. Uma pergunta em aberto num canal não se mistura com o outro.
+- **IA lê, código calcula:** o Gemini lê gastos escritos do jeito da pessoa ("almoço 35 e uber 18,50"), faturas, prints e áudios, e conversa usando a memória. Plano, simulações, juros, o registro de compras (com emoção e necessidade) e a resposta a sofrimento intenso seguem por regras, com os números de `src/lib/finance`. Sem `GEMINI_API_KEY`, ou com a IA fora do ar, as regras respondem tudo.
+- **Webhooks:** `/api/twilio/webhook` (sandbox da Twilio) e `/api/whatsapp/webhook` (Meta). Número cadastrado vai para o Desafoga; número sem cadastro segue com a Luana de antes.
+
+Para a demonstração com o sandbox da Twilio: preencha `NEXT_PUBLIC_WHATSAPP_NUMERO` e `NEXT_PUBLIC_WHATSAPP_CODIGO` (código do "join"), conecte o seu número na conta da Ana e converse com a Luana pelo WhatsApp.
+
+## O que ainda é simulado
+
+- **Dados:** são fictícios (`src/fixtures/desafoga`), com datas relativas a hoje. Cada navegador ganha a sua cópia no servidor (Postgres com `DATABASE_URL`; sem ele, `.data/desafoga.json`). "Recomeçar demonstração" volta ao início e mantém o WhatsApp cadastrado.
+- **Login:** não existe. A entrada em `/` escolhe o perfil (Ana ou Paula Reis). O número de WhatsApp fica em "Conectar WhatsApp" até o cadastro existir.
+- **Sem IA:** a leitura de fatura usa um extrato de exemplo e o áudio não é transcrito. A tela avisa quando isso acontece.
+- **Avisos ao responsável:** compra alta, sofrimento intenso e sugestão de valor mensal aparecem no sino; ainda não chegam por e-mail ou WhatsApp ao profissional.
 
 Saúde mental: se uma mensagem indicar sofrimento intenso, a Luana acolhe, indica o CVV (188) e o SAMU (192) e avisa o responsável. Ela nunca faz diagnóstico.
 
