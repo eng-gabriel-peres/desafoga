@@ -14,6 +14,7 @@ import {
   IconeSol,
 } from "./icones";
 import { Anexo, type AnexoDaMensagem } from "./anexo";
+import { aplicar, CHAVE_DA_COR, CHAVE_DO_TEMA, CORES, preferencia } from "./aparencia";
 import { guardarArquivo } from "./arquivos-locais";
 import { Painel } from "./painel";
 
@@ -40,36 +41,6 @@ const TAMANHO_MAXIMO = 4 * 1024 * 1024;
 /** Duração máxima de uma mensagem de voz, em segundos. */
 const MAXIMO_DE_AUDIO = 120;
 const FORMATOS_DE_AUDIO = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
-
-const CHAVE_DO_TEMA = "luana-tema";
-const CHAVE_DA_COR = "luana-cor";
-/** Cores do chat; os tons de cada uma, por tema, ficam em globals.css. */
-const CORES = [
-  { id: "azul", nome: "Azul", amostra: "#3f9fcb" },
-  { id: "roxo", nome: "Roxo", amostra: "#9370e0" },
-  { id: "verde", nome: "Verde", amostra: "#3faa78" },
-  { id: "amarelo", nome: "Amarelo", amostra: "#d4a514" },
-  { id: "rosa", nome: "Rosa", amostra: "#dc5f98" },
-  { id: "laranja", nome: "Laranja", amostra: "#e07a2c" },
-];
-
-function preferencia(chave: string, padrao: string): string {
-  try {
-    return localStorage.getItem(chave) ?? padrao;
-  } catch {
-    return padrao;
-  }
-}
-
-/** Marca o <html> com a preferência e a guarda neste navegador. */
-function aplicar(chave: string, atributo: "tema" | "cor", valor: string) {
-  document.documentElement.dataset[atributo] = valor;
-  try {
-    localStorage.setItem(chave, valor);
-  } catch {
-    // Sem armazenamento: vale até recarregar a página.
-  }
-}
 
 const INICIO: Mensagem[] = [{ id: 0, autor: "luana", texto: BOAS_VINDAS }];
 
@@ -298,7 +269,7 @@ export function Chat() {
     aplicar(CHAVE_DA_COR, "cor", id);
   }
 
-  if (painelAberto) return <Painel usuario={usuario()} aoFechar={() => setPainelAberto(false)} />;
+  if (painelAberto) return <Painel acesso={{ usuario: usuario() }} aoFechar={() => setPainelAberto(false)} />;
 
   const temOQueEnviar = rascunho.trim() !== "" || anexos.length > 0;
 

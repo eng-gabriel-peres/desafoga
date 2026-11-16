@@ -1,5 +1,6 @@
 import { after, type NextRequest } from "next/server";
 import { consumir, type Recurso } from "@/lib/limite";
+import { mensagemDoPainel, origemDoSite, pedidoDePainel } from "@/lib/link";
 import { receberArquivo, receberAudio, receberTexto } from "@/lib/luana/luana";
 import { enviarTexto } from "@/lib/twilio/enviar";
 import { baixarMidia } from "@/lib/twilio/midia";
@@ -50,9 +51,10 @@ export async function POST(request: NextRequest) {
   if (jaProcessadas.size > 5000) jaProcessadas.clear();
   registrar("twilio: webhook aceito", `${m.tipo} de ${mascarar(m.de)}`);
 
+  const origem = origemDoSite(request.headers);
   after(async () => {
     try {
-      await atender(m);
+      await atender(m, origem);
       registrar("twilio: respondida", `${m.tipo} de ${mascarar(m.de)}`);
     } catch (erro) {
       console.error("Falha ao responder mensagem do WhatsApp (Twilio):", erro);
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
   return SEM_RESPOSTA();
 }
 
-async function atender(m: MensagemTwilio): Promise<void> {
+async function atender(m: MensagemTwilio, origem: string): Promise<void> {
   // Mesma identidade do webhook da Meta: o número é a conta da pessoa.
   const usuario = `wa:${m.de}`;
   let mensagens: string[];
@@ -72,6 +74,11 @@ async function atender(m: MensagemTwilio): Promise<void> {
   const uso = await consumir(recurso, usuario, null);
   if (!uso.permitido) {
     await enviarTexto(m.de, uso.mensagem ?? "Cheguei ao limite de hoje. Volto amanhã.");
+    return;
+  }
+
+  if (m.tipo === "text" && m.texto && pedidoDePainel(m.texto)) {
+    await enviarTexto(m.de, mensagemDoPainel(usuario, origem));
     return;
   }
 
