@@ -1,5 +1,5 @@
 /** Painéis da tela de dívidas. Os números vêm de `lib/finance`. */
-import { Banknote, Brain, CreditCard, FileText, Landmark, Percent, Receipt, ScanLine, Upload, Wallet, type LucideIcon } from "lucide-react";
+import { Banknote, Brain, CreditCard, Pencil, Plus, FileText, Landmark, Percent, Receipt, ScanLine, Upload, Wallet, type LucideIcon } from "lucide-react";
 import {
   dividaMaisCara,
   ehEncargo,
@@ -13,7 +13,7 @@ import {
 import { percentual } from "@/lib/assistente/textos";
 import { reais } from "@/lib/formatar";
 import { Etiqueta, Painel, Sub, Vazio } from "../ui/blocos";
-import { BotaoLink } from "../ui/botao";
+import { Botao, BotaoLink } from "../ui/botao";
 
 const ICONE_DA_DIVIDA: Record<TipoDivida, LucideIcon> = {
   cartao: CreditCard,
@@ -79,10 +79,31 @@ export function RaioX({
   );
 }
 
-export function ListaDeDividas({ dividas, titulo }: { dividas: Divida[]; titulo: string }) {
+export function ListaDeDividas({
+  dividas,
+  titulo,
+  aoAdicionar,
+  aoEditar,
+}: {
+  dividas: Divida[];
+  titulo: string;
+  /** Só na área da pessoa: cadastrar e editar as próprias dívidas. */
+  aoAdicionar?: () => void;
+  aoEditar?: (d: Divida) => void;
+}) {
   const maisCara = dividaMaisCara(dividas);
   return (
-    <Painel titulo={titulo}>
+    <Painel
+      titulo={titulo}
+      acao={
+        aoAdicionar && (
+          <Botao variante="secundario" tamanho="pequeno" onClick={aoAdicionar}>
+            <Plus aria-hidden="true" />
+            Adicionar
+          </Botao>
+        )
+      }
+    >
       {dividas.length ? (
         <ul>
           {dividas.map((d) => {
@@ -96,7 +117,7 @@ export function ListaDeDividas({ dividas, titulo }: { dividas: Divida[]; titulo:
                 <div className="min-w-0">
                   <b className="block">{d.nome}</b>
                   <span className="text-[0.88rem] text-muted">
-                    {d.detalhe}, vence dia {d.vencimento}
+                    {d.detalhe ? `${d.detalhe}, ` : ""}vence dia {d.vencimento}
                   </span>
                 </div>
                 <div className="text-right">
@@ -108,6 +129,12 @@ export function ListaDeDividas({ dividas, titulo }: { dividas: Divida[]; titulo:
                     {percentual(d.taxaMensal)} ao mês{destaque ? ", a mais cara" : ""}
                   </Etiqueta>
                   <span className="text-[0.88rem] text-muted">Juros: {reais(jurosDoMes(d))} por mês</span>
+                  {aoEditar && (
+                    <Botao variante="link" tamanho="pequeno" className="ml-auto" onClick={() => aoEditar(d)} aria-label={`Editar ${d.nome}`}>
+                      <Pencil aria-hidden="true" />
+                      Editar
+                    </Botao>
+                  )}
                 </div>
               </li>
             );

@@ -69,6 +69,8 @@ export const servicosDaApi: Servicos = {
   },
   dividas: {
     listar: (id) => chamar("dividas.listar", [id]),
+    salvar: (id, divida) => chamar("dividas.salvar", [id, divida], true),
+    remover: (id, dividaId) => chamar("dividas.remover", [id, dividaId], true),
     plano: (id) => chamar("dividas.plano", [id]),
     salvarPlano: (id, m) => chamar("dividas.salvarPlano", [id, m], true),
     sugerirValor: (id, valor) => chamar("dividas.sugerirValor", [id, valor], true),

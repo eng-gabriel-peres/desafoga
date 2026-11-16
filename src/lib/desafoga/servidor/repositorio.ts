@@ -28,6 +28,9 @@ import { prisma } from "./prisma";
 
 export type Canal = "app" | "whatsapp";
 
+/** O registro não existe para esta pessoa (ou é de outra). */
+export class NaoEncontrado extends Error {}
+
 const iso = (d: Date) => d.toISOString();
 
 function paraPersona(p: { id: string; nome: string; apelido: string; idade: number | null; cor: string; perfil: string }): Persona {
@@ -222,6 +225,30 @@ export async function registrarCompra(pessoaId: string, nova: NovaCompra, quando
   const aviso = avisoDeCompraAlta(nova, p.apelido);
   if (aviso) await avisar(pessoaId, "gasto-alto", aviso, quando);
   return paraCompra(criada);
+}
+
+/** Cria (sem id) ou atualiza uma dívida da pessoa. */
+export async function salvarDivida(pessoaId: string, d: Omit<Divida, "id"> & { id?: string }): Promise<Divida> {
+  const dados = {
+    tipo: d.tipo,
+    nome: d.nome,
+    detalhe: d.detalhe,
+    saldo: d.saldo,
+    taxaMensal: d.taxaMensal,
+    parcelaMinima: d.parcelaMinima,
+    vencimento: d.vencimento,
+  };
+  if (d.id) {
+    // Só atualiza dívida desta pessoa (o id veio do navegador).
+    const r = await prisma().divida.updateMany({ where: { id: d.id, pessoaId }, data: dados });
+    if (!r.count) throw new NaoEncontrado("Dívida não encontrada.");
+    return paraDivida(await prisma().divida.findUniqueOrThrow({ where: { id: d.id } }));
+  }
+  return paraDivida(await prisma().divida.create({ data: { pessoaId, ...dados } }));
+}
+
+export async function removerDivida(pessoaId: string, dividaId: string): Promise<void> {
+  await prisma().divida.deleteMany({ where: { id: dividaId, pessoaId } });
 }
 
 export async function salvarPlano(pessoaId: string, mudancas: Partial<Pick<Plano, "valorMensal" | "estrategia">>): Promise<Plano> {

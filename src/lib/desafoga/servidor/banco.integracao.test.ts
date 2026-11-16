@@ -129,6 +129,21 @@ describe.runIf(url)("Desafoga no Postgres", () => {
     expect((dados as { lancamentos: { compraId: string | null }[] }[])[0].lancamentos[0].compraId).toBeNull();
   });
 
+  it("a pessoa cadastra, edita e remove as próprias dívidas; outra pessoa não mexe", async () => {
+    const ivo = await criar({ tipo: "pessoa", nome: "Ivo Teste", apelido: "Ivo", idade: null });
+    const juli = await criar({ tipo: "pessoa", nome: "Juli Teste", apelido: "Juli", idade: null });
+    const nova = { tipo: "cartao", nome: "Cartão", detalhe: "", saldo: 150000, taxaMensal: 0.142, parcelaMinima: 25000, vencimento: 10 };
+    const { dados: criada } = await chamar("dividas.salvar", [ivo.pessoa!.id, nova], ivo);
+    const id = (criada as { id: string }).id;
+    await chamar("dividas.salvar", [ivo.pessoa!.id, { ...nova, id, saldo: 120000 }], ivo);
+    const { dados: lista } = await chamar("dividas.listar", [ivo.pessoa!.id], ivo);
+    expect((lista as { saldo: number }[]).map((d) => d.saldo)).toEqual([120000]);
+    // Juli tenta editar a dívida do Ivo dizendo que é dela: não acha.
+    await expect(chamar("dividas.salvar", [juli.pessoa!.id, { ...nova, id, saldo: 1 }], juli)).rejects.toThrow("não encontrada");
+    await chamar("dividas.remover", [ivo.pessoa!.id, id], ivo);
+    expect(((await chamar("dividas.listar", [ivo.pessoa!.id], ivo)).dados as unknown[]).length).toBe(0);
+  });
+
   it("apagar a conta apaga tudo da pessoa (LGPD)", async () => {
     const hugo = await criar({ tipo: "pessoa", nome: "Hugo Teste", apelido: "Hugo", idade: null });
     await chamar("compras.registrar", [hugo.pessoa!.id, { item: "Café", categoria: "Mercado", valor: 500, emocao: 4, necessidade: "sim", via: "app" }], hugo);

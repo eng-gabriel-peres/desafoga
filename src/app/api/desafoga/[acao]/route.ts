@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { consumir, redeConfiavel } from "@/lib/limite";
 import { exigirAPropriaPessoa, SemPermissao, SemSessao } from "@/lib/desafoga/servidor/acesso";
 import { ArquivoRecusado, lerFatura, receberArquivoNoChat, receberAudioNoChat } from "@/lib/desafoga/servidor/acoes";
+import { NaoEncontrado } from "@/lib/desafoga/servidor/repositorio";
 import { acaoExiste, ErroDeEntrada, executar, recursoDa, type Contexto } from "@/lib/desafoga/servidor/rotas";
 import { COOKIE_DA_SESSAO, lerSessao, type NovaSessao, type SessaoAtual } from "@/lib/desafoga/servidor/sessao";
 
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest, { params }: RouteContext<"/api/
   } catch (e) {
     if (e instanceof SemSessao) return erro(e.message, 401);
     if (e instanceof SemPermissao) return erro(e.message, 403);
+    if (e instanceof NaoEncontrado) return erro(e.message, 404);
     if (e instanceof ErroDeEntrada || e instanceof ArquivoRecusado) return erro(e.message, 400);
     console.error("Desafoga API:", acao, e instanceof Error ? e.message.slice(0, 300) : "erro");
     return erro("Não consegui fazer isso agora. Tente de novo.", 500);

@@ -76,6 +76,9 @@ export interface ComprasService {
 
 export interface DividasService {
   listar(pessoaId: string): Promise<Divida[]>;
+  /** Cria (sem id) ou atualiza uma dívida informada pela pessoa. */
+  salvar(pessoaId: string, divida: Omit<Divida, "id"> & { id?: string }): Promise<Divida>;
+  remover(pessoaId: string, dividaId: string): Promise<void>;
   plano(pessoaId: string): Promise<Plano>;
   salvarPlano(pessoaId: string, mudancas: Partial<Pick<Plano, "valorMensal" | "estrategia">>): Promise<Plano>;
   /** O profissional sugere um valor mensal; a pessoa recebe a sugestão no app. */

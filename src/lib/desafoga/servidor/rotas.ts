@@ -205,6 +205,30 @@ const ACOES = {
     await exigirVer(sessao, p);
     return repo.dividas(p);
   }),
+  "dividas.salvar": acao(
+    z.tuple([
+      id,
+      z.object({
+        id: id.optional(),
+        tipo: z.enum(["cartao", "cheque", "emprestimo", "parcelamento", "outra"]),
+        nome: texto(80),
+        detalhe: z.string().max(120),
+        saldo: centavos.min(1),
+        /** Fração ao mês: 0,142 = 14,2%. Até 50% ao mês. */
+        taxaMensal: z.number().min(0).max(0.5),
+        parcelaMinima: centavos,
+        vencimento: z.number().int().min(1).max(31),
+      }),
+    ]),
+    async ([p, d], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      return repo.salvarDivida(p, d);
+    },
+  ),
+  "dividas.remover": acao(z.tuple([id, id]), async ([p, d], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await repo.removerDivida(p, d);
+  }),
   "dividas.plano": acao(z.tuple([id]), async ([p], { sessao }) => {
     await exigirVer(sessao, p);
     return repo.plano(p);

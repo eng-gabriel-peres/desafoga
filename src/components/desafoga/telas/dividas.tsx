@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import type { Divida } from "@/lib/finance";
+
 import { useAgora } from "@/hooks/use-agora";
 import { usePessoa } from "@/hooks/use-pessoa";
 import {
@@ -20,7 +23,8 @@ import { PlanoEditavel, PlanoLeitura } from "../dividas/plano";
 import type { Area } from "../moldura/navegacao";
 import { useMinhaPessoaId } from "../sessao";
 import { Carregando, Kpi, Painel, Sub, TituloCelular } from "../ui/blocos";
-import { BotaoLink } from "../ui/botao";
+import { Botao, BotaoLink } from "../ui/botao";
+import { FormularioDeDivida } from "../dividas/formulario";
 
 /**
  * Dívidas: a mesma visão para a pessoa (plano editável, envio de fatura) e
@@ -29,24 +33,38 @@ import { BotaoLink } from "../ui/botao";
 export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }) {
   const dados = usePessoa(pessoaId);
   const agora = useAgora();
+  const [editando, setEditando] = useState<Divida | "nova" | null>(null);
   if (!dados || !agora) return <Carregando />;
 
   const { persona, dividas, plano, faturas, compras } = dados;
   const daPessoa = area === "pessoa";
 
+  const formulario = daPessoa && editando && (
+    <FormularioDeDivida key={editando === "nova" ? "nova" : editando.id} pessoaId={pessoaId} divida={editando === "nova" ? null : editando} fechar={() => setEditando(null)} />
+  );
+
   if (!dividas.length) {
     return (
-      <>
+      <div className="grid gap-4">
         {daPessoa && <TituloCelular titulo="Dívidas" subtitulo="Quanto suas dívidas custam e como sair delas" />}
-        <Painel titulo={daPessoa ? "Você não tem dívidas cadastradas" : `${persona.apelido} não tem dívidas cadastradas`}>
-          <Sub>Envie uma fatura para ver quanto as dívidas custam.</Sub>
-          {daPessoa && (
-            <BotaoLink href="/app/dividas/fatura" className="mt-3">
-              Enviar fatura
-            </BotaoLink>
-          )}
-        </Painel>
-      </>
+        {formulario || (
+          <Painel titulo={daPessoa ? "Você não tem dívidas cadastradas" : `${persona.apelido} não tem dívidas cadastradas`}>
+            <Sub>
+              {daPessoa
+                ? "Cadastre cartão, cheque especial, empréstimos e parcelados para ver quanto custam e montar o plano para sair deles. Também dá para enviar a fatura."
+                : "Quando a pessoa cadastrar as dívidas, o raio-x e o plano aparecem aqui."}
+            </Sub>
+            {daPessoa && (
+              <div className="mt-3 flex flex-wrap gap-2.5">
+                <Botao onClick={() => setEditando("nova")}>Adicionar dívida</Botao>
+                <BotaoLink href="/app/dividas/fatura" variante="secundario">
+                  Enviar fatura
+                </BotaoLink>
+              </div>
+            )}
+          </Painel>
+        )}
+      </div>
     );
   }
 
@@ -63,7 +81,14 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
       dono={daPessoa ? "suas dívidas geram" : `as dívidas de ${persona.apelido} geram`}
     />
   );
-  const lista = <ListaDeDividas dividas={dividas} titulo={daPessoa ? "Suas dívidas" : `Dívidas de ${persona.apelido}`} />;
+  const lista = formulario || (
+    <ListaDeDividas
+      dividas={dividas}
+      titulo={daPessoa ? "Suas dívidas" : `Dívidas de ${persona.apelido}`}
+      aoAdicionar={daPessoa ? () => setEditando("nova") : undefined}
+      aoEditar={daPessoa ? setEditando : undefined}
+    />
+  );
   const planoPainel = daPessoa ? (
     <PlanoEditavel dividas={dividas} plano={plano} agora={agora} aoMudar={(m) => servicos.dividas.salvarPlano(pessoaId, m)} />
   ) : (
