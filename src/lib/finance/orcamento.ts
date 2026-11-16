@@ -66,3 +66,22 @@ export function orcamentoDoMes(orcamentos: Orcamento[], compras: Compra[], agora
     .map((o) => situacaoDoOrcamento(o, gastoDoMes(compras, o.categoria, agora), agora))
     .sort((a, b) => b.usado - a.usado);
 }
+
+export interface ResumoDoOrcamento {
+  limite: number;
+  gasto: number;
+  restante: number;
+  usado: number;
+  diasRestantes: number;
+  porDia: number;
+}
+
+/** Soma das categorias com limite: quanto foi usado no mês e quanto dá por dia até o fim. */
+export function resumoDoOrcamento(situacoes: SituacaoDoOrcamento[], agora: Date): ResumoDoOrcamento {
+  const limite = situacoes.reduce((s, x) => s + x.limite, 0);
+  // O que passou numa categoria não "come" o que sobra nas outras: soma só o que resta de cada uma.
+  const restante = situacoes.reduce((s, x) => s + x.restante, 0);
+  const gasto = situacoes.reduce((s, x) => s + x.gasto, 0);
+  const diasRestantes = diasAteOFimDoMes(agora);
+  return { limite, gasto, restante, usado: limite ? gasto / limite : 0, diasRestantes, porDia: Math.floor(restante / diasRestantes) };
+}

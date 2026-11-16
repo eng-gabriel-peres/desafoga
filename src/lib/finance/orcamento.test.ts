@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { explicarOrcamento } from "@/lib/assistente/textos";
-import { diasAteOFimDoMes, gastoDoMes, orcamentoDoMes, situacaoDoOrcamento } from "./orcamento";
+import { diasAteOFimDoMes, gastoDoMes, orcamentoDoMes, resumoDoOrcamento, situacaoDoOrcamento } from "./orcamento";
 import type { Compra } from "./tipos";
 
 const compra = (valor: number, quando: string, categoria: Compra["categoria"] = "Mercado"): Compra => ({
@@ -67,5 +67,12 @@ describe("orçamento por categoria", () => {
     );
     expect(lista.map((s) => s.categoria)).toEqual(["Lazer", "Mercado"]);
   });
-});
 
+  it("resume o mês: o que passou numa categoria não some com o que sobra nas outras", () => {
+    const r = resumoDoOrcamento(
+      [situacaoDoOrcamento({ categoria: "Mercado", limite: 60000 }, 48000, agora), situacaoDoOrcamento({ categoria: "Roupa", limite: 20000 }, 25000, agora)],
+      agora,
+    );
+    expect(r).toMatchObject({ limite: 80000, gasto: 73000, restante: 12000, diasRestantes: 15, porDia: 800 });
+  });
+});

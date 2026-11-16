@@ -107,8 +107,9 @@ export function Anel({
             d={`M ${-s} 0 H ${s} M ${s * 0.25} ${-s * 0.75} L ${s} 0 L ${s * 0.25} ${s * 0.75}`}
             transform={`translate(${(h + r * Math.cos(angulo)).toFixed(1)} ${(h + r * Math.sin(angulo)).toFixed(1)}) rotate(${((angulo * 180) / Math.PI + 90).toFixed(1)})`}
             fill="none"
-            stroke="rgba(10,15,25,.7)"
-            strokeWidth={Math.max(1.6, espessura / 8)}
+            // Branco sobre a cor do anel: aparece em todas as cores, no claro e no escuro.
+            stroke="#ffffff"
+            strokeWidth={Math.max(1.8, espessura / 7)}
             strokeLinecap="round"
             strokeLinejoin="round"
           />
