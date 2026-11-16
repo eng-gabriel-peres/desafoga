@@ -4,7 +4,7 @@
  */
 import { paraWhatsapp } from "../conversar";
 import { receberArquivoNoChat, receberAudioNoChat, responderTexto } from "./acoes";
-import { donoDoTelefone } from "./armazem";
+import { codigoDaMensagem, confirmarTelefone, donoDoTelefone } from "./armazem";
 
 export interface MensagemRecebida {
   de: string;
@@ -18,6 +18,17 @@ export interface MensagemRecebida {
  * textos a enviar, ou null quando o número não é de ninguém (segue a Luana antiga).
  */
 export async function atenderNoDesafoga(m: MensagemRecebida, avisarLeitura: () => Promise<void>): Promise<string[] | null> {
+  // Código do cadastro ("DESAFOGA 123456") vindo do próprio número: confirma a ligação.
+  const codigo = m.tipo === "text" && m.texto ? codigoDaMensagem(m.texto) : null;
+  if (codigo) {
+    const confirmado = await confirmarTelefone(m.de, codigo);
+    return [
+      confirmado
+        ? "Pronto, seu WhatsApp está ligado ao Desafoga. Pode me contar suas compras, mandar a fatura ou um áudio por aqui."
+        : "Esse código não confere ou já venceu. Gere um novo em Conectar WhatsApp, no app.",
+    ];
+  }
+
   const dono = await donoDoTelefone(m.de);
   if (!dono) return null;
   const { visitante, pessoaId } = dono;

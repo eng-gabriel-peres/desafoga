@@ -154,8 +154,8 @@ describe("contexto da assistente", () => {
     expect(texto).toContain("Cartão de crédito (R$ 1.850,00, 14,2% ao mês");
   });
 
-  it("separa as notas privadas com a instrução de nunca mencionar", () => {
-    expect(texto).toContain("NOTAS PRIVADAS");
-    expect(texto).toContain("conflito no trabalho");
+  it("não manda o texto das notas privadas, só a orientação de tom", () => {
+    expect(texto).not.toContain("conflito no trabalho");
+    expect(texto).toContain("anotações privadas recentes");
   });
 });

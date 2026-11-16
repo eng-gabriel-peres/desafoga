@@ -34,7 +34,11 @@ export const servicosLocais: Servicos = {
     async conectarWhatsapp(id, telefone) {
       const numero = normalizarTelefone(telefone);
       if (!numero) throw new Error("Número inválido. Use DDD e número, por exemplo (11) 99999-8888.");
-      return mudar(() => (b().telefones[id] = numero));
+      // Sem servidor não há WhatsApp: a versão local só guarda o número.
+      return mudar(() => {
+        b().telefones[id] = numero;
+        return { telefone: numero, codigo: null };
+      });
     },
     desconectarWhatsapp: (id) => mudar(() => void (b().telefones[id] = null)),
   },

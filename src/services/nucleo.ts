@@ -48,9 +48,9 @@ export function responsavel(): Profissional {
 }
 
 export function pessoa(banco: Banco, id: string): DadosDaPessoa {
-  const dados = banco.pessoas[id];
-  if (!dados) throw new Error(`Pessoa não encontrada: ${id}`);
-  return dados;
+  // hasOwn: um id como "__proto__" não pode chegar ao protótipo do objeto.
+  if (!Object.hasOwn(banco.pessoas, id)) throw new Error(`Pessoa não encontrada: ${id}`);
+  return banco.pessoas[id];
 }
 
 let contador = 0;

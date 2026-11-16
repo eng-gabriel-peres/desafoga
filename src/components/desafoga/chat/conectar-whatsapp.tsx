@@ -35,7 +35,9 @@ export function BotaoWhatsapp({ pessoaId }: { pessoaId: string }) {
 function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual: string | null; fechar: () => void }) {
   const [texto, setTexto] = useState(atual ? telefoneLegivel(atual) : "");
   const [erro, setErro] = useState("");
-  const [salvo, setSalvo] = useState<string | null>(null);
+  const [pedido, setPedido] = useState<{ telefone: string; codigo: string | null } | null>(null);
+  // Enquanto espera o código chegar pelo WhatsApp, a consulta do número se atualiza sozinha.
+  const confirmado = pedido && atual === pedido.telefone;
   const caixa = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -49,7 +51,7 @@ function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual:
     e.preventDefault();
     setErro("");
     try {
-      setSalvo(await servicos.pessoas.conectarWhatsapp(pessoaId, texto));
+      setPedido(await servicos.pessoas.conectarWhatsapp(pessoaId, texto));
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não consegui salvar o número.");
     }
@@ -76,7 +78,7 @@ function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual:
               value={texto}
               onChange={(e) => {
                 setTexto(e.target.value);
-                setSalvo(null);
+                setPedido(null);
               }}
               inputMode="tel"
               autoComplete="tel"
@@ -94,14 +96,25 @@ function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual:
             </p>
           )}
           <div role="status" aria-live="polite">
-            {salvo && <p className="mt-2 rounded-xl bg-good-soft px-3 py-2 font-bold text-good">Pronto: {telefoneLegivel(salvo)} está ligado à sua conta.</p>}
+            {pedido && (confirmado || !pedido.codigo) && (
+              <p className="mt-2 rounded-xl bg-good-soft px-3 py-2 font-bold text-good">Pronto: {telefoneLegivel(pedido.telefone)} está ligado à sua conta.</p>
+            )}
+            {pedido?.codigo && !confirmado && (
+              <div className="mt-3 rounded-xl border-2 border-primary bg-primary-soft p-3.5">
+                <p>Para provar que o número é seu, mande esta mensagem para a Luana pelo WhatsApp de {telefoneLegivel(pedido.telefone)}:</p>
+                <p className="mt-2 text-center text-[1.4rem] font-bold tracking-wider">DESAFOGA {pedido.codigo}</p>
+                <p className="mt-1 text-[0.85rem] text-muted">O código vale por 30 minutos. Esta tela avisa quando a ligação for confirmada.</p>
+              </div>
+            )}
           </div>
-          <Botao type="submit" bloco className="mt-4">
-            {atual ? "Atualizar número" : "Conectar"}
-          </Botao>
+          {!pedido?.codigo && (
+            <Botao type="submit" bloco className="mt-4">
+              {atual ? "Trocar número" : "Conectar"}
+            </Botao>
+          )}
         </form>
         <div className="mt-5 rounded-2xl bg-surface p-4 text-[0.95rem]">
-          <b className="block">Depois, no seu WhatsApp</b>
+          <b className="block">No seu WhatsApp</b>
           <ol className="mt-1.5 list-decimal space-y-1 pl-5">
             <li>Salve o número da Luana{NUMERO_DA_LUANA ? `: ${NUMERO_DA_LUANA}` : ""}.</li>
             {CODIGO_DE_ENTRADA && (
@@ -109,6 +122,7 @@ function DialogoWhatsapp({ pessoaId, atual, fechar }: { pessoaId: string; atual:
                 Mande <b>join {CODIGO_DE_ENTRADA}</b> uma vez, para liberar a conversa (é o sandbox da Twilio).
               </li>
             )}
+            <li>Mande o código que aparece aqui depois de informar o número.</li>
             <li>Converse como aqui: “comprei pão 12”, um áudio ou a foto da fatura.</li>
           </ol>
         </div>

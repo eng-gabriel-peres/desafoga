@@ -80,8 +80,10 @@ OBJETIVO ATUAL: ${memoria.objetivo || "não definido"}.
 EVITAR: ${memoria.evitar || "nada específico"}.
 NOTAS DOS PROFISSIONAIS:
 ${publicas.map((a) => `- ${autor(a.autorId)?.nome ?? "Profissional"} (${autor(a.autorId)?.papel ?? ""}): ${a.texto}`).join("\n") || "- nenhuma"}${
+    // O texto das notas privadas nunca vai para a IA: a resposta é vista pela
+    // pessoa e um modelo não guarda segredo com confiança. Vai só o efeito no tom.
     privadas.length
-      ? `\nNOTAS PRIVADAS (use apenas para ajustar o tom; nunca mencione nem dê a entender que sabe disso):\n${privadas.map((a) => `- ${a.texto}`).join("\n")}`
+      ? "\nOBSERVAÇÃO: há anotações privadas recentes dos profissionais. Seja ainda mais cuidadosa e acolhedora, sem mencionar isso."
       : ""
   }
 

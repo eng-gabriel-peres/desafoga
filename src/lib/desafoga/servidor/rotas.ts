@@ -21,9 +21,10 @@ import {
 } from "@/services/nucleo";
 import type { Fatura } from "@/services/tipos";
 import { responderTexto, testarResposta } from "./acoes";
-import { comBanco, desvincularTelefone, recomecarBanco, vincularTelefone } from "./armazem";
+import { comBanco, desvincularTelefone, pedirTelefone, recomecarBanco } from "./armazem";
 
-const id = z.string().min(1).max(40);
+/** Ids só com letras minúsculas, números e hífen: nada de "__proto__" e afins. */
+const id = z.string().regex(/^[a-z0-9-]{1,40}$/);
 const centavos = z.number().int().min(0).max(1e10);
 const emocao = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]);
 const necessidade = z.enum(["sim", "nao", "talvez"]);
@@ -58,9 +59,9 @@ const ACOES = {
   "pessoas.whatsapp": acao(z.tuple([id]), (v, [p]) => comBanco(v, (b) => b.telefones[p] ?? null, false)),
   "pessoas.conectarWhatsapp": acao(z.tuple([id, texto(30)]), async (v, [p, tel]) => {
     await comBanco(v, (b) => pessoa(b, p), false);
-    const numero = await vincularTelefone(v, p, tel);
-    if (!numero) throw new ErroDeEntrada("Número inválido. Use DDD e número, por exemplo (11) 99999-8888.");
-    return numero;
+    const pedido = await pedirTelefone(v, p, tel);
+    if (!pedido) throw new ErroDeEntrada("Número inválido. Use DDD e número, por exemplo (11) 99999-8888.");
+    return pedido;
   }),
   "pessoas.desconectarWhatsapp": acao(z.tuple([id]), (v, [p]) => desvincularTelefone(v, p)),
 

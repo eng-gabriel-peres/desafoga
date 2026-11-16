@@ -26,8 +26,12 @@ export interface PessoasService {
   responsavel(): Promise<Profissional>;
   /** Número de WhatsApp cadastrado pela pessoa (só dígitos), ou null. */
   whatsapp(pessoaId: string): Promise<string | null>;
-  /** Cadastra o WhatsApp: mensagens desse número caem na conta da pessoa. Devolve o número normalizado. */
-  conectarWhatsapp(pessoaId: string, telefone: string): Promise<string>;
+  /**
+   * Começa o cadastro do WhatsApp. Devolve o número normalizado e o código que
+   * a pessoa manda pelo WhatsApp para provar que o número é dela; só depois
+   * disso as mensagens caem na conta. `codigo` é null quando não precisa (versão local).
+   */
+  conectarWhatsapp(pessoaId: string, telefone: string): Promise<{ telefone: string; codigo: string | null }>;
   desconectarWhatsapp(pessoaId: string): Promise<void>;
 }
 

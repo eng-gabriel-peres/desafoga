@@ -7,6 +7,7 @@
  * (`demo:<visitante>`), para um jurado não mexer nos dados do outro. O número
  * de WhatsApp cadastrado aponta para a pessoa (`telefone:<número>`).
  */
+import { randomInt, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { Pool } from "pg";
 import { novoBanco, type Banco } from "@/services/nucleo";
@@ -136,25 +137,72 @@ interface Vinculo {
   pessoaId: string;
 }
 
-/** Cadastra o WhatsApp da pessoa: mensagens desse número caem na conta dela. */
-export async function vincularTelefone(visitante: string, pessoaId: string, texto: string): Promise<string | null> {
+interface Pedido extends Vinculo {
+  codigo: string;
+  expira: number;
+}
+
+/** Tempo para mandar o código pelo WhatsApp. */
+const VALIDADE_DO_CODIGO_MS = 30 * 60_000;
+
+/**
+ * Primeiro passo do cadastro do WhatsApp: gera um código de 6 dígitos. A
+ * ligação só vale depois que esse código chega pelo próprio número
+ * (`confirmarTelefone`), para ninguém cadastrar o número de outra pessoa e
+ * passar a receber as mensagens dela.
+ */
+export async function pedirTelefone(visitante: string, pessoaId: string, texto: string): Promise<{ telefone: string; codigo: string } | null> {
   const telefone = normalizarTelefone(texto);
   if (!telefone) return null;
+  const codigo = String(randomInt(0, 1_000_000)).padStart(6, "0");
+  const pedido: Pedido = { visitante, pessoaId, codigo, expira: Date.now() + VALIDADE_DO_CODIGO_MS };
+  await armazem().gravar(`pedido:${telefone}`, pedido);
+  return { telefone, codigo };
+}
+
+/** "DESAFOGA 123456", com ou sem espaço, em qualquer caixa. */
+export function codigoDaMensagem(texto: string): string | null {
+  return texto.trim().match(/^desafoga\s*(\d{6})$/i)?.[1] ?? null;
+}
+
+/**
+ * Segundo passo: a mensagem com o código chegou do número. Liga o número à
+ * pessoa (desfazendo a ligação anterior dela, se houver) e devolve o vínculo.
+ */
+export async function confirmarTelefone(numero: string, codigo: string, agora = Date.now()): Promise<Vinculo | null> {
+  const telefone = normalizarTelefone(numero);
+  if (!telefone) return null;
+  const pedido = (await armazem().ler(`pedido:${telefone}`)) as Pedido | null;
+  if (!pedido || pedido.expira < agora || !iguais(pedido.codigo, codigo)) return null;
+  const { visitante, pessoaId } = pedido;
   await comBanco(visitante, async (banco) => {
     const anterior = banco.telefones[pessoaId];
-    if (anterior && anterior !== telefone) await armazem().apagar(`telefone:${anterior}`);
+    if (anterior && anterior !== telefone) await apagarSeFor(anterior, visitante, pessoaId);
     banco.telefones[pessoaId] = telefone;
   });
   await armazem().gravar(`telefone:${telefone}`, { visitante, pessoaId } satisfies Vinculo);
-  return telefone;
+  await armazem().apagar(`pedido:${telefone}`);
+  return { visitante, pessoaId };
+}
+
+function iguais(a: string, b: string): boolean {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && timingSafeEqual(x, y);
 }
 
 export async function desvincularTelefone(visitante: string, pessoaId: string): Promise<void> {
   await comBanco(visitante, async (banco) => {
     const anterior = banco.telefones[pessoaId];
-    if (anterior) await armazem().apagar(`telefone:${anterior}`);
+    if (anterior) await apagarSeFor(anterior, visitante, pessoaId);
     banco.telefones[pessoaId] = null;
   });
+}
+
+/** Apaga a ligação do número só se ela ainda aponta para esta pessoa deste navegador. */
+async function apagarSeFor(telefone: string, visitante: string, pessoaId: string): Promise<void> {
+  const v = (await armazem().ler(`telefone:${telefone}`)) as Vinculo | null;
+  if (v?.visitante === visitante && v.pessoaId === pessoaId) await armazem().apagar(`telefone:${telefone}`);
 }
 
 /** De quem é este número de WhatsApp, se alguém cadastrou. */

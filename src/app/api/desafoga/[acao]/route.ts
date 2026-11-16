@@ -53,7 +53,7 @@ async function comArquivo(acao: ComArquivo, visitante: string, request: NextRequ
   if (!formulario) throw new ErroDeEntrada("Envie em multipart/form-data.");
   const pessoaId = formulario.get("pessoaId");
   const arquivo = formulario.get("arquivo");
-  if (typeof pessoaId !== "string" || !pessoaId) throw new ErroDeEntrada('Envie "pessoaId".');
+  if (typeof pessoaId !== "string" || !/^[a-z0-9-]{1,40}$/.test(pessoaId)) throw new ErroDeEntrada('Envie "pessoaId".');
 
   if (arquivo instanceof File) {
     const uso = await consumir(RECURSO_DO_ARQUIVO[acao], `desafoga:${visitante}`, redeDe(request.headers));
