@@ -2,69 +2,65 @@
 
 import { useState } from "react";
 import { useConsulta } from "@/hooks/use-consulta";
-import { servicos } from "@/services";
-import { Chat } from "../chat/chat";
+import { servicos, type Mensagem } from "@/services";
+import { Chat, type Ocupada } from "../chat/chat";
+import { BotaoWhatsapp } from "../chat/conectar-whatsapp";
 import { PESSOA_DA_DEMO } from "../moldura/navegacao";
-import { Carregando, Painel, Sub, TituloCelular } from "../ui/blocos";
+import { Carregando } from "../ui/blocos";
 
-const EXEMPLOS: [string, string][] = [
-  ["comprei pão 12", "Registra a compra e pergunta como você estava e se era necessária."],
-  ["e se eu pagar 200 a mais?", "Simula o plano das dívidas com números calculados pelo sistema."],
-  ["plano", "Mostra o seu plano para sair das dívidas."],
-  ["quanto eu pago de juros?", "Mostra os juros, o IOF e as tarifas do mês."],
-  ["resumo", "Compras de hoje e a nota do dia."],
-  ["tô triste hoje", "Conversa livre: a Luana responde com base na memória que os profissionais deixaram."],
-];
+const local = (de: Mensagem["de"], texto: string): Mensagem => ({
+  id: `local-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  de,
+  texto,
+  quando: new Date().toISOString(),
+});
 
+/**
+ * Mensagens mostradas antes de a conversa salva trazê-las: a que a pessoa
+ * acabou de mandar, ou um aviso de erro. Somem quando a conversa salva cresce.
+ */
+interface Pendentes {
+  base: number;
+  mensagens: Mensagem[];
+}
+
+/** Conversa com a Luana, ocupando a tela como no WhatsApp. */
 export function TelaAssistente() {
-  const mensagens = useConsulta(`conversa:${PESSOA_DA_DEMO}`, () => servicos.assistente.conversa(PESSOA_DA_DEMO));
-  const [digitando, setDigitando] = useState(false);
-  const [rascunho, setRascunho] = useState("");
+  const salvas = useConsulta(`conversa:${PESSOA_DA_DEMO}`, () => servicos.assistente.conversa(PESSOA_DA_DEMO));
+  const [ocupada, setOcupada] = useState<Ocupada>(false);
+  const [pendentes, setPendentes] = useState<Pendentes>({ base: -1, mensagens: [] });
 
-  async function enviar(texto: string) {
-    setDigitando(true);
+  if (!salvas) return <Carregando rotulo="Carregando a conversa" />;
+  const total = salvas.length;
+  const visiveis = pendentes.base === total ? pendentes.mensagens : [];
+
+  async function comEspera(estado: Exclude<Ocupada, false>, minha: Mensagem, pedir: () => Promise<unknown>) {
+    setOcupada(estado);
+    setPendentes({ base: total, mensagens: [minha] });
     try {
-      await servicos.assistente.enviar(PESSOA_DA_DEMO, texto);
+      await pedir();
+    } catch (e) {
+      const aviso = local("assistente", e instanceof Error ? e.message : "Não consegui responder agora. Tente de novo.");
+      setPendentes((p) => ({ ...p, mensagens: [...p.mensagens, aviso] }));
     } finally {
-      setDigitando(false);
+      setOcupada(false);
     }
   }
 
-  const comandos = (
-    <Painel titulo="O que a Luana entende">
-      <ul className="grid gap-2.5">
-        {EXEMPLOS.map(([exemplo, explicacao]) => (
-          <li key={exemplo} className="grid grid-cols-[auto_1fr] items-start gap-3">
-            <button
-              type="button"
-              onClick={() => setRascunho(exemplo)}
-              aria-label={`Escrever "${exemplo}" no campo de mensagem`}
-              className="min-h-11 max-w-[11rem] rounded-lg border border-line bg-surface2 px-2.5 py-1 text-left font-bold hover:border-primary"
-            >
-              {exemplo}
-            </button>
-            <span className="pt-2.5 text-[0.95rem]">{explicacao}</span>
-          </li>
-        ))}
-      </ul>
-      <Sub className="mt-3">Nesta demonstração, as respostas vêm de regras locais. Os números sempre saem das contas do sistema, nunca da IA.</Sub>
-    </Painel>
-  );
-
   return (
-    <>
-      <TituloCelular titulo="Assistente" />
-      <p className="mb-3 rounded-xl bg-primary-soft px-3.5 py-3 text-[0.95rem] desk:hidden">
-        Converse como no WhatsApp. Experimente: “tô triste e com vontade de comprar” ou “e se eu pagar 200 a mais?”.
-      </p>
-      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 desk:grid-cols-[minmax(0,460px)_minmax(0,1fr)] desk:gap-5">
-        {mensagens ? (
-          <Chat mensagens={mensagens} digitando={digitando} enviar={enviar} rascunho={rascunho} setRascunho={setRascunho} />
-        ) : (
-          <Carregando rotulo="Carregando a conversa" />
-        )}
-        {comandos}
-      </div>
-    </>
+    <div className="h-[calc(100dvh-8rem-env(safe-area-inset-bottom)-env(safe-area-inset-top))] desk:mx-auto desk:h-[calc(100dvh-8.7rem)] desk:max-w-[860px]">
+      <h1 className="sr-only">Assistente</h1>
+      <Chat
+        mensagens={[...salvas, ...visiveis]}
+        ocupada={ocupada}
+        enviar={(texto) => comEspera("digitando", local("pessoa", texto), () => servicos.assistente.enviar(PESSOA_DA_DEMO, texto))}
+        enviarArquivo={(arquivo) =>
+          comEspera("lendo", local("pessoa", `Arquivo: ${arquivo.name}`), () => servicos.assistente.enviarArquivo(PESSOA_DA_DEMO, arquivo))
+        }
+        enviarAudio={(audio) => comEspera("ouvindo", local("pessoa", "Mensagem de voz"), () => servicos.assistente.enviarAudio(PESSOA_DA_DEMO, audio))}
+        aviso={(texto) => setPendentes({ base: total, mensagens: [local("assistente", texto)] })}
+        cabecalho={<BotaoWhatsapp pessoaId={PESSOA_DA_DEMO} />}
+      />
+    </div>
   );
 }

@@ -37,6 +37,8 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
     return p ? { nome: p.nome, apelido: p.apelido, cor: p.cor, detalhe: `Acompanhada por ${r.nome}` } : null;
   });
   const comPaciente = temPaciente(caminho);
+  /** O chat ocupa a altura toda, como no WhatsApp. */
+  const telaCheia = caminho === "/app/assistente";
 
   const { titulo, subtitulo } =
     caminho === "/app/hoje" && eu && "apelido" in eu
@@ -111,7 +113,11 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
         <main
           id="conteudo"
           tabIndex={-1}
-          className="mx-auto w-full max-w-[620px] px-4 pt-4.5 pb-32 outline-none desk:max-w-[1280px] desk:px-9 desk:pt-7 desk:pb-14"
+          className={`mx-auto w-full outline-none desk:max-w-[1280px] desk:px-9 ${
+            telaCheia
+              ? "pb-[calc(4rem+env(safe-area-inset-bottom))] desk:pt-5 desk:pb-5"
+              : "max-w-[620px] px-4 pt-4.5 pb-32 desk:pt-7 desk:pb-14"
+          }`}
         >
           {comPaciente && pessoas && (
             <div className="mb-4 desk:hidden">
