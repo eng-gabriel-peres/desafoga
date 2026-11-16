@@ -11,7 +11,7 @@ import { useEu } from "../sessao";
 import { Avatar, Painel, Sub, TituloCelular } from "../ui/blocos";
 import { Botao } from "../ui/botao";
 
-const CAMPO = "min-h-12 w-full rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 outline-none focus:border-primary";
+const CAMPO = "min-h-12 w-full rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 outline-none campo focus:border-primary";
 
 /** Perfil da pessoa: WhatsApp, quem acompanha e os próprios dados (LGPD). */
 export function TelaPerfil() {

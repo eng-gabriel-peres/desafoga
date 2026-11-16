@@ -39,7 +39,7 @@ type Etapa =
   | { tipo: "codigo"; telefone: string; codigoDeTeste: string | null }
   | { tipo: "pronto"; telefone: string };
 
-const CAMPO = "min-h-12 w-full rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 outline-none focus:border-primary";
+const CAMPO = "min-h-12 w-full rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 outline-none campo focus:border-primary";
 
 /**
  * Conectar o WhatsApp: a pessoa informa o número, confere, a Luana manda um

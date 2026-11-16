@@ -30,7 +30,7 @@ const CARACTERISTICAS = [
 const TESTES = ["Tô triste e com vontade de comprar uma roupa", "E se eu pagar 200 a mais por mês?", "Quanto eu pago de juros?"];
 
 const CAMPO =
-  "w-full rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 outline-none focus:border-primary";
+  "w-full rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 outline-none campo focus:border-primary";
 
 export function TelaMemoria({ pessoaId }: { pessoaId: string }) {
   const dados = useConsulta(`memoria:${pessoaId}`, async () => {
@@ -274,7 +274,7 @@ function Testar({ persona }: { persona: Persona }) {
         >
           <label className="min-w-0 flex-1">
             <span className="sr-only">Mensagem de teste</span>
-            <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Mensagem de teste" autoComplete="off" className="min-h-12 w-full rounded-full border-2 border-line bg-surface px-4 outline-none focus:border-primary" />
+            <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Mensagem de teste" autoComplete="off" className="min-h-12 w-full rounded-full border-2 border-line bg-surface px-4 outline-none campo focus:border-primary" />
           </label>
           <button type="submit" aria-label="Testar" disabled={pensando} className="grid size-12 shrink-0 place-items-center rounded-full bg-primary text-primary-ink disabled:opacity-60">
             <Send aria-hidden="true" className="size-5" />

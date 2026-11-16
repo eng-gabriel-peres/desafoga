@@ -122,10 +122,15 @@ body {
   outline-offset: 2px;
 }
 
-/* Campo com "R$" ou "%" ao lado: o contorno de foco vai na caixa inteira, não só no texto de dentro. */
+/*
+ * Campos de texto: o foco é a própria borda ficando azul, com um brilho
+ * suave em volta (sem uma segunda linha por fora). Nos campos com "R$" ou
+ * "%" ao lado, isso vale para a caixa inteira.
+ */
+.campo:focus-visible,
 .caixa-de-campo:focus-within {
-  outline: 3px solid var(--primary);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 22%, transparent);
 }
 .caixa-de-campo :focus-visible {
   outline: none;

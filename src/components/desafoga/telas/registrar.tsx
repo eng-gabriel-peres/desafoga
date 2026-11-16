@@ -118,7 +118,7 @@ export function TelaRegistrar() {
               placeholder="Ex.: tênis, mercado, lanche"
               autoComplete="off"
               enterKeyHint="next"
-              className="min-h-14 w-full rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 text-[1.15rem] outline-none focus:border-primary desk:min-h-12 desk:text-[1.05rem]"
+              className="min-h-14 w-full rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 text-[1.15rem] outline-none campo focus:border-primary desk:min-h-12 desk:text-[1.05rem]"
             />
           </label>
           <label className="mt-4 block">
