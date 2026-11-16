@@ -1,0 +1,27 @@
+/**
+ * Símbolo do Desafoga: o nó do sufoco (azul) se desenrola, com contas marcando
+ * a jornada, até um perfil sereno respirando (dourado). `linha` troca a cor do
+ * nó, por exemplo para branco sobre fundo azul.
+ */
+export function Simbolo({ className = "", linha = "var(--logo-linha)" }: { className?: string; linha?: string }) {
+  return (
+    <svg aria-hidden="true" viewBox="16 12 86 84" className={className} fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path
+        d="M49.3 64.3C43 62.5 28 64 22.5 74C18 83 25 92 31 89.5C40 86 47 66 60.7 57.6C65 55 68 53.5 71.4 51.9C75 50.6 78.5 49.8 82.1 49.3"
+        stroke={linha}
+        strokeWidth="5.2"
+      />
+      <g fill={linha}>
+        <circle cx="60.7" cy="57.6" r="3.5" />
+        <circle cx="71.4" cy="51.9" r="3.8" />
+        <circle cx="82.1" cy="49.3" r="3.8" />
+      </g>
+      <path
+        d="M80.5 16.2C87 16.6 92.6 20.4 95 25.4L99.4 31.4C99.8 32 99.4 32.6 98.6 32.7L96.4 33.1C97.1 34.1 97.1 35 96.2 35.7C96.9 36.7 96.6 37.7 95.6 38.1C95.1 39.6 95.8 42.2 94.9 44.6C93.9 47.2 90.8 48.6 87.6 48.8"
+        stroke="var(--dourado)"
+        strokeWidth="4.6"
+      />
+      <path d="M83 28.6Q85.8 31.2 89 29.4" stroke="var(--dourado)" strokeWidth="3.4" />
+    </svg>
+  );
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { Simbolo } from "../marca";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAbrirRegistro } from "../registro";
@@ -7,20 +8,12 @@ import { rotaDeOutroPaciente, type ItemDoMenu } from "./navegacao";
 import type { Persona } from "@/services";
 
 /** Logo: círculo com uma onda, a ideia de respirar e aliviar o peso. */
+/** Marca: símbolo e o nome em minúsculas, como no manual da marca. */
 export function Marca({ comNome = true }: { comNome?: boolean }) {
   return (
-    <span className="flex items-center gap-2 text-[1.2rem] font-bold">
-      <svg aria-hidden="true" viewBox="0 0 30 30" className="size-[30px] shrink-0">
-        <circle cx="15" cy="15" r="15" fill="var(--primary)" />
-        <path
-          d="M7 13.5c2.7-3 5.3-3 8 0s5.3 3 8 0M7 18.5c2.7-3 5.3-3 8 0s5.3 3 8 0"
-          fill="none"
-          stroke="var(--primary-ink)"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-        />
-      </svg>
-      {comNome && <span>Desafoga</span>}
+    <span className="flex items-center gap-1.5 font-[family-name:var(--font-marca)] text-[1.45rem] leading-none font-extrabold tracking-[-0.01em] text-[var(--logo-linha)]">
+      <Simbolo className="size-10 shrink-0" />
+      {comNome ? <span>desafoga</span> : <span className="sr-only">Desafoga</span>}
     </span>
   );
 }

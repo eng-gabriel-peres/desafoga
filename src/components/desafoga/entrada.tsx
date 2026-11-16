@@ -71,7 +71,9 @@ export function Entrada() {
       )}
 
       <h2 className="mt-8 text-[1.15rem] font-bold">Testar sem cadastro</h2>
-      <Sub className="mt-0.5">Demonstração com dados fictícios. Cada visita ganha a sua cópia, e dá para trocar entre a Ana e a Paula vendo os mesmos dados.</Sub>
+      <Sub className="mt-0.5">
+        Demonstração com dados fictícios. Cada visita ganha a sua cópia, e dá para trocar de pessoa (menu do perfil › Trocar de perfil) vendo os mesmos dados.
+      </Sub>
       <ul className="mt-3 grid gap-3">
         <li>
           <CartaoDeEntrada
@@ -94,6 +96,30 @@ export function Entrada() {
           />
         </li>
       </ul>
+
+      <h3 className="mt-6 font-bold">Outros pacientes da Paula</h3>
+      <Sub className="mt-0.5">A Paula escolhe o tom da Luana para cada paciente. Entre como um deles para ver a diferença na conversa.</Sub>
+      <ul className="mt-3 grid gap-2.5 sm:grid-cols-3">
+        {OUTROS.map((o) => (
+          <li key={o.perfil}>
+            <button
+              type="button"
+              onClick={() => demo(o.perfil, "/app/assistente")}
+              disabled={entrando !== null}
+              aria-label={`Entrar como ${o.nome}: ${o.descricao}. Luana com tom ${o.tom.toLowerCase()}.`}
+              className="flex h-full w-full flex-col items-start gap-2 rounded-[var(--radius-card)] border-2 border-line bg-surface p-3.5 text-left hover:border-primary disabled:opacity-70"
+            >
+              <span className="flex items-center gap-2.5">
+                <Avatar nome={o.nome} cor={o.cor} />
+                <b>{entrando === o.perfil ? "Preparando…" : o.apelido}</b>
+              </span>
+              <span className="text-[0.88rem] text-muted">{o.descricao}</span>
+              <span className="mt-auto rounded-full bg-primary-soft px-2.5 py-0.5 text-[0.8rem] font-bold text-primary">Luana {o.tom.toLowerCase()}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+
       {erro && (
         <p role="alert" className="mt-3 font-bold text-bad">
           {erro}
@@ -106,6 +132,13 @@ export function Entrada() {
     </main>
   );
 }
+
+/** Os outros pacientes da demonstração, cada um com um tom da Luana definido pela Paula. */
+const OUTROS: { perfil: PerfilDaDemo; nome: string; apelido: string; cor: string; descricao: string; tom: string }[] = [
+  { perfil: "carlos", nome: "Carlos Lima", apelido: "Carlos", cor: "#17804F", descricao: "41 anos, sem dívidas, montando uma reserva", tom: "Direta" },
+  { perfil: "lucia", nome: "Lúcia Andrade", apelido: "Lúcia", cor: "#8E44AD", descricao: "72 anos, aposentada, com consignado", tom: "Acolhedora" },
+  { perfil: "rafael", nome: "Rafael Torres", apelido: "Rafael", cor: "#C2410C", descricao: "23 anos, compra de madrugada quando ansioso", tom: "Motivadora" },
+];
 
 function CartaoDeEntrada({
   titulo,

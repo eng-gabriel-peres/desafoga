@@ -34,6 +34,9 @@
   --chat-me: #d4f1c6;
   --chat-bot: #ffffff;
   --scrim: rgb(14 20 30 / 0.5);
+  /* Marca: o nó azul que se desfaz até o perfil dourado, respirando. */
+  --logo-linha: #2350c8;
+  --dourado: #e8b931;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -63,6 +66,8 @@
     --chat-me: #1e4a37;
     --chat-bot: #1e2a39;
     --scrim: rgb(0 0 0 / 0.6);
+    --logo-linha: #ffffff;
+    --dourado: #f0c548;
   }
 }
 

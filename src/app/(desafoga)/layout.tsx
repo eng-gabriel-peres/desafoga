@@ -1,11 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Atkinson_Hyperlegible } from "next/font/google";
+import { Atkinson_Hyperlegible, Nunito } from "next/font/google";
 import "./desafoga.css";
 
 const atkinson = Atkinson_Hyperlegible({
   variable: "--font-atkinson",
   subsets: ["latin"],
   weight: ["400", "700"],
+});
+
+/** Só para o nome "desafoga" na marca: arredondada, como no manual. */
+const nunito = Nunito({
+  variable: "--font-marca",
+  subsets: ["latin"],
+  weight: ["800"],
 });
 
 export const metadata: Metadata = {
@@ -26,7 +33,7 @@ export const viewport: Viewport = {
 
 export default function DesafogaLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={atkinson.variable}>
+    <html lang="pt-BR" className={`${atkinson.variable} ${nunito.variable}`}>
       <body className="min-h-dvh antialiased">{children}</body>
     </html>
   );

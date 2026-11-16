@@ -6,20 +6,22 @@ import { useAgora } from "@/hooks/use-agora";
 import { chaveDoDia } from "@/lib/finance";
 import { hora, nomeDoDia } from "@/lib/formatar";
 import type { Mensagem, RespostaRapida } from "@/services";
+import { Simbolo } from "../marca";
 import { Carinha } from "../ui/carinha";
 import { MenuDeComandos, type Comando } from "./comandos";
 import { useGravador } from "./use-gravador";
 
 const TIPOS_ACEITOS = "application/pdf,image/jpeg,image/png,image/webp";
 
-/** Avatar da Luana. */
+/** Avatar da Luana: o símbolo do Desafoga. */
 export function AvatarLuana({ tamanho = "md" }: { tamanho?: "sm" | "md" }) {
   return (
     <span
       aria-hidden="true"
-      className={`grid shrink-0 place-items-center rounded-full bg-primary font-bold text-primary-ink ${tamanho === "sm" ? "size-8 text-[0.85rem]" : "size-[42px]"}`}
+      // Ícone de chat do manual da marca: o símbolo branco e dourado sobre o azul da marca, nos dois temas.
+      className={`grid shrink-0 place-items-center rounded-full bg-[#2350c8] ${tamanho === "sm" ? "size-8" : "size-[42px]"}`}
     >
-      L
+      <Simbolo linha="#ffffff" className="size-[78%] translate-x-[-4%]" />
     </span>
   );
 }
