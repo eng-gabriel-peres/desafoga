@@ -72,7 +72,7 @@ export function TelaHoje() {
         <p className="mt-0.5 text-muted">{dataPorExtenso(agora)}</p>
       </div>
 
-      <div className="grid items-start gap-4 desk:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] desk:gap-5">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 desk:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] desk:gap-5">
         <div className="grid gap-4">
           <NotaDoDia nota={notaMedia(deHoje)} quantidade={deHoje.length} sujeito="você estava" />
           <div className="grid gap-4 desk:hidden">
