@@ -1,6 +1,8 @@
-import { PESSOA_DA_DEMO } from "@/components/desafoga/moldura/navegacao";
-import { TelaDividas } from "@/components/desafoga/telas/dividas";
+import { TelaMinhasDividas } from "@/components/desafoga/telas/dividas";
+
+/** Carrega no navegador depois de conferir a sessão; ver o layout da área. */
+export const instant = false;
 
 export default function Dividas() {
-  return <TelaDividas pessoaId={PESSOA_DA_DEMO} area="pessoa" />;
+  return <TelaMinhasDividas />;
 }

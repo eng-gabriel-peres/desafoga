@@ -16,12 +16,13 @@ import {
 } from "@/lib/finance";
 import { dataPorExtenso, reais } from "@/lib/formatar";
 import { FaixaDaSemana, LinhaDeCompra, ListaDePadroes, NotaDoDia } from "../emocao";
-import { PESSOA_DA_DEMO } from "../moldura/navegacao";
+import { useMinhaPessoaId } from "../sessao";
 import { Carregando, Painel, Sub, Vazio } from "../ui/blocos";
 import { BotaoLink } from "../ui/botao";
 
 export function TelaHoje() {
-  const dados = usePessoa(PESSOA_DA_DEMO);
+  const pessoaId = useMinhaPessoaId();
+  const dados = usePessoa(pessoaId);
   const agora = useAgora();
   if (!dados || !agora) return <Carregando />;
 

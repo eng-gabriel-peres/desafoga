@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 
 const CHAVE = "desafoga-paciente";
-const PADRAO = "ana";
+const PADRAO = "";
 const ouvintes = new Set<() => void>();
 
 function lerGuardado(): string {
@@ -17,7 +17,7 @@ function lerGuardado(): string {
 
 /**
  * Paciente aberto no modo Responsável: o da rota, ou o último aberto quando a
- * rota não tem paciente (lista de pacientes).
+ * rota não tem paciente (lista de pacientes). Vazio quando nenhum foi aberto.
  */
 export function usePacienteAtual(): string {
   const params = useParams<{ id?: string }>();

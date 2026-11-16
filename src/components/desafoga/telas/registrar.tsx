@@ -12,7 +12,7 @@ import { reais } from "@/lib/formatar";
 import { servicos } from "@/services";
 import { CATEGORIAS, ICONE_DA_CATEGORIA } from "../categorias";
 import { NotaDoDia } from "../emocao";
-import { PESSOA_DA_DEMO } from "../moldura/navegacao";
+import { useMinhaPessoaId } from "../sessao";
 import { Botao } from "../ui/botao";
 import { Carinha, COR_DA_EMOCAO } from "../ui/carinha";
 
@@ -26,6 +26,7 @@ interface Rascunho {
 const VAZIO: Rascunho = { item: "", valorTexto: "", categoria: null, emocao: null };
 
 export function TelaRegistrar() {
+  const pessoaId = useMinhaPessoaId();
   const router = useRouter();
   const [passo, setPasso] = useState<1 | 2 | 3 | 4>(1);
   const [rascunho, setRascunho] = useState<Rascunho>(VAZIO);
@@ -58,7 +59,7 @@ export function TelaRegistrar() {
     if (!valor || !rascunho.categoria || !rascunho.emocao || salvando) return;
     setSalvando(true);
     const item = rascunho.item.trim().charAt(0).toUpperCase() + rascunho.item.trim().slice(1);
-    await servicos.compras.registrar(PESSOA_DA_DEMO, {
+    await servicos.compras.registrar(pessoaId, {
       item,
       valor,
       categoria: rascunho.categoria,
@@ -247,8 +248,9 @@ function OpcaoNecessidade({
 
 /** Fim do fluxo: confirmação e a nota do dia já atualizada. */
 function Concluido({ item, valor, outra, sair }: { item: string; valor: number; outra: () => void; sair: () => void }) {
+  const pessoaId = useMinhaPessoaId();
   const agora = useAgora();
-  const compras = useConsulta(`compras:${PESSOA_DA_DEMO}`, () => servicos.compras.listar(PESSOA_DA_DEMO));
+  const compras = useConsulta(`compras:${pessoaId}`, () => servicos.compras.listar(pessoaId));
   const deHoje = compras && agora ? comprasDoDia(compras, chaveDoDia(agora)) : [];
   return (
     <div className="mx-auto max-w-[620px]">

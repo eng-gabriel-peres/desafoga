@@ -1,7 +1,8 @@
 import { TelaResumo } from "@/components/desafoga/telas/resumo";
-import { PaginaDoPaciente, paramsDosPacientes } from "./paciente";
+import { PaginaDoPaciente } from "./paciente";
 
-export const generateStaticParams = paramsDosPacientes;
+/** Carrega no navegador depois de conferir a sessão; ver o layout da área. */
+export const instant = false;
 
 export default function Resumo({ params }: PageProps<"/painel/[id]">) {
   return <PaginaDoPaciente params={params} tela={(id) => <TelaResumo pessoaId={id} />} />;

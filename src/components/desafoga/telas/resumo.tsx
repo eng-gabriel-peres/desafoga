@@ -59,7 +59,7 @@ function Divisao({ sim, nao, talvez }: { sim: number; nao: number; talvez: numbe
 
 export function TelaResumo({ pessoaId }: { pessoaId: string }) {
   const dados = usePessoa(pessoaId);
-  const avisos = useConsulta(`avisos:${pessoaId}`, () => servicos.avisos.listar(pessoaId));
+  const avisos = useConsulta(`avisos:${pessoaId}`, () => servicos.avisos.daPessoa(pessoaId));
   const agora = useAgora();
   if (!dados || !agora || !avisos) return <Carregando />;
 
@@ -94,7 +94,7 @@ export function TelaResumo({ pessoaId }: { pessoaId: string }) {
             <ListaDePadroes padroes={padroesDeCompra(compras, agora)} sujeito={sujeito} />
           </Painel>
           <Painel titulo="Avisos recentes">
-            <ListaDeAvisos avisos={avisos.filter((a) => a.tipo !== "sugestao").slice(0, 5)} agora={agora} />
+            <ListaDeAvisos avisos={avisos.slice(0, 5)} agora={agora} />
           </Painel>
         </div>
       </div>

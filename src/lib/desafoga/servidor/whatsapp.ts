@@ -6,7 +6,7 @@
 import { paraWhatsapp } from "../conversar";
 import { receberArquivoNoChat, receberAudioNoChat, responderTexto } from "./acoes";
 import { normalizarTelefone } from "../telefone";
-import { donoDoTelefone, registrarContato } from "./armazem";
+import { donoDoTelefone, registrarContato } from "./vinculo-whatsapp";
 import { linkDeConexao } from "./link-de-conexao";
 
 export interface MensagemRecebida {
@@ -34,21 +34,20 @@ export function mensagemSemConta(origem: string, numero: string): string {
 export async function atenderNoWhatsapp(m: MensagemRecebida, origem: string, avisarLeitura: () => Promise<void>): Promise<string[]> {
   // Quem escreve abre a conversa: a partir daí podemos mandar o código de conexão para este número.
   await registrarContato(m.de);
-  const dono = await donoDoTelefone(m.de);
-  if (!dono) return [mensagemSemConta(origem, m.de)];
-  const { visitante, pessoaId } = dono;
+  const pessoaId = await donoDoTelefone(m.de);
+  if (!pessoaId) return [mensagemSemConta(origem, m.de)];
 
   if (m.tipo === "text" && m.texto) {
-    return (await responderTexto(visitante, pessoaId, "whatsapp", m.texto)).map(paraWhatsapp);
+    return (await responderTexto(pessoaId, "whatsapp", m.texto)).map(paraWhatsapp);
   }
   if (m.tipo === "audio" && m.baixar) {
     const { bytes, mime } = await m.baixar();
-    return (await receberAudioNoChat(visitante, pessoaId, "whatsapp", { bytes, mime })).respostas.map(paraWhatsapp);
+    return (await receberAudioNoChat(pessoaId, "whatsapp", { bytes, mime })).respostas.map(paraWhatsapp);
   }
   if ((m.tipo === "image" || m.tipo === "document") && m.baixar) {
     await avisarLeitura();
     const { bytes, mime } = await m.baixar();
-    return (await receberArquivoNoChat(visitante, pessoaId, "whatsapp", { bytes, mime, nome: "arquivo" })).map(paraWhatsapp);
+    return (await receberArquivoNoChat(pessoaId, "whatsapp", { bytes, mime, nome: "arquivo" })).map(paraWhatsapp);
   }
   return ["Entendo texto, áudio, foto ou PDF. Me conte o que comprou, mande a fatura ou um áudio."];
 }

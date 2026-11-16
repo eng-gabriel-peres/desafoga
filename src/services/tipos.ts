@@ -15,7 +15,7 @@ export interface Persona {
   nome: string;
   /** Primeiro nome, usado nas frases. */
   apelido: string;
-  idade: number;
+  idade: number | null;
   /** Cor do avatar (hex). */
   cor: string;
   /** Descrição curta do caso, para a demonstração. */

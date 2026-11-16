@@ -18,6 +18,7 @@ import { servicos } from "@/services";
 import { ListaDeDividas, PainelCustoEmocional, PainelFaturas, RaioX } from "../dividas/paineis";
 import { PlanoEditavel, PlanoLeitura } from "../dividas/plano";
 import type { Area } from "../moldura/navegacao";
+import { useMinhaPessoaId } from "../sessao";
 import { Carregando, Kpi, Painel, Sub, TituloCelular } from "../ui/blocos";
 import { BotaoLink } from "../ui/botao";
 
@@ -114,4 +115,9 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
       </div>
     </>
   );
+}
+
+/** Dívidas de quem está na sessão (área do app). */
+export function TelaMinhasDividas() {
+  return <TelaDividas pessoaId={useMinhaPessoaId()} area="pessoa" />;
 }

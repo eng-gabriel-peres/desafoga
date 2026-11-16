@@ -1,15 +1,16 @@
 "use client";
 
 import { RotateCcw } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useAgora } from "@/hooks/use-agora";
 import { useConsulta } from "@/hooks/use-consulta";
 import { usePacienteAtual } from "@/hooks/use-paciente-atual";
 import { dataPorExtenso } from "@/lib/formatar";
 import { servicos } from "@/services";
+import { useEu } from "../sessao";
 import { Avatar } from "../ui/blocos";
-import { itensDoMenu, PESSOA_DA_DEMO, temPaciente, tituloDaRota, type Area } from "./navegacao";
+import { itensDoMenu, temPaciente, tituloDaRota, type Area } from "./navegacao";
 import { BotaoLetraMaior, LinkSair, Marca, MenuInferior, MenuLateral, SeletorDePaciente } from "./partes";
 import { Sino } from "./sino";
 
@@ -22,27 +23,38 @@ const NOME_CURTO: Record<Area, string> = { pessoa: "Desafoga", responsavel: "Pai
  */
 export function Moldura({ area, children }: { area: Area; children: ReactNode }) {
   const caminho = usePathname();
-  const pacienteId = usePacienteAtual();
-  const itens = itensDoMenu(area, pacienteId);
-  const agora = useAgora();
+  const router = useRouter();
+  const eu = useEu();
   const pessoas = useConsulta(area === "responsavel" ? "pessoas" : "sem-pessoas", () =>
     area === "responsavel" ? servicos.pessoas.listar() : Promise.resolve([]),
   );
-  const eu = useConsulta(`eu:${area}`, async () => {
-    if (area === "responsavel") {
-      const r = await servicos.pessoas.responsavel();
-      return { nome: r.nome, cor: r.cor, detalhe: r.papel };
-    }
-    const [p, r] = await Promise.all([servicos.pessoas.obter(PESSOA_DA_DEMO), servicos.pessoas.responsavel()]);
-    return p ? { nome: p.nome, apelido: p.apelido, cor: p.cor, detalhe: `Acompanhada por ${r.nome}` } : null;
-  });
+  const guardado = usePacienteAtual();
+  // Sem paciente aberto ainda: o primeiro da lista.
+  const pacienteId = guardado || pessoas?.[0]?.id || "";
+  const itens = itensDoMenu(area, pacienteId);
+  const agora = useAgora();
+  const quem =
+    area === "responsavel" && eu.profissional
+      ? { nome: eu.profissional.nome, cor: eu.profissional.cor, detalhe: eu.profissional.papel }
+      : eu.pessoa
+        ? {
+            nome: eu.pessoa.nome,
+            cor: eu.pessoa.cor,
+            detalhe: eu.acompanhantes.length ? `Acompanhada por ${eu.acompanhantes[0].nome}` : "Sem acompanhamento ainda",
+          }
+        : null;
+
+  async function recomecar() {
+    await servicos.sessao.recomecar();
+    router.refresh();
+  }
   const comPaciente = temPaciente(caminho);
   /** O chat ocupa a altura toda, como no WhatsApp. */
   const telaCheia = caminho === "/app/assistente";
 
   const { titulo, subtitulo } =
-    caminho === "/app/hoje" && eu && "apelido" in eu
-      ? { titulo: `Oi, ${eu.apelido}`, subtitulo: agora ? dataPorExtenso(agora) : undefined }
+    caminho === "/app/hoje" && eu.pessoa
+      ? { titulo: `Oi, ${eu.pessoa.apelido}`, subtitulo: agora ? dataPorExtenso(agora) : undefined }
       : tituloDaRota(caminho);
 
   return (
@@ -63,7 +75,7 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
           </div>
           <BotaoLetraMaior />
           <Sino area={area} />
-          <LinkSair compacto />
+          <LinkSair compacto demo={eu.demo} />
         </div>
       </header>
 
@@ -76,21 +88,23 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
         <MenuLateral itens={itens} caminho={caminho} />
         <div className="mt-auto grid gap-2.5">
           <BotaoLetraMaior comTexto />
-          <button
-            type="button"
-            onClick={() => servicos.recomecar()}
-            className="flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-surface2 px-3 text-left text-[0.9rem] font-bold hover:border-primary"
-          >
-            <RotateCcw aria-hidden="true" className="size-5" />
-            Recomeçar demonstração
-          </button>
-          <LinkSair />
-          {eu && (
+          {eu.demo && (
+            <button
+              type="button"
+              onClick={recomecar}
+              className="flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-surface2 px-3 text-left text-[0.9rem] font-bold hover:border-primary"
+            >
+              <RotateCcw aria-hidden="true" className="size-5" />
+              Recomeçar demonstração
+            </button>
+          )}
+          <LinkSair demo={eu.demo} />
+          {quem && (
             <div className="flex items-center gap-2.5 rounded-2xl border border-line bg-surface2 p-2.5">
-              <Avatar nome={eu.nome} cor={eu.cor} />
+              <Avatar nome={quem.nome} cor={quem.cor} />
               <div>
-                <b className="block text-[0.95rem]">{eu.nome}</b>
-                <span className="text-[0.85rem] text-muted">{eu.detalhe}</span>
+                <b className="block text-[0.95rem]">{quem.nome}</b>
+                <span className="text-[0.85rem] text-muted">{quem.detalhe}</span>
               </div>
             </div>
           )}

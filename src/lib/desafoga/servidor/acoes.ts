@@ -1,16 +1,16 @@
 /**
- * Ações do Desafoga no servidor, usadas pela API do app e pelo WhatsApp.
- * Toda leitura e escrita passa por `comBanco`, que carrega e salva os dados.
+ * A Luana no servidor: texto, arquivo e áudio, no app e no WhatsApp, com os
+ * dados no banco. Quem chama já conferiu a permissão (acesso.ts).
  */
 import { FATURA_DE_EXEMPLO, materializarFatura } from "@/fixtures/desafoga";
 import { gerarTexto } from "@/lib/ia/gemini";
+import { ESTADO_INICIAL } from "@/lib/assistente/conversa";
 import { lerAudio, lerDocumento, lerMensagem } from "@/lib/luana/ler";
 import { TIPOS_DE_AUDIO, TAMANHO_MAXIMO } from "@/lib/luana/luana";
-import { novoId, pessoa, salvarFatura, type Canal } from "@/services/nucleo";
 import type { Fatura, Mensagem } from "@/services/tipos";
-import { conversar, type IaDaConversa } from "../conversar";
+import { conversar, type Canal, type DadosDaConversa, type IaDaConversa } from "../conversar";
 import { paraFatura, respostaDaFatura } from "../fatura-lida";
-import { comBanco } from "./armazem";
+import * as repo from "./repositorio";
 
 const TIPOS_DE_DOCUMENTO = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 const hoje = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
@@ -21,42 +21,49 @@ export function iaDisponivel(): IaDaConversa | null {
   return { lerMensagem, redigir: (sistema, conteudo) => gerarTexto(sistema, conteudo) };
 }
 
-export function responderTexto(visitante: string, pessoaId: string, canal: Canal, texto: string): Promise<Mensagem[]> {
-  return comBanco(visitante, async (banco) => {
-    if (canal === "app") {
-      const dados = pessoa(banco, pessoaId);
-      dados.conversa.forEach((m) => delete m.respostasRapidas);
-      dados.conversa.push({ id: novoId("msg"), de: "pessoa", texto, quando: new Date().toISOString() });
+/** A conversa lendo e gravando no banco. */
+const dadosNoBanco: DadosDaConversa = {
+  contexto: (pessoaId, canal, agora) => repo.contextoDoAssistente(pessoaId, canal, agora),
+  estado: (pessoaId, canal) => repo.estado(pessoaId, canal),
+  conversaRecente: (pessoaId, canal) => repo.conversaRecente(pessoaId, canal),
+  async concluir(pessoaId, canal, resultado, agora) {
+    for (const e of resultado.efeitos) {
+      if (e.tipo === "registrar-compra") await repo.registrarCompra(pessoaId, e.compra, agora);
+      else await repo.avisar(pessoaId, e.aviso.tipo, e.aviso.texto, agora);
     }
-    return conversar(banco, pessoaId, canal, texto, { ia: iaDisponivel() });
-  });
+    await repo.guardarEstado(pessoaId, canal, resultado.estado);
+    return repo.guardarMensagens(
+      pessoaId,
+      canal,
+      resultado.respostas.map((r) => ({ de: "assistente" as const, texto: r.texto, respostasRapidas: r.respostasRapidas, quando: agora })),
+    );
+  },
+};
+
+export async function responderTexto(pessoaId: string, canal: Canal, texto: string): Promise<Mensagem[]> {
+  await repo.guardarMensagens(pessoaId, canal, [{ de: "pessoa", texto }]);
+  return conversar(dadosNoBanco, pessoaId, canal, texto, { ia: iaDisponivel() });
 }
 
-/** Simula a resposta sem gravar nada ("Testar o assistente"). */
-export function testarResposta(visitante: string, pessoaId: string, texto: string): Promise<string> {
-  return comBanco(
-    visitante,
-    async (banco) => {
-      const copia = structuredClone(banco);
-      copia.estados[pessoaId] = { ...copia.estados[pessoaId], app: { etapa: "livre" } };
-      const respostas = await conversar(copia, pessoaId, "app", texto, { ia: iaDisponivel() });
-      return respostas.map((r) => r.texto).join("\n\n");
+/** Simula a resposta sem gravar nada ("Testar o assistente", no painel). */
+export async function testarResposta(pessoaId: string, texto: string): Promise<string> {
+  let respostas: string[] = [];
+  const semGravar: DadosDaConversa = {
+    ...dadosNoBanco,
+    estado: async () => ESTADO_INICIAL,
+    async concluir(_p, _c, resultado) {
+      respostas = resultado.respostas.map((r) => r.texto);
+      return [];
     },
-    false,
-  );
+  };
+  await conversar(semGravar, pessoaId, "app", texto, { ia: iaDisponivel() });
+  return respostas.join("\n\n");
 }
 
 export class ArquivoRecusado extends Error {}
 
-/**
- * Lê uma fatura, extrato ou print. Com IA, lê o arquivo de verdade; sem IA
- * (ou sem arquivo), usa o documento de exemplo.
- */
-export async function lerFatura(
-  visitante: string,
-  pessoaId: string,
-  arquivo: { bytes: Uint8Array; mime: string } | null,
-): Promise<{ fatura: Fatura; deExemplo: boolean }> {
+/** Lê uma fatura, extrato ou print. Com IA, lê o arquivo de verdade; sem IA (ou sem arquivo), usa o exemplo. */
+export async function lerFatura(pessoaId: string, arquivo: { bytes: Uint8Array; mime: string } | null): Promise<{ fatura: Fatura; deExemplo: boolean }> {
   const agora = new Date();
   if (arquivo) {
     if (!TIPOS_DE_DOCUMENTO.includes(arquivo.mime)) throw new ArquivoRecusado("Só leio PDF ou foto (JPG, PNG, WebP).");
@@ -67,49 +74,46 @@ export async function lerFatura(
     if (!doc.legivel || doc.lancamentos.length === 0) {
       throw new ArquivoRecusado("Não achei lançamentos nesse arquivo. Mande a fatura em PDF ou um print nítido.");
     }
-    const compras = await comBanco(visitante, (b) => pessoa(b, pessoaId).compras, false);
-    return { fatura: paraFatura(doc, compras, agora, novoId("fatura")), deExemplo: false };
+    return { fatura: paraFatura(doc, await repo.compras(pessoaId), agora, crypto.randomUUID()), deExemplo: false };
   }
-  return { fatura: { ...materializarFatura(FATURA_DE_EXEMPLO, agora), id: novoId("fatura") }, deExemplo: true };
+  // Exemplo só faz sentido nos dados de demonstração; em conta real, sem IA, avisamos.
+  return { fatura: { ...materializarFatura(FATURA_DE_EXEMPLO, agora), id: crypto.randomUUID() }, deExemplo: true };
 }
 
 /** Arquivo mandado no chat (app ou WhatsApp): lê, guarda e responde com o resumo. */
 export async function receberArquivoNoChat(
-  visitante: string,
   pessoaId: string,
   canal: Canal,
   arquivo: { bytes: Uint8Array; mime: string; nome: string },
 ): Promise<Mensagem[]> {
+  if (canal === "app") await repo.guardarMensagens(pessoaId, canal, [{ de: "pessoa", texto: `Arquivo: ${arquivo.nome}` }]);
   let resposta: string;
-  let fatura: Fatura | null = null;
   try {
-    const lida = await lerFatura(visitante, pessoaId, arquivo);
-    fatura = lida.fatura;
-    resposta = respostaDaFatura(lida.fatura, canal) + (lida.deExemplo ? "\n(Demonstração sem IA: li um extrato de exemplo no lugar do arquivo.)" : "");
+    const lida = await lerFatura(pessoaId, arquivo);
+    await repo.salvarFatura(pessoaId, lida.fatura);
+    resposta =
+      respostaDaFatura(lida.fatura, canal) + (lida.deExemplo ? "\n(Demonstração sem IA: li um extrato de exemplo no lugar do arquivo.)" : "");
   } catch (erro) {
     resposta = erro instanceof ArquivoRecusado ? erro.message : "Não consegui ler o arquivo agora. Tente de novo em instantes.";
   }
-  return comBanco(visitante, (banco) => {
-    const dados = pessoa(banco, pessoaId);
-    if (fatura) salvarFatura(banco, pessoaId, fatura);
-    const agora = new Date().toISOString();
-    const minhas: Mensagem[] = canal === "app" ? [{ id: novoId("msg"), de: "pessoa", texto: `Arquivo: ${arquivo.nome}`, quando: agora }] : [];
-    const dela: Mensagem = { id: novoId("msg"), de: "assistente", texto: resposta, quando: agora };
-    if (canal === "app") dados.conversa.push(...minhas, dela);
-    return [dela];
-  });
+  return repo.guardarMensagens(pessoaId, canal, [{ de: "assistente", texto: resposta }]);
 }
 
 /** Mensagem de voz: a IA transcreve e a conversa segue como se fosse texto. */
 export async function receberAudioNoChat(
-  visitante: string,
   pessoaId: string,
   canal: Canal,
   audio: { bytes: Uint8Array; mime: string },
 ): Promise<{ transcricao: string; respostas: Mensagem[] }> {
   const tipo = audio.mime.split(";")[0].trim().toLowerCase();
   const ia = iaDisponivel();
-  const falha = (texto: string) => ({ transcricao: "", respostas: [{ id: novoId("msg"), de: "assistente" as const, texto, quando: new Date().toISOString() }] });
+  const falha = async (texto: string) => ({
+    transcricao: "",
+    respostas: await repo.guardarMensagens(pessoaId, canal, [
+      ...(canal === "app" ? [{ de: "pessoa" as const, texto: "Mensagem de voz" }] : []),
+      { de: "assistente" as const, texto },
+    ]),
+  });
   if (!TIPOS_DE_AUDIO.includes(tipo) || audio.bytes.byteLength > TAMANHO_MAXIMO) return falha("Não consegui abrir esse áudio. Grave de novo, mais curto, ou escreva.");
   if (!ia) return falha("Nesta demonstração estou sem a IA que transcreve áudio. Pode escrever a mensagem?");
 
@@ -122,13 +126,8 @@ export async function receberAudioNoChat(
   const transcricao = lida.transcricao?.trim() ?? "";
   if (!transcricao) return falha("Não entendi o áudio. Pode gravar de novo, mais perto do microfone?");
 
-  const respostas = await comBanco(visitante, (banco) => {
-    if (canal === "app") {
-      const dados = pessoa(banco, pessoaId);
-      dados.conversa.forEach((m) => delete m.respostasRapidas);
-      dados.conversa.push({ id: novoId("msg"), de: "pessoa", texto: `Mensagem de voz: ${transcricao}`, quando: new Date().toISOString() });
-    }
-    return conversar(banco, pessoaId, canal, transcricao, { ia, lida });
-  });
+  await repo.guardarMensagens(pessoaId, canal, [{ de: "pessoa", texto: canal === "app" ? `Mensagem de voz: ${transcricao}` : transcricao }]);
+  const respostas = await conversar(dadosNoBanco, pessoaId, canal, transcricao, { ia, lida });
   return { transcricao, respostas };
 }
+

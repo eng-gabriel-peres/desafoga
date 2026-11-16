@@ -1,40 +1,29 @@
 /**
  * Ações da API do Desafoga (POST /api/desafoga/<acao>). Cada ação valida os
- * argumentos e opera sobre os dados do visitante. Os nomes seguem os
- * contratos de `services/contratos.ts`.
+ * argumentos, confere a permissão da sessão (acesso.ts) e só então lê ou
+ * grava. Os nomes seguem os contratos de `services/contratos.ts`.
  */
 import { z } from "zod";
-import { PROFISSIONAIS } from "@/fixtures/desafoga";
 import { montarContexto } from "@/lib/assistente/contexto";
-import {
-  anotar,
-  apagarAnotacao,
-  avisosDe,
-  contextoDoAssistente,
-  pessoa,
-  registrarCompra,
-  responsavel,
-  salvarFatura,
-  salvarMemoria,
-  salvarPlano,
-  sugerirValor,
-} from "@/services/nucleo";
 import type { Fatura } from "@/services/tipos";
+import { exigirAPropriaPessoa, exigirProfissionalDe, exigirSessao, exigirVer, SemPermissao } from "./acesso";
 import { responderTexto, testarResposta } from "./acoes";
-import {
-  cancelarPedido,
-  comBanco,
-  confirmarTelefone,
-  conectarPorLink,
-  desvincularTelefone,
-  PedidoRecusado,
-  pedirTelefone,
-  recomecarBanco,
-} from "./armazem";
 import { enviarPeloWhatsapp, whatsappConfigurado } from "./enviar";
+import * as repo from "./repositorio";
+import {
+  aceitarConvite,
+  apagarConta,
+  criarConta,
+  encerrarSessao,
+  entrarNaDemo,
+  recomecarDemo,
+  type NovaSessao,
+  type PerfilDaDemo,
+  type SessaoAtual,
+} from "./sessao";
+import { cancelarPedido, conectarPorLink, confirmarCodigo, desconectar, pedirCodigo, PedidoRecusado } from "./vinculo-whatsapp";
 
-/** Ids só com letras minúsculas, números e hífen: nada de "__proto__" e afins. */
-const id = z.string().regex(/^[a-z0-9-]{1,40}$/);
+const id = z.string().uuid();
 const centavos = z.number().int().min(0).max(1e10);
 const emocao = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]);
 const necessidade = z.enum(["sim", "nao", "talvez"]);
@@ -60,20 +49,101 @@ const fatura = z.object({
 
 export class ErroDeEntrada extends Error {}
 
-/** Cada ação: esquema dos argumentos e o que fazer com eles. */
+/** O que a rota sabe de quem chamou. */
+export interface Contexto {
+  /** Hash do endereço de rede, que o cliente não escolhe. */
+  rede: string | null;
+  sessao: SessaoAtual | null;
+  /** Troca o cookie da sessão (entrar, criar conta, sair). */
+  definirSessao: (nova: NovaSessao | null) => void;
+}
+
+type Recurso = "texto" | "arquivo" | "audio" | "codigo";
+
+function acao<A extends z.ZodTypeAny, R>(argumentos: A, executar: (args: z.infer<A>, ctx: Contexto) => Promise<R>, recurso?: Recurso) {
+  return { argumentos, executar, recurso };
+}
+
+/** Converte a recusa do vínculo do WhatsApp em erro de entrada (mensagem para a pessoa). */
+async function comRecusa<T>(f: () => Promise<T>): Promise<T> {
+  try {
+    return await f();
+  } catch (e) {
+    if (e instanceof PedidoRecusado) throw new ErroDeEntrada(e.message);
+    throw e;
+  }
+}
+
 const ACOES = {
-  "pessoas.listar": acao(z.tuple([]), (v) => comBanco(v, (b) => Object.values(b.pessoas).map((d) => d.persona), false)),
-  "pessoas.obter": acao(z.tuple([id]), (v, [p]) => comBanco(v, (b) => b.pessoas[p]?.persona ?? null, false)),
-  "pessoas.profissionais": acao(z.tuple([]), async () => PROFISSIONAIS),
-  "pessoas.responsavel": acao(z.tuple([]), async () => responsavel()),
-  "pessoas.whatsapp": acao(z.tuple([id]), (v, [p]) => comBanco(v, (b) => b.telefones[p] ?? null, false)),
+  // ----- sessão -----
+  "sessao.eu": acao(z.tuple([]), async (_, { sessao }) => {
+    if (!sessao) return null;
+    return { ...sessao, acompanhantes: sessao.pessoa ? await repo.acompanhantes(sessao.pessoa.id) : [] };
+  }),
+  "sessao.entrarNaDemo": acao(z.tuple([z.enum(["ana", "carlos", "lucia", "rafael", "paula", "marcos"])]), async ([perfil], ctx) => {
+    ctx.definirSessao(await entrarNaDemo(perfil as PerfilDaDemo, ctx.sessao));
+  }),
+  "sessao.criarConta": acao(
+    z.tuple([
+      z.discriminatedUnion("tipo", [
+        z.object({ tipo: z.literal("pessoa"), nome: texto(80), apelido: texto(40), idade: z.number().int().min(14).max(120).nullable() }),
+        z.object({ tipo: z.literal("profissional"), nome: texto(80), papel: texto(60) }),
+      ]),
+    ]),
+    async ([conta], ctx) => {
+      ctx.definirSessao(await criarConta(conta, ctx.sessao));
+    },
+  ),
+  "sessao.sair": acao(z.tuple([]), async (_, ctx) => {
+    if (ctx.sessao) await encerrarSessao(ctx.sessao.id);
+    ctx.definirSessao(null);
+  }),
+  "sessao.aceitarConvite": acao(
+    z.tuple([z.string().trim().min(4).max(12)]),
+    async ([convite], { sessao }) => {
+      const s = exigirSessao(sessao);
+      if (!s.pessoa) throw new SemPermissao("Só a pessoa acompanhada aceita um convite.");
+      const p = await aceitarConvite(s.pessoa.id, s.espacoId, convite);
+      if (!p) throw new ErroDeEntrada("Código de convite não encontrado. Confira com quem te acompanha.");
+      return p;
+    },
+    "codigo",
+  ),
+  "sessao.apagarConta": acao(z.tuple([]), async (_, ctx) => {
+    await apagarConta(exigirSessao(ctx.sessao));
+    ctx.definirSessao(null);
+  }),
+  recomecar: acao(z.tuple([]), async (_, ctx) => {
+    const s = exigirSessao(ctx.sessao);
+    if (!s.demo) throw new SemPermissao("Só a demonstração pode ser recomeçada.");
+    ctx.definirSessao(await recomecarDemo(s));
+  }),
+
+  // ----- pessoas -----
+  "pessoas.listar": acao(z.tuple([]), async (_, { sessao }) => {
+    const s = exigirSessao(sessao);
+    if (s.profissional) return repo.acompanhados(s.profissional.id);
+    return s.pessoa ? [s.pessoa] : [];
+  }),
+  "pessoas.obter": acao(z.tuple([id]), async ([p], { sessao }) => {
+    await exigirVer(sessao, p);
+    return repo.persona(p);
+  }),
+  "pessoas.profissionais": acao(z.tuple([id]), async ([p], { sessao }) => {
+    await exigirVer(sessao, p);
+    return repo.acompanhantes(p);
+  }),
+  "pessoas.whatsapp": acao(z.tuple([id]), async ([p], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    return repo.telefone(p);
+  }),
   "pessoas.conectarWhatsapp": acao(
     z.tuple([id, texto(30)]),
-    async (v, [p, tel], { rede }) => {
-      await comBanco(v, (b) => pessoa(b, p), false);
+    async ([p, tel], { sessao, rede }) => {
+      exigirAPropriaPessoa(sessao, p);
       // Desenvolvimento sem WhatsApp configurado: não há como mandar nem receber, o código aparece na tela.
       const semWhatsapp = !whatsappConfigurado() && process.env.NODE_ENV !== "production";
-      const pedido = await pedirTelefone({ visitante: v, rede }, p, tel, { exigirContato: !semWhatsapp });
+      const pedido = await comRecusa(() => pedirCodigo({ pessoaId: p, rede }, tel, { exigirContato: !semWhatsapp }));
       if (!pedido) throw new ErroDeEntrada("Número inválido. Use DDD e número, por exemplo (11) 99999-8888.");
       if (semWhatsapp) return { telefone: pedido.telefone, codigoDeTeste: pedido.codigo };
       try {
@@ -82,7 +152,7 @@ const ACOES = {
           `Seu código do Desafoga é ${pedido.codigo}. Digite no app para conectar este WhatsApp. Se não foi você, ignore esta mensagem.`,
         );
       } catch (e) {
-        await cancelarPedido(v, p, pedido);
+        await cancelarPedido(p, pedido);
         console.error("Desafoga: código não enviado,", e instanceof Error ? e.message.slice(0, 200) : "erro");
         throw new ErroDeEntrada(
           "Não consegui mandar o código para esse WhatsApp. Confira o número e mande antes um “oi” para a Luana por ele (no sandbox da Twilio, a mensagem de entrada “join”).",
@@ -94,52 +164,75 @@ const ACOES = {
   ),
   "pessoas.confirmarWhatsapp": acao(
     z.tuple([id, z.string().regex(/^\s*\d{6}\s*$/)]),
-    async (v, [p, codigo], { rede }) => {
-      try {
-        return await confirmarTelefone({ visitante: v, rede }, p, codigo);
-      } catch (e) {
-        if (e instanceof PedidoRecusado) throw new ErroDeEntrada(e.message);
-        throw e;
-      }
+    async ([p, codigo], { sessao, rede }) => {
+      exigirAPropriaPessoa(sessao, p);
+      return comRecusa(() => confirmarCodigo({ pessoaId: p, rede }, codigo));
     },
     "codigo",
   ),
   "pessoas.conectarWhatsappPorLink": acao(
     z.tuple([id, z.string().min(10).max(600)]),
-    async (v, [p, codigo]) => {
-      await comBanco(v, (b) => pessoa(b, p), false);
-      try {
-        return await conectarPorLink(v, p, codigo);
-      } catch (e) {
-        if (e instanceof PedidoRecusado) throw new ErroDeEntrada(e.message);
-        throw e;
-      }
+    async ([p, codigo], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      return comRecusa(() => conectarPorLink(p, codigo));
     },
     "codigo",
   ),
-  "pessoas.desconectarWhatsapp": acao(z.tuple([id]), (v, [p]) => desvincularTelefone(v, p)),
+  "pessoas.desconectarWhatsapp": acao(z.tuple([id]), async ([p], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await desconectar(p);
+  }),
 
-  "compras.listar": acao(z.tuple([id]), (v, [p]) => comBanco(v, (b) => pessoa(b, p).compras, false)),
+  // ----- compras e dívidas -----
+  "compras.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
+    await exigirVer(sessao, p);
+    return repo.compras(p);
+  }),
   "compras.registrar": acao(
     z.tuple([id, z.object({ item: texto(80), categoria, valor: centavos.min(1), emocao, necessidade, via: z.enum(["app", "whatsapp", "fatura"]) })]),
-    (v, [p, nova]) => comBanco(v, (b) => registrarCompra(b, p, nova)),
+    async ([p, nova], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      return repo.registrarCompra(p, nova);
+    },
   ),
-
-  "dividas.listar": acao(z.tuple([id]), (v, [p]) => comBanco(v, (b) => pessoa(b, p).dividas, false)),
-  "dividas.plano": acao(z.tuple([id]), (v, [p]) => comBanco(v, (b) => pessoa(b, p).plano, false)),
+  "dividas.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
+    await exigirVer(sessao, p);
+    return repo.dividas(p);
+  }),
+  "dividas.plano": acao(z.tuple([id]), async ([p], { sessao }) => {
+    await exigirVer(sessao, p);
+    return repo.plano(p);
+  }),
   "dividas.salvarPlano": acao(
     z.tuple([id, z.object({ valorMensal: centavos.optional(), estrategia: z.enum(["mais-cara", "menor"]).optional() })]),
-    (v, [p, m]) => comBanco(v, (b) => salvarPlano(b, p, m)),
+    async ([p, m], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      return repo.salvarPlano(p, m);
+    },
   ),
-  "dividas.sugerirValor": acao(z.tuple([id, centavos.min(1)]), (v, [p, valor]) => comBanco(v, (b) => sugerirValor(b, p, valor))),
+  "dividas.sugerirValor": acao(z.tuple([id, centavos.min(1)]), async ([p, valor], { sessao }) => {
+    const s = await exigirProfissionalDe(sessao, p);
+    await repo.sugerirValor(p, valor, s.profissional);
+  }),
 
-  "faturas.listar": acao(z.tuple([id]), (v, [p]) => comBanco(v, (b) => pessoa(b, p).faturas, false)),
+  // ----- faturas -----
+  "faturas.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
+    await exigirVer(sessao, p);
+    return repo.faturas(p);
+  }),
   "faturas.salvar": acao(
     z.tuple([id, fatura, z.record(z.string(), z.object({ emocao: emocao.optional(), necessidade: necessidade.optional() }))]),
-    (v, [p, f, c]) => comBanco(v, (b) => salvarFatura(b, p, f as Fatura, c)),
+    async ([p, f, c], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      await repo.salvarFatura(p, f as Fatura, c);
+    },
   ),
 
-  "memoria.obter": acao(z.tuple([id]), (v, [p]) => comBanco(v, (b) => pessoa(b, p).memoria, false)),
+  // ----- memória (profissionais) -----
+  "memoria.obter": acao(z.tuple([id]), async ([p], { sessao }) => {
+    await exigirProfissionalDe(sessao, p);
+    return repo.memoria(p, true);
+  }),
   "memoria.salvar": acao(
     z.tuple([
       id,
@@ -150,39 +243,61 @@ const ACOES = {
         evitar: z.string().max(600).optional(),
       }),
     ]),
-    (v, [p, m]) => comBanco(v, (b) => salvarMemoria(b, p, m)),
+    async ([p, m], { sessao }) => {
+      await exigirProfissionalDe(sessao, p);
+      await repo.salvarMemoria(p, m);
+      return repo.memoria(p, true);
+    },
   ),
-  "memoria.anotar": acao(
-    z.tuple([id, z.object({ autorId: id, texto: texto(2000), privada: z.boolean() })]),
-    (v, [p, n]) => comBanco(v, (b) => anotar(b, p, n)),
+  "memoria.anotar": acao(z.tuple([id, z.object({ texto: texto(2000), privada: z.boolean() })]), async ([p, n], { sessao }) => {
+    // O autor é sempre quem está na sessão: o navegador não escolhe em nome de quem anota.
+    const s = await exigirProfissionalDe(sessao, p);
+    return repo.anotar(p, { autorId: s.profissional.id, texto: n.texto, privada: n.privada });
+  }),
+  "memoria.apagarAnotacao": acao(z.tuple([id, id]), async ([p, n], { sessao }) => {
+    await exigirProfissionalDe(sessao, p);
+    await repo.apagarAnotacao(p, n);
+  }),
+
+  // ----- assistente -----
+  "assistente.conversa": acao(z.tuple([id]), async ([p], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    return repo.conversa(p, "app");
+  }),
+  "assistente.enviar": acao(
+    z.tuple([id, texto(1000)]),
+    async ([p, t], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      return responderTexto(p, "app", t);
+    },
+    "texto",
   ),
-  "memoria.apagarAnotacao": acao(z.tuple([id, z.string().max(80)]), (v, [p, n]) => comBanco(v, (b) => apagarAnotacao(b, p, n))),
+  "assistente.testar": acao(
+    z.tuple([id, texto(1000)]),
+    async ([p, t], { sessao }) => {
+      await exigirProfissionalDe(sessao, p);
+      return testarResposta(p, t);
+    },
+    "texto",
+  ),
+  "assistente.contexto": acao(z.tuple([id]), async ([p], { sessao }) => {
+    await exigirProfissionalDe(sessao, p);
+    return montarContexto(await repo.contextoDoAssistente(p, "app"));
+  }),
 
-  "assistente.conversa": acao(z.tuple([id]), (v, [p]) => comBanco(v, (b) => pessoa(b, p).conversa, false)),
-  "assistente.enviar": acao(z.tuple([id, texto(1000)]), (v, [p, t]) => responderTexto(v, p, "app", t), "texto"),
-  "assistente.testar": acao(z.tuple([id, texto(1000)]), (v, [p, t]) => testarResposta(v, p, t), "texto"),
-  "assistente.contexto": acao(z.tuple([id]), (v, [p]) => comBanco(v, (b) => montarContexto(contextoDoAssistente(b, p, "app")), false)),
-
-  "avisos.listar": acao(z.tuple([id.optional()]), (v, [p]) => comBanco(v, (b) => avisosDe(b, p), false)),
-  recomecar: acao(z.tuple([]), (v) => recomecarBanco(v)),
+  // ----- avisos -----
+  "avisos.listar": acao(z.tuple([]), async (_, { sessao }) => {
+    const s = exigirSessao(sessao);
+    // A pessoa vê as sugestões que recebeu; o profissional, os avisos de quem acompanha.
+    if (s.pessoa) return repo.avisos([s.pessoa.id], { apenas: ["sugestao"] });
+    if (s.profissional) return repo.avisos((await repo.acompanhados(s.profissional.id)).map((x) => x.id), { exceto: ["sugestao"] });
+    return [];
+  }),
+  "avisos.daPessoa": acao(z.tuple([id]), async ([p], { sessao }) => {
+    await exigirProfissionalDe(sessao, p);
+    return repo.avisos([p], { exceto: ["sugestao"] });
+  }),
 };
-
-type Recurso = "texto" | "arquivo" | "audio" | "codigo";
-
-/** O que a rota sabe de quem chamou, além do visitante. */
-export interface Contexto {
-  /** Hash do endereço de rede, que o cliente não escolhe. */
-  rede: string | null;
-}
-
-function acao<A extends z.ZodTypeAny, R>(
-  argumentos: A,
-  executar: (visitante: string, args: z.infer<A>, contexto: Contexto) => Promise<R>,
-  /** Ações que chamam a IA entram no limite diário de uso. */
-  recurso?: Recurso,
-) {
-  return { argumentos, executar, recurso };
-}
 
 export type NomeDaAcao = keyof typeof ACOES;
 
@@ -195,9 +310,9 @@ export function recursoDa(nome: NomeDaAcao): Recurso | undefined {
 }
 
 /** Valida os argumentos e executa a ação. */
-export async function executar(nome: NomeDaAcao, visitante: string, args: unknown, contexto: Contexto = { rede: null }): Promise<unknown> {
+export async function executar(nome: NomeDaAcao, args: unknown, contexto: Contexto): Promise<unknown> {
   const a = ACOES[nome];
   const lidos = a.argumentos.safeParse(Array.isArray(args) ? args : []);
   if (!lidos.success) throw new ErroDeEntrada("Argumentos inválidos.");
-  return (a.executar as (v: string, args: unknown, c: Contexto) => Promise<unknown>)(visitante, lidos.data, contexto);
+  return (a.executar as (args: unknown, c: Contexto) => Promise<unknown>)(lidos.data, contexto);
 }

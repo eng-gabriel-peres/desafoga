@@ -1,4 +1,4 @@
-import { Brain, ClipboardList, House, MessageCircle, Plus, Users, Wallet, type LucideIcon } from "lucide-react";
+import { Brain, ClipboardList, House, MessageCircle, Plus, UserRound, Users, Wallet, type LucideIcon } from "lucide-react";
 
 /**
  * O Desafoga tem duas áreas separadas:
@@ -6,9 +6,6 @@ import { Brain, ClipboardList, House, MessageCircle, Plus, Users, Wallet, type L
  * - "responsavel": o painel do profissional que acompanha (/painel).
  */
 export type Area = "pessoa" | "responsavel";
-
-/** Quem está "logado" em cada área na demonstração. */
-export const PESSOA_DA_DEMO = "ana";
 
 export interface ItemDoMenu {
   href: string;
@@ -25,6 +22,7 @@ export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
       { href: "/app/registrar", rotulo: "Registrar", Icone: Plus, ativo: (c) => c === "/app/registrar" },
       { href: "/app/assistente", rotulo: "Assistente", Icone: MessageCircle, ativo: (c) => c === "/app/assistente" },
       { href: "/app/dividas", rotulo: "Dívidas", Icone: Wallet, ativo: (c) => c.startsWith("/app/dividas") },
+      { href: "/app/perfil", rotulo: "Perfil", Icone: UserRound, ativo: (c) => c === "/app/perfil" || c === "/app/conectar" },
     ];
   }
   const base = `/painel/${pacienteId}`;
@@ -46,6 +44,7 @@ export function tituloDaRota(caminho: string): Titulo {
   if (caminho === "/app/registrar") return { titulo: "Registrar compra", subtitulo: "Leva menos de 30 segundos" };
   if (caminho === "/app/assistente") return { titulo: "Assistente", subtitulo: "Converse com a Luana como no WhatsApp" };
   if (caminho === "/app/dividas/fatura") return { titulo: "Enviar fatura", subtitulo: "A Luana lê os lançamentos e separa juros e tarifas" };
+  if (caminho === "/app/perfil") return { titulo: "Perfil", subtitulo: "WhatsApp, quem te acompanha e seus dados" };
   if (caminho === "/app/conectar") return { titulo: "Conectar WhatsApp", subtitulo: "Pelo link que a Luana mandou" };
   if (caminho === "/app/dividas") return { titulo: "Dívidas", subtitulo: "Quanto suas dívidas custam e como sair delas" };
   if (caminho === "/painel") return { titulo: "Pacientes", subtitulo: "Quem você acompanha, nos últimos 7 dias" };

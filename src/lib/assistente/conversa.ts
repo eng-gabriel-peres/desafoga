@@ -51,7 +51,7 @@ export interface ContextoAssistente {
   memoria: Memoria;
   profissionais: Profissional[];
   /** Quem recebe os avisos de sofrimento intenso. */
-  responsavel: Profissional;
+  responsavel: Profissional | null;
   compras: Compra[];
   dividas: Divida[];
   plano: Plano;
@@ -229,7 +229,9 @@ function respostaSofrimento(ctx: ContextoAssistente): Resultado {
         texto: [
           `${nome}, obrigada por me contar. Você não precisa passar por isso sem companhia.`,
           "Se estiver em perigo agora, ligue 192 (SAMU). Para conversar com alguém agora, ligue 188 (CVV), de graça e 24 horas por dia.",
-          `Avisei ${ctx.responsavel.nome} para entrar em contato com você.`,
+          ctx.responsavel
+            ? `Avisei ${ctx.responsavel.nome} para entrar em contato com você.`
+            : "Se puder, chame agora alguém de confiança para ficar com você.",
         ].join("\n"),
       },
     ],

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useLetraMaior } from "@/hooks/use-letra-maior";
 import { BotaoIcone } from "../ui/botao";
 import { rotaDeOutroPaciente, type ItemDoMenu } from "./navegacao";
-import type { Persona } from "@/services";
+import { servicos, type Persona } from "@/services";
 
 /** Logo: círculo com uma onda, a ideia de respirar e aliviar o peso. */
 export function Marca({ comNome = true }: { comNome?: boolean }) {
@@ -27,21 +27,37 @@ export function Marca({ comNome = true }: { comNome?: boolean }) {
   );
 }
 
-/** Volta à tela de entrada da demonstração (no futuro, "Sair"). */
-export function LinkSair({ compacto = false }: { compacto?: boolean }) {
+/**
+ * Na demonstração, volta à entrada para trocar de persona (os dados continuam
+ * os mesmos). Em conta real, sai da sessão.
+ */
+export function LinkSair({ compacto = false, demo }: { compacto?: boolean; demo: boolean }) {
+  const router = useRouter();
+  const rotulo = demo ? "Trocar de perfil" : "Sair";
+  const classe = compacto
+    ? "inline-grid size-11 shrink-0 place-items-center rounded-[10px] border border-line bg-surface2 hover:border-primary"
+    : "flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-surface2 px-3 text-[0.9rem] font-bold no-underline hover:border-primary";
+  if (demo) {
+    return (
+      <Link href="/" aria-label={compacto ? rotulo : undefined} className={classe}>
+        <LogOut aria-hidden="true" className="size-5" />
+        {!compacto && rotulo}
+      </Link>
+    );
+  }
   return (
-    <Link
-      href="/"
-      aria-label={compacto ? "Trocar de perfil" : undefined}
-      className={
-        compacto
-          ? "inline-grid size-11 shrink-0 place-items-center rounded-[10px] border border-line bg-surface2 hover:border-primary"
-          : "flex min-h-11 items-center gap-2.5 rounded-xl border border-line bg-surface2 px-3 text-[0.9rem] font-bold no-underline hover:border-primary"
-      }
+    <button
+      type="button"
+      aria-label={compacto ? rotulo : undefined}
+      className={classe}
+      onClick={async () => {
+        await servicos.sessao.sair();
+        router.replace("/");
+      }}
     >
       <LogOut aria-hidden="true" className="size-5" />
-      {!compacto && "Trocar de perfil"}
-    </Link>
+      {!compacto && rotulo}
+    </button>
   );
 }
 
@@ -135,7 +151,8 @@ export function SeletorDePaciente({ pessoas, atual, caminho }: { pessoas: Person
       >
         {pessoas.map((p) => (
           <option key={p.id} value={p.id}>
-            {p.nome}, {p.idade} anos
+            {p.nome}
+            {p.idade ? `, ${p.idade} anos` : ""}
           </option>
         ))}
       </select>

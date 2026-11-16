@@ -1,7 +1,7 @@
 /**
  * Contratos da camada de dados do Desafoga. As telas só conhecem estas
- * interfaces. Hoje a implementação é simulada (`mock/`); depois ela troca por
- * chamadas à API sem mexer nas telas.
+ * interfaces; a implementação (`api/`) chama o servidor, que confere a
+ * sessão e a permissão de cada pedido.
  */
 import type {
   Anotacao,
@@ -18,16 +18,46 @@ import type {
   Profissional,
 } from "./tipos";
 
+/** Quem está usando o app neste navegador. */
+export interface Eu {
+  demo: boolean;
+  pessoa: (Persona & { telefone: string | null }) | null;
+  profissional: (Profissional & { convite: string }) | null;
+  /** Profissionais que acompanham a pessoa (vazio para o profissional). */
+  acompanhantes: Profissional[];
+}
+
+export type PerfilDaDemo = "ana" | "carlos" | "lucia" | "rafael" | "paula" | "marcos";
+
+export type NovaConta =
+  | { tipo: "pessoa"; nome: string; apelido: string; idade: number | null }
+  | { tipo: "profissional"; nome: string; papel: string };
+
+export interface SessaoService {
+  eu(): Promise<Eu | null>;
+  /** Entra na demonstração como uma persona; na mesma visita, os dados são os mesmos. */
+  entrarNaDemo(perfil: PerfilDaDemo): Promise<void>;
+  /** Cria uma conta real, sem senha (decisão do hackathon), e já entra nela. */
+  criarConta(conta: NovaConta): Promise<void>;
+  sair(): Promise<void>;
+  /** A pessoa aceita ser acompanhada pelo profissional dono do código. */
+  aceitarConvite(codigo: string): Promise<Profissional>;
+  /** LGPD: apaga a conta e tudo dela. */
+  apagarConta(): Promise<void>;
+  /** Volta a demonstração ao começo. */
+  recomecar(): Promise<void>;
+}
+
 export interface PessoasService {
+  /** Para o profissional, quem ele acompanha; para a pessoa, ela mesma. */
   listar(): Promise<Persona[]>;
   obter(pessoaId: string): Promise<Persona | null>;
-  profissionais(): Promise<Profissional[]>;
-  /** Profissional que está usando o modo "Responsável". */
-  responsavel(): Promise<Profissional>;
-  /** Número de WhatsApp cadastrado pela pessoa (só dígitos), ou null. */
+  /** Profissionais que acompanham a pessoa (autores das anotações). */
+  profissionais(pessoaId: string): Promise<Profissional[]>;
+  /** Número de WhatsApp conectado pela pessoa (só dígitos), ou null. */
   whatsapp(pessoaId: string): Promise<string | null>;
   /**
-   * Começa o cadastro do WhatsApp: manda um código para o número. Devolve o
+   * Começa a conexão do WhatsApp: manda um código para o número. Devolve o
    * número normalizado. `codigoDeTeste` só vem em desenvolvimento, quando não
    * há WhatsApp configurado para enviar.
    */
@@ -48,7 +78,7 @@ export interface DividasService {
   listar(pessoaId: string): Promise<Divida[]>;
   plano(pessoaId: string): Promise<Plano>;
   salvarPlano(pessoaId: string, mudancas: Partial<Pick<Plano, "valorMensal" | "estrategia">>): Promise<Plano>;
-  /** O profissional sugere um valor mensal; a pessoa recebe a sugestão no chat. */
+  /** O profissional sugere um valor mensal; a pessoa recebe a sugestão no app. */
   sugerirValor(pessoaId: string, valor: number): Promise<void>;
 }
 
@@ -63,7 +93,8 @@ export interface FaturasService {
 export interface MemoriaService {
   obter(pessoaId: string): Promise<Memoria>;
   salvar(pessoaId: string, mudancas: Partial<Omit<Memoria, "anotacoes">>): Promise<Memoria>;
-  anotar(pessoaId: string, anotacao: Omit<Anotacao, "id" | "quando">): Promise<Anotacao>;
+  /** O autor é quem está na sessão. */
+  anotar(pessoaId: string, anotacao: Pick<Anotacao, "texto" | "privada">): Promise<Anotacao>;
   apagarAnotacao(pessoaId: string, anotacaoId: string): Promise<void>;
 }
 
@@ -82,11 +113,14 @@ export interface AssistenteService {
 }
 
 export interface AvisosService {
-  /** Avisos de uma pessoa, ou de todas, do mais recente para o mais antigo. */
-  listar(pessoaId?: string): Promise<Aviso[]>;
+  /** Os avisos de quem está na sessão: sugestões para a pessoa; alertas dos acompanhados para o profissional. */
+  listar(): Promise<Aviso[]>;
+  /** Avisos de uma pessoa acompanhada (para o profissional). */
+  daPessoa(pessoaId: string): Promise<Aviso[]>;
 }
 
 export interface Servicos {
+  sessao: SessaoService;
   pessoas: PessoasService;
   compras: ComprasService;
   dividas: DividasService;
@@ -96,6 +130,4 @@ export interface Servicos {
   avisos: AvisosService;
   /** Avisa quando algum dado mudou, para as telas recarregarem. */
   aoMudar(ouvinte: () => void): () => void;
-  /** Volta a demonstração ao estado inicial. */
-  recomecar(): Promise<void>;
 }

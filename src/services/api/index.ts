@@ -5,24 +5,10 @@
 import type { Servicos } from "../contratos";
 import type { Mensagem } from "../tipos";
 
-const CHAVE_DO_VISITANTE = "desafoga-visitante";
 /** De quanto em quanto tempo as telas buscam novidades (mensagens que chegaram pelo WhatsApp, por exemplo). */
 const INTERVALO_DE_ATUALIZACAO = 15_000;
-
-let visitanteEmMemoria: string | null = null;
-
-/** Identificador deste navegador: cada um tem a sua cópia dos dados da demonstração. */
-function visitante(): string {
-  try {
-    const guardado = localStorage.getItem(CHAVE_DO_VISITANTE);
-    if (guardado) return guardado;
-    const novo = crypto.randomUUID();
-    localStorage.setItem(CHAVE_DO_VISITANTE, novo);
-    return novo;
-  } catch {
-    return (visitanteEmMemoria ??= crypto.randomUUID());
-  }
-}
+/** Cabeçalho que só o próprio app manda: barra pedidos forjados por outros sites. */
+const CABECALHO = { "x-desafoga": "1" };
 
 export class ErroDaApi extends Error {}
 
@@ -39,7 +25,7 @@ async function resposta<T>(r: Response): Promise<T> {
 async function chamar<T>(acao: string, args: unknown[] = [], muda = false): Promise<T> {
   const r = await fetch(`/api/desafoga/${acao}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-desafoga-visitante": visitante() },
+    headers: { "Content-Type": "application/json", ...CABECALHO },
     body: JSON.stringify({ args }),
   });
   const dados = await resposta<T>(r);
@@ -51,18 +37,26 @@ async function enviarArquivo<T>(acao: string, pessoaId: string, arquivo: Blob | 
   const corpo = new FormData();
   corpo.append("pessoaId", pessoaId);
   if (arquivo) corpo.append("arquivo", arquivo, arquivo instanceof File ? arquivo.name : nome);
-  const r = await fetch(`/api/desafoga/${acao}`, { method: "POST", headers: { "x-desafoga-visitante": visitante() }, body: corpo });
+  const r = await fetch(`/api/desafoga/${acao}`, { method: "POST", headers: CABECALHO, body: corpo });
   return resposta<T>(r);
 }
 
 let relogio: ReturnType<typeof setInterval> | null = null;
 
 export const servicosDaApi: Servicos = {
+  sessao: {
+    eu: () => chamar("sessao.eu"),
+    entrarNaDemo: (perfil) => chamar("sessao.entrarNaDemo", [perfil], true),
+    criarConta: (conta) => chamar("sessao.criarConta", [conta], true),
+    sair: () => chamar("sessao.sair", [], true),
+    aceitarConvite: (codigo) => chamar("sessao.aceitarConvite", [codigo], true),
+    apagarConta: () => chamar("sessao.apagarConta", [], true),
+    recomecar: () => chamar("recomecar", [], true),
+  },
   pessoas: {
     listar: () => chamar("pessoas.listar"),
     obter: (id) => chamar("pessoas.obter", [id]),
-    profissionais: () => chamar("pessoas.profissionais"),
-    responsavel: () => chamar("pessoas.responsavel"),
+    profissionais: (id) => chamar("pessoas.profissionais", [id]),
     whatsapp: (id) => chamar("pessoas.whatsapp", [id]),
     conectarWhatsapp: (id, telefone) => chamar("pessoas.conectarWhatsapp", [id, telefone]),
     confirmarWhatsapp: (id, codigo) => chamar("pessoas.confirmarWhatsapp", [id, codigo], true),
@@ -107,7 +101,8 @@ export const servicosDaApi: Servicos = {
     contexto: (id) => chamar("assistente.contexto", [id]),
   },
   avisos: {
-    listar: (id) => chamar("avisos.listar", [id]),
+    listar: () => chamar("avisos.listar"),
+    daPessoa: (id) => chamar("avisos.daPessoa", [id]),
   },
   aoMudar(ouvinte) {
     ouvintes.add(ouvinte);
@@ -123,5 +118,4 @@ export const servicosDaApi: Servicos = {
       }
     };
   },
-  recomecar: () => chamar("recomecar", [], true),
 };

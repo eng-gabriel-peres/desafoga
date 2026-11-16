@@ -8,7 +8,8 @@ import { chaveDoDia, emocaoDaNota, resumoDaSemana, situacaoDoPaciente, ultimosDi
 import { umaCasa } from "@/lib/assistente/textos";
 import { reais } from "@/lib/formatar";
 import { servicos, type Persona } from "@/services";
-import { Avatar, Carregando, Etiqueta, EtiquetaSituacao, Kpi, TituloCelular } from "../ui/blocos";
+import { useEu } from "../sessao";
+import { Avatar, Carregando, Etiqueta, EtiquetaSituacao, Kpi, Painel, Sub, TituloCelular } from "../ui/blocos";
 import { Carinha } from "../ui/carinha";
 
 interface Linha {
@@ -34,6 +35,7 @@ function ParaAvaliar({ n }: { n: number }) {
 }
 
 export function TelaPacientes() {
+  const eu = useEu();
   const agora = useAgora();
   const dados = useConsulta("pacientes", async () => {
     const pessoas = await servicos.pessoas.listar();
@@ -89,7 +91,7 @@ export function TelaPacientes() {
                       <Link href={`/painel/${persona.id}`} className="font-bold text-ink hover:text-primary hover:underline">
                         {persona.nome}
                       </Link>
-                      <span className="block text-[0.85rem] text-muted">{persona.idade} anos</span>
+                      {persona.idade && <span className="block text-[0.85rem] text-muted">{persona.idade} anos</span>}
                     </span>
                   </span>
                 </td>
@@ -133,7 +135,7 @@ export function TelaPacientes() {
                 <Avatar nome={persona.nome} cor={persona.cor} tamanho="lg" />
                 <span className="min-w-0 flex-1">
                   <b className="block">{persona.nome}</b>
-                  <span className="text-[0.88rem] text-muted">{persona.idade} anos</span>
+                  {persona.idade && <span className="text-[0.88rem] text-muted">{persona.idade} anos</span>}
                 </span>
                 <ChevronRight aria-hidden="true" className="size-5 text-muted" />
               </span>
@@ -168,6 +170,14 @@ export function TelaPacientes() {
           </li>
         ))}
       </ul>
+      <Painel titulo="Convidar alguém para acompanhar" className="mt-5">
+        <Sub>
+          Peça para a pessoa abrir Perfil, no app do Desafoga, e digitar este código. Ela confirma que aceita ser acompanhada, e os dados dela aparecem aqui.
+        </Sub>
+        <p className="mt-3 inline-block rounded-xl border-2 border-dashed border-primary bg-primary-soft px-5 py-2.5 text-[1.5rem] font-bold tracking-[0.25em] text-primary">
+          {eu.profissional?.convite}
+        </p>
+      </Painel>
     </>
   );
 }

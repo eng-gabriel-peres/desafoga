@@ -58,7 +58,7 @@ export function montarContexto(ctx: ContextoAssistente): string {
     .map((id) => autor(id))
     .filter((p) => p !== undefined)
     .map((p) => `${p.nome} (${p.papel})`);
-  if (!quem.length) quem.push(`${ctx.responsavel.nome} (${ctx.responsavel.papel})`);
+  if (!quem.length && ctx.responsavel) quem.push(`${ctx.responsavel.nome} (${ctx.responsavel.papel})`);
 
   const hoje = comprasDoDia(ctx.compras, chaveDoDia(ctx.agora));
   const nota = notaMedia(hoje);
@@ -74,7 +74,7 @@ COMO RESPONDER
 - Não recomende empréstimo, cartão, investimento ou qualquer produto financeiro.
 - Se a pessoa indicar sofrimento intenso, acolha, indique o CVV (188) e o SAMU (192) e avise que o profissional responsável foi chamado.
 
-QUEM ACOMPANHA: ${quem.join(", ")}.
+QUEM ACOMPANHA: ${quem.join(", ") || "ninguém ainda"}.
 JEITO DE SER (registrado pelos profissionais): ${memoria.caracteristicas.join("; ") || "nada registrado"}.
 OBJETIVO ATUAL: ${memoria.objetivo || "não definido"}.
 EVITAR: ${memoria.evitar || "nada específico"}.

@@ -1,7 +1,8 @@
 import { TelaMemoria } from "@/components/desafoga/telas/memoria";
-import { PaginaDoPaciente, paramsDosPacientes } from "../paciente";
+import { PaginaDoPaciente } from "../paciente";
 
-export const generateStaticParams = paramsDosPacientes;
+/** Carrega no navegador depois de conferir a sessão; ver o layout da área. */
+export const instant = false;
 
 export default function MemoriaDoPaciente({ params }: PageProps<"/painel/[id]/memoria">) {
   return <PaginaDoPaciente params={params} tela={(id) => <TelaMemoria pessoaId={id} />} />;

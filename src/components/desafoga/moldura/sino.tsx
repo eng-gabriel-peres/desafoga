@@ -8,7 +8,7 @@ import { chaveDoDia, ultimosDias } from "@/lib/finance";
 import { servicos } from "@/services";
 import { ListaDeAvisos } from "../avisos";
 import { BotaoIcone } from "../ui/botao";
-import { PESSOA_DA_DEMO, type Area } from "./navegacao";
+import type { Area } from "./navegacao";
 
 /**
  * Sino de avisos. O responsável vê os avisos de todos os pacientes; a pessoa
@@ -19,10 +19,8 @@ export function Sino({ area }: { area: Area }) {
   const caixa = useRef<HTMLDivElement>(null);
   const id = useId();
   const agora = useAgora();
-  const todos = useConsulta(`avisos:${area}`, () =>
-    servicos.avisos.listar(area === "pessoa" ? PESSOA_DA_DEMO : undefined),
-  );
-  const avisos = (todos ?? []).filter((a) => (area === "pessoa" ? a.tipo === "sugestao" : a.tipo !== "sugestao"));
+  // O servidor já filtra: sugestões para a pessoa, alertas dos acompanhados para o profissional.
+  const avisos = useConsulta(`avisos:${area}`, () => servicos.avisos.listar()) ?? [];
   const recentes = agora
     ? avisos.filter((a) => ultimosDias(agora, 2).includes(chaveDoDia(new Date(a.quando)))).length
     : 0;

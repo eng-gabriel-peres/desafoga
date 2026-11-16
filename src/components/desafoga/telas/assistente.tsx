@@ -5,7 +5,7 @@ import { useConsulta } from "@/hooks/use-consulta";
 import { servicos, type Mensagem } from "@/services";
 import { Chat, type Ocupada } from "../chat/chat";
 import { BotaoWhatsapp } from "../chat/conectar-whatsapp";
-import { PESSOA_DA_DEMO } from "../moldura/navegacao";
+import { useMinhaPessoaId } from "../sessao";
 import { Carregando } from "../ui/blocos";
 
 const local = (de: Mensagem["de"], texto: string): Mensagem => ({
@@ -26,7 +26,8 @@ interface Pendentes {
 
 /** Conversa com a Luana, ocupando a tela como no WhatsApp. */
 export function TelaAssistente() {
-  const salvas = useConsulta(`conversa:${PESSOA_DA_DEMO}`, () => servicos.assistente.conversa(PESSOA_DA_DEMO));
+  const pessoaId = useMinhaPessoaId();
+  const salvas = useConsulta(`conversa:${pessoaId}`, () => servicos.assistente.conversa(pessoaId));
   const [ocupada, setOcupada] = useState<Ocupada>(false);
   const [pendentes, setPendentes] = useState<Pendentes>({ base: -1, mensagens: [] });
 
@@ -53,13 +54,13 @@ export function TelaAssistente() {
       <Chat
         mensagens={[...salvas, ...visiveis]}
         ocupada={ocupada}
-        enviar={(texto) => comEspera("digitando", local("pessoa", texto), () => servicos.assistente.enviar(PESSOA_DA_DEMO, texto))}
+        enviar={(texto) => comEspera("digitando", local("pessoa", texto), () => servicos.assistente.enviar(pessoaId, texto))}
         enviarArquivo={(arquivo) =>
-          comEspera("lendo", local("pessoa", `Arquivo: ${arquivo.name}`), () => servicos.assistente.enviarArquivo(PESSOA_DA_DEMO, arquivo))
+          comEspera("lendo", local("pessoa", `Arquivo: ${arquivo.name}`), () => servicos.assistente.enviarArquivo(pessoaId, arquivo))
         }
-        enviarAudio={(audio) => comEspera("ouvindo", local("pessoa", "Mensagem de voz"), () => servicos.assistente.enviarAudio(PESSOA_DA_DEMO, audio))}
+        enviarAudio={(audio) => comEspera("ouvindo", local("pessoa", "Mensagem de voz"), () => servicos.assistente.enviarAudio(pessoaId, audio))}
         aviso={(texto) => setPendentes({ base: total, mensagens: [local("assistente", texto)] })}
-        cabecalho={<BotaoWhatsapp pessoaId={PESSOA_DA_DEMO} />}
+        cabecalho={<BotaoWhatsapp pessoaId={pessoaId} />}
       />
     </div>
   );

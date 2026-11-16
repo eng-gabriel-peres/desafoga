@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useConsulta } from "@/hooks/use-consulta";
 import { telefoneLegivel } from "@/lib/desafoga/telefone";
 import { servicos } from "@/services";
-import { PESSOA_DA_DEMO } from "../moldura/navegacao";
+import { useMinhaPessoaId } from "../sessao";
 import { Carregando, Painel } from "../ui/blocos";
 import { Botao, BotaoLink } from "../ui/botao";
 
@@ -33,8 +33,9 @@ function numeroDoLink(codigo: string): string | null {
  * conta de outra pessoa mandando o link para ela abrir.
  */
 export function TelaConectar() {
+  const pessoaId = useMinhaPessoaId();
   const [estado, setEstado] = useState<Estado>({ tipo: "lendo" });
-  const atual = useConsulta(`whatsapp:${PESSOA_DA_DEMO}`, () => servicos.pessoas.whatsapp(PESSOA_DA_DEMO));
+  const atual = useConsulta(`whatsapp:${pessoaId}`, () => servicos.pessoas.whatsapp(pessoaId));
   const ultimoCodigo = useRef<string | null>(null);
 
   useEffect(() => {
@@ -70,7 +71,7 @@ export function TelaConectar() {
   async function confirmar(codigo: string) {
     setEstado({ tipo: "conectando" });
     try {
-      setEstado({ tipo: "pronto", telefone: await servicos.pessoas.conectarWhatsappPorLink(PESSOA_DA_DEMO, codigo) });
+      setEstado({ tipo: "pronto", telefone: await servicos.pessoas.conectarWhatsappPorLink(pessoaId, codigo) });
     } catch (e) {
       setEstado({ tipo: "erro", mensagem: e instanceof Error ? e.message : "Não consegui conectar." });
     }

@@ -9,6 +9,7 @@ import { chaveDoDia } from "@/lib/finance";
 import { nomeDoDia } from "@/lib/formatar";
 import { servicos, type Memoria, type Persona, type Profissional, type Tom } from "@/services";
 import { Digitando } from "../chat/chat";
+import { useEu } from "../sessao";
 import { Avatar, Carregando, Chip, Opcao, Painel, Sub } from "../ui/blocos";
 import { Botao } from "../ui/botao";
 
@@ -36,7 +37,7 @@ export function TelaMemoria({ pessoaId }: { pessoaId: string }) {
     const [persona, memoria, profissionais] = await Promise.all([
       servicos.pessoas.obter(pessoaId),
       servicos.memoria.obter(pessoaId),
-      servicos.pessoas.profissionais(),
+      servicos.pessoas.profissionais(pessoaId),
     ]);
     return { persona, memoria, profissionais };
   });
@@ -144,7 +145,7 @@ function JeitoDeSer({ persona, memoria }: { persona: Persona; memoria: Memoria }
 
 function Anotacoes({ persona, memoria, profissionais }: { persona: Persona; memoria: Memoria; profissionais: Profissional[] }) {
   const agora = useAgora();
-  const [autorId, setAutorId] = useState(profissionais[0]?.id ?? "");
+  const eu = useEu();
   const [texto, setTexto] = useState("");
   const [privada, setPrivada] = useState(false);
   const autor = (id: string) => profissionais.find((p) => p.id === id);
@@ -153,7 +154,7 @@ function Anotacoes({ persona, memoria, profissionais }: { persona: Persona; memo
   async function salvar(e: React.FormEvent) {
     e.preventDefault();
     if (!texto.trim()) return;
-    await servicos.memoria.anotar(persona.id, { autorId, texto: texto.trim(), privada });
+    await servicos.memoria.anotar(persona.id, { texto: texto.trim(), privada });
     setTexto("");
     setPrivada(false);
   }
@@ -164,16 +165,11 @@ function Anotacoes({ persona, memoria, profissionais }: { persona: Persona; memo
         Depois de uma conversa com {persona.apelido}, registre o que entendeu. Todos os profissionais que acompanham {persona.apelido} veem estas notas.
       </Sub>
       <form onSubmit={salvar} className="grid gap-2.5">
-        <label>
-          <span className="mb-1.5 block font-bold">Escrevendo como</span>
-          <select value={autorId} onChange={(e) => setAutorId(e.target.value)} className={`${CAMPO} min-h-12 cursor-pointer`}>
-            {profissionais.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome}, {p.papel}
-              </option>
-            ))}
-          </select>
-        </label>
+        {eu.profissional && (
+          <p className="text-[0.92rem] text-muted">
+            Escrevendo como <b className="text-ink">{eu.profissional.nome}</b>, {eu.profissional.papel}.
+          </p>
+        )}
         <label>
           <span className="sr-only">Anotação</span>
           <textarea

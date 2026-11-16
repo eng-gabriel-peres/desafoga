@@ -7,7 +7,7 @@ import { separarFatura, type Emocao, type Fatura, type Necessidade } from "@/lib
 import { NOME_DA_EMOCAO, NOME_DA_NECESSIDADE } from "@/lib/assistente/textos";
 import { descricaoLegivel, reais } from "@/lib/formatar";
 import { servicos, type Classificacao } from "@/services";
-import { PESSOA_DA_DEMO } from "../moldura/navegacao";
+import { useMinhaPessoaId } from "../sessao";
 import { Painel, Sub, TituloCelular } from "../ui/blocos";
 import { Botao } from "../ui/botao";
 import { COR_DA_EMOCAO, RostoSvg } from "../ui/carinha";
@@ -23,6 +23,7 @@ type Estado =
 const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function TelaFatura() {
+  const pessoaId = useMinhaPessoaId();
   const router = useRouter();
   const [estado, setEstado] = useState<Estado>({ etapa: "envio" });
   const [classificacoes, setClassificacoes] = useState<Record<string, Classificacao>>({});
@@ -41,7 +42,7 @@ export function TelaFatura() {
   async function ler(arquivo: File | null) {
     const nome = arquivo?.name ?? "a fatura de exemplo";
     setEstado({ etapa: "lendo", arquivo: nome, feitas: 0 });
-    const leitura = servicos.faturas.ler(PESSOA_DA_DEMO, arquivo);
+    const leitura = servicos.faturas.ler(pessoaId, arquivo);
     // A animação anda enquanto a IA lê; a última etapa espera a leitura terminar.
     for (let i = 1; i < ETAPAS_DE_LEITURA.length; i++) {
       await espera(TEMPO_POR_ETAPA);
@@ -59,7 +60,7 @@ export function TelaFatura() {
 
   async function salvar(fatura: Fatura) {
     setSalvando(true);
-    await servicos.faturas.salvar(PESSOA_DA_DEMO, fatura, classificacoes);
+    await servicos.faturas.salvar(pessoaId, fatura, classificacoes);
     setSalvando(false);
     router.push("/app/dividas");
   }

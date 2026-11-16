@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { MensagemLida } from "@/lib/luana/ler";
-import type { DocumentoLido } from "@/lib/luana/ler";
-import { novoBanco, pessoa } from "@/services/nucleo";
-import { conversar, paraWhatsapp, type IaDaConversa } from "./conversar";
+import { materializar, PROFISSIONAIS, SEMENTES } from "@/fixtures/desafoga";
+import { ESTADO_INICIAL, type EstadoConversa } from "@/lib/assistente/conversa";
+import type { DocumentoLido, MensagemLida } from "@/lib/luana/ler";
+import type { Aviso, Compra, Mensagem } from "@/services/tipos";
+import { conversar, paraWhatsapp, type Canal, type DadosDaConversa, type IaDaConversa } from "./conversar";
 import { paraFatura, respostaDaFatura } from "./fatura-lida";
 import { normalizarTelefone, telefoneLegivel } from "./telefone";
 
@@ -33,6 +34,42 @@ function iaFalsa(lida: MensagemLida, texto = "Resposta da IA"): IaDaConversa & {
   };
 }
 
+/** A conversa da Ana com os dados em memória (o servidor usa o banco). */
+function anaEmMemoria() {
+  const d = materializar(SEMENTES[0], AGORA);
+  const estados: Record<Canal, EstadoConversa> = { app: ESTADO_INICIAL, whatsapp: ESTADO_INICIAL };
+  const mensagens: Record<Canal, Mensagem[]> = { app: [...d.conversa], whatsapp: [] };
+  const compras: Compra[] = [...d.compras];
+  const avisos: Aviso[] = [...d.avisos];
+  const dados: DadosDaConversa = {
+    contexto: async (_p, canal, agora) => ({
+      pessoa: d.persona,
+      memoria: d.memoria,
+      profissionais: PROFISSIONAIS,
+      responsavel: PROFISSIONAIS[0],
+      compras,
+      dividas: d.dividas,
+      plano: d.plano,
+      faturas: d.faturas,
+      agora,
+      canal,
+    }),
+    estado: async (_p, canal) => estados[canal],
+    conversaRecente: async (_p, canal) => mensagens[canal].map((m) => `${m.de === "pessoa" ? "Pessoa" : "Luana"}: ${m.texto}`).join("\n"),
+    async concluir(_p, canal, resultado, agora) {
+      for (const e of resultado.efeitos) {
+        if (e.tipo === "registrar-compra") compras.push({ ...e.compra, id: `nova-${compras.length}`, quando: agora.toISOString(), avaliacaoProfissional: null });
+        else avisos.unshift({ id: `aviso-${avisos.length}`, pessoaId: "ana", tipo: e.aviso.tipo, texto: e.aviso.texto, quando: agora.toISOString() });
+      }
+      estados[canal] = resultado.estado;
+      const novas = resultado.respostas.map((r, i): Mensagem => ({ id: `m${i}`, de: "assistente", texto: r.texto, quando: agora.toISOString(), respostasRapidas: r.respostasRapidas }));
+      mensagens[canal].push(...novas);
+      return novas;
+    },
+  };
+  return { dados, compras, avisos, estados, mensagens };
+}
+
 describe("telefone do cadastro", () => {
   it("guarda só dígitos, com 55 e nono dígito", () => {
     expect(normalizarTelefone("(11) 99999-8888")).toBe("5511999998888");
@@ -45,7 +82,7 @@ describe("telefone do cadastro", () => {
 
 describe("conversa da Luana com IA", () => {
   it("usa a IA para ler vários gastos e pergunta a emoção uma vez", async () => {
-    const banco = novoBanco(AGORA);
+    const ana = anaEmMemoria();
     const ia = iaFalsa(
       leitura({
         intencao: "registrar_gasto",
@@ -55,58 +92,57 @@ describe("conversa da Luana com IA", () => {
         ],
       }),
     );
-    const antes = pessoa(banco, "ana").compras.length;
-    const [pergunta] = await conversar(banco, "ana", "whatsapp", "almoço 35 e uber 18,50", { ia, agora: AGORA });
+    const antes = ana.compras.length;
+    const [pergunta] = await conversar(ana.dados, "ana", "whatsapp", "almoço 35 e uber 18,50", { ia, agora: AGORA });
     expect(pergunta.texto).toContain("Anotei 2 compras");
-    await conversar(banco, "ana", "whatsapp", "2", { ia, agora: AGORA });
-    const [fim] = await conversar(banco, "ana", "whatsapp", "não", { ia, agora: AGORA });
+    await conversar(ana.dados, "ana", "whatsapp", "2", { ia, agora: AGORA });
+    const [fim] = await conversar(ana.dados, "ana", "whatsapp", "não", { ia, agora: AGORA });
     expect(fim.texto).toContain("• Almoço, R$ 35,00");
-    const novas = pessoa(banco, "ana").compras.slice(antes);
-    expect(novas.map((c) => [c.item, c.categoria, c.emocao, c.necessidade, c.via])).toEqual([
+    expect(ana.compras.slice(antes).map((c) => [c.item, c.categoria, c.emocao, c.necessidade, c.via])).toEqual([
       ["Almoço", "Comida pronta", 2, "nao", "whatsapp"],
       ["Uber", "Outro", 2, "nao", "whatsapp"],
     ]);
   });
 
-  it("conversa livre vai para a IA com a memória e os números do sistema", async () => {
-    const banco = novoBanco(AGORA);
+  it("conversa livre vai para a IA com a memória e os números do sistema, sem as notas privadas", async () => {
+    const ana = anaEmMemoria();
     const ia = iaFalsa(leitura({ intencao: "outro" }), "Tô aqui com você.");
-    const [r] = await conversar(banco, "ana", "app", "tô me sentindo pra baixo", { ia, agora: AGORA });
+    const [r] = await conversar(ana.dados, "ana", "app", "tô me sentindo pra baixo", { ia, agora: AGORA });
     expect(r.texto).toBe("Tô aqui com você.");
     expect(ia.sistemas[0]).toContain("Compra quando está triste");
     expect(ia.sistemas[0]).toContain("NÚMEROS DO SISTEMA");
-    expect(pessoa(banco, "ana").conversa.at(-1)?.texto).toBe("Tô aqui com você.");
+    expect(ia.sistemas[0]).not.toContain("conflito no trabalho");
   });
 
   it("simulação e sofrimento não passam pela IA", async () => {
-    const banco = novoBanco(AGORA);
+    const ana = anaEmMemoria();
     const ia = iaFalsa(leitura({}));
-    const [sim] = await conversar(banco, "ana", "app", "e se eu pagar 200 a mais?", { ia, agora: AGORA });
+    const [sim] = await conversar(ana.dados, "ana", "app", "e se eu pagar 200 a mais?", { ia, agora: AGORA });
     expect(sim.texto).toContain("Simulação educativa");
-    const [crise] = await conversar(banco, "ana", "whatsapp", "não quero mais viver", { ia, agora: AGORA });
+    const [crise] = await conversar(ana.dados, "ana", "whatsapp", "não quero mais viver", { ia, agora: AGORA });
     expect(crise.texto).toContain("188");
-    expect(pessoa(banco, "ana").avisos[0].tipo).toBe("sofrimento");
+    expect(ana.avisos[0].tipo).toBe("sofrimento");
     expect(ia.sistemas).toHaveLength(0);
   });
 
   it("sem IA, ou com a IA fora do ar, as regras respondem", async () => {
-    const banco = novoBanco(AGORA);
+    const ana = anaEmMemoria();
     const quebrada: IaDaConversa = {
       lerMensagem: async () => {
         throw new Error("fora do ar");
       },
       redigir: async () => "",
     };
-    const [r] = await conversar(banco, "ana", "app", "comprei pão 12", { ia: quebrada, agora: AGORA });
+    const [r] = await conversar(ana.dados, "ana", "app", "comprei pão 12", { ia: quebrada, agora: AGORA });
     expect(r.respostasRapidas).toHaveLength(5);
   });
 
   it("as conversas do app e do WhatsApp são separadas", async () => {
-    const banco = novoBanco(AGORA);
-    await conversar(banco, "ana", "whatsapp", "comprei pão 12", { agora: AGORA });
-    const [noApp] = await conversar(banco, "ana", "app", "2", { agora: AGORA });
+    const ana = anaEmMemoria();
+    await conversar(ana.dados, "ana", "whatsapp", "comprei pão 12", { agora: AGORA });
+    const [noApp] = await conversar(ana.dados, "ana", "app", "2", { agora: AGORA });
     expect(noApp.texto).not.toContain("Essa compra era necessária");
-    expect(banco.estados.ana.whatsapp.etapa).toBe("emocao");
+    expect(ana.estados.whatsapp.etapa).toBe("emocao");
   });
 
   it("no WhatsApp as respostas rápidas viram opções numeradas", () => {
@@ -135,8 +171,7 @@ describe("fatura lida pela IA", () => {
   };
 
   it("converte valores, separa assinaturas e liga compras já registradas", () => {
-    const banco = novoBanco(AGORA);
-    const compras = pessoa(banco, "ana").compras;
+    const compras = materializar(SEMENTES[0], AGORA).compras;
     const f = paraFatura(doc, compras, AGORA, "f1");
     expect(f.tipo).toBe("fatura");
     expect(f.lancamentos.map((l) => l.tipo)).toEqual(["compra", "compra", "assinatura", "juros", "iof"]);
