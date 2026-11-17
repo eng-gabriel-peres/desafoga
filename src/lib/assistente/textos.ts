@@ -194,3 +194,16 @@ export function respostaDoPagamento(nome: string, valor: number | null, falta: n
     .filter(Boolean)
     .join("\n");
 }
+
+/** Luana avisa no chat do app que chegou uma compra do banco para registrar. */
+export function mensagemDeCompraDoBanco(item: string, valor: number): string {
+  return `Vi ${reais(valor)} em ${item} agora. Como você estava? Toque para registrar.`;
+}
+
+export function avisoDeCompraDoBanco(item: string, valor: number): string {
+  return `Compra no banco: ${item}, ${reais(valor)}. Toque para registrar como você estava.`;
+}
+
+export function avisoDeDividaEncontrada(nome: string, saldo: number): string {
+  return `Achei uma dívida: ${nome}, saldo de ${reais(saldo)}. Confira em Dívidas.`;
+}
