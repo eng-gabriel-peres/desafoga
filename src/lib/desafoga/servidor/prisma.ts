@@ -4,13 +4,15 @@
  */
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
+import { ESQUEMA } from "./esquema";
 
 const global = globalThis as unknown as { prismaDesafoga?: PrismaClient };
 
 function criar(): PrismaClient {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL não configurada. Rode `pnpm db:up` e confira o .env.local.");
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+  // As tabelas do Desafoga ficam no esquema próprio; as da Luana, no padrão.
+  return new PrismaClient({ adapter: new PrismaPg({ connectionString }, { schema: ESQUEMA }) });
 }
 
 export function prisma(): PrismaClient {

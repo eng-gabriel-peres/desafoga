@@ -47,6 +47,7 @@ Tudo em containers (banco, migrações e app em http://localhost:3000): `docker 
 ## Banco de dados e contas
 
 - **Postgres + Prisma 7** (`prisma/schema.prisma`, migrações em `prisma/migrations`). Em produção, Neon na Vercel; o `vercel-build` aplica as migrações antes do build. Localmente e no CI, Postgres no Docker.
+- **Esquema próprio:** as tabelas do Desafoga ficam no esquema `desafoga` do Postgres (`src/lib/desafoga/servidor/esquema.ts`), e não no `public`. O mesmo banco já guarda as tabelas da Luana (`contas` e `uso`), criadas direto em SQL; sem essa separação o Prisma se recusa a migrar um esquema que não é dele (erro P3005). Não é preciso mudar a `DATABASE_URL`: o esquema entra sozinho.
 - **Espaços:** cada "Entrar como Ana/Paula" cria uma cópia própria dos dados fictícios (espaço DEMO, apagado depois de 7 dias); as contas criadas de verdade ficam no espaço REAL.
 - **Sem senha, por decisão do hackathon:** a conta é criada com nome e consentimento, e o navegador lembra dela por um cookie httpOnly; no banco fica só o hash do token. Evite computador compartilhado. A próxima etapa é entrar pelo WhatsApp com código, que já existe para conectar o número.
 - **Permissões em toda ação** (`src/lib/desafoga/servidor/acesso.ts`): a pessoa só vê e muda os próprios dados; o profissional só vê quem aceitou o convite (código no painel, aceito em Perfil); a anotação é sempre em nome de quem está na sessão e só o autor apaga; notas privadas não chegam à pessoa nem à IA.
