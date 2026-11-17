@@ -16,6 +16,7 @@ import type { Area } from "../moldura/navegacao";
 import { usePessoaDaSessao } from "../sessao";
 import { Carregando, Painel, Sub, TituloCelular } from "../ui/blocos";
 import { Botao } from "../ui/botao";
+import { Janela } from "../ui/janela";
 
 /** Contas do mês: o que a pessoa paga todo mês e quando vence. O profissional vê só leitura, se a pessoa deixou. */
 export function TelaContas({ area = "pessoa", pessoaId: doPainel }: { area?: Area; pessoaId?: string }) {
@@ -49,16 +50,20 @@ export function TelaContas({ area = "pessoa", pessoaId: doPainel }: { area?: Are
   const grupos = gruposDeVencimento(visiveis, agora);
   const contaPorId = new Map(contas.contas.map((c) => [c.id, c]));
 
-  if (editando) {
-    return (
-      <div className="max-w-[640px]">
-        <FormularioDeConta pessoaId={pessoaId} conta={editando === "nova" ? null : editando} fechar={() => setEditando(null)} />
-      </div>
-    );
-  }
-
   return (
     <>
+      {!somenteLeitura && (
+        <Janela aberta={editando !== null} fechar={() => setEditando(null)} rotulo={editando === "nova" ? "Nova conta fixa" : "Editar conta fixa"}>
+          {editando && (
+            <FormularioDeConta
+              key={editando === "nova" ? "nova" : editando.id}
+              pessoaId={pessoaId}
+              conta={editando === "nova" ? null : editando}
+              fechar={() => setEditando(null)}
+            />
+          )}
+        </Janela>
+      )}
       {!somenteLeitura && <TituloCelular titulo="Contas do mês" subtitulo="O que você paga todo mês e quando vence" />}
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 desk:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] desk:gap-5">
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">

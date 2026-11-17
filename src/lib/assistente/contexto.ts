@@ -66,7 +66,7 @@ function numerosDasDividas(ctx: ContextoAssistente): string {
   const custo = custoEmocional(faturas, ctx.compras);
   const simulacoes = [10000, 20000, 50000].map((extra) => {
     const c = compararExtra(dividas, extra, plano.estrategia);
-    return `pagando ${reais(extra)} a mais por mês: livre em ${meses(c.comExtra.meses)} (${mesDaqui(agora, c.comExtra.meses)}), economia de ${reais(c.economiaJuros)} em juros`;
+    return `pagando ${reais(extra)} a mais por mês: livre em ${meses(c.comExtra.meses)} (${mesDaqui(agora, c.comExtra.meses)}), ${c.economiaJuros === null ? "pagando só o mínimo a dívida não termina" : `economia de ${reais(c.economiaJuros)} em juros`}`;
   });
 
   return [

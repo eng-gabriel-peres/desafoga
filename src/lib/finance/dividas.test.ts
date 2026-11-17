@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   compararExtra,
+  economiaContraOMinimo,
   dividaMaisCara,
   jurosDoMes,
   jurosMensaisTotais,
@@ -133,5 +134,15 @@ describe("comparação com valor extra", () => {
     const c = compararExtra(daAna, 0);
     expect(c.economiaJuros).toBe(0);
     expect(c.mesesAMenos).toBe(0);
+  });
+});
+
+describe("economia contra o mínimo", () => {
+  it("não vira um número sem sentido quando só o mínimo não quita", () => {
+    const semMinimo: Divida = { id: "c", tipo: "cartao", nome: "Cartão", detalhe: "", saldo: 100000, taxaMensal: 0.145, parcelaMinima: 0, vencimento: 10 };
+    expect(economiaContraOMinimo([semMinimo], 40000, "mais-cara")).toBeNull();
+    expect(compararExtra([semMinimo], 40000).economiaJuros).toBeNull();
+    const comMinimo = { ...semMinimo, parcelaMinima: 30000 };
+    expect(economiaContraOMinimo([comMinimo], 40000, "mais-cara")).toBeGreaterThan(0);
   });
 });

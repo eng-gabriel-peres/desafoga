@@ -189,7 +189,7 @@ export function Chat({ mensagens, ocupada, enviar, enviarArquivo, enviarAudio, a
             </button>
           </div>
         ) : (
-          <div className="flex min-h-12 min-w-0 flex-1 items-center rounded-full bg-surface pl-4 shadow-[0_1px_2px_rgb(0_0_0/0.12)] focus-within:ring-2 focus-within:ring-primary">
+          <div className="flex min-h-12 min-w-0 flex-1 items-center caixa-de-campo rounded-full border-2 border-transparent bg-surface pl-4 shadow-[0_1px_2px_rgb(0_0_0/0.12)] focus-within:border-primary">
             <label className="min-w-0 flex-1">
               <span className="sr-only">Mensagem</span>
               <input

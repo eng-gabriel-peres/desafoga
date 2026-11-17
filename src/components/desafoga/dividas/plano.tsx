@@ -3,7 +3,7 @@
 import { Calculator, Minus, Plus, Send } from "lucide-react";
 import { useState } from "react";
 import { lerValorEmReais } from "@/lib/dinheiro";
-import { simularQuitacao, somaDosMinimos, type Divida, type Estrategia } from "@/lib/finance";
+import { economiaContraOMinimo, simularQuitacao, somaDosMinimos, type Divida, type Estrategia } from "@/lib/finance";
 import { NOME_DA_ESTRATEGIA, mesDaqui, meses } from "@/lib/assistente/textos";
 import { reais } from "@/lib/formatar";
 import type { Plano } from "@/services";
@@ -17,8 +17,7 @@ const ATALHOS = [0, 10000, 20000, 50000];
 /** Resultado da simulação: livre em, juros até lá, economia, gráfico e ordem. */
 function Resultado({ dividas, valor, estrategia, agora }: { dividas: Divida[]; valor: number; estrategia: Estrategia; agora: Date }) {
   const r = simularQuitacao(dividas, valor, estrategia);
-  const soMinimo = simularQuitacao(dividas, somaDosMinimos(dividas), estrategia);
-  const economia = Math.max(0, soMinimo.jurosTotal - r.jurosTotal);
+  const economia = economiaContraOMinimo(dividas, valor, estrategia);
   const nome = (id: string) => dividas.find((d) => d.id === id)?.nome ?? id;
 
   return (
@@ -35,7 +34,11 @@ function Resultado({ dividas, valor, estrategia, agora }: { dividas: Divida[]; v
         </div>
         <div>
           <dt className="text-[0.82rem] text-muted">Economia contra o mínimo</dt>
-          <dd className="mt-1 text-[1.2rem] leading-tight font-bold text-good">{reais(economia)}</dd>
+          {economia === null ? (
+            <dd className="mt-1 text-[0.92rem] leading-snug font-bold text-bad">Só o mínimo não quita: não cobre os juros</dd>
+          ) : (
+            <dd className="mt-1 text-[1.2rem] leading-tight font-bold text-good">{reais(economia)}</dd>
+          )}
         </div>
       </dl>
       {r.quitavel && <GraficoSaldo linhaDoTempo={r.linhaDoTempo} agora={agora} />}

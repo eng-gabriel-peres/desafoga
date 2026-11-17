@@ -120,7 +120,8 @@ describe("conversa da Luana", () => {
   it("responde a simulação com os números calculados pelo código", () => {
     const { ultima } = conversar("e se eu pagar 200 a mais?");
     const c = compararExtra(ana.dividas, 20000, "mais-cara");
-    expect(ultima.respostas[0].texto).toContain(formatarReais(c.economiaJuros));
+    expect(c.economiaJuros).not.toBeNull();
+    expect(ultima.respostas[0].texto).toContain(formatarReais(c.economiaJuros!));
     expect(ultima.respostas[0].texto).toContain(`${c.comExtra.meses} meses`);
     expect(ultima.respostas[0].texto).toContain("Simulação educativa");
   });

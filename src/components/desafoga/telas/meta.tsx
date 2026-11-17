@@ -14,6 +14,8 @@ import type { Area } from "../moldura/navegacao";
 import { usePessoaDaSessao } from "../sessao";
 import { Carregando, Painel, Sub } from "../ui/blocos";
 import { Botao, BotaoIcone, BotaoLink } from "../ui/botao";
+import { Janela } from "../ui/janela";
+import { TelaFormularioDaMeta } from "./formulario-da-meta";
 import { Recado, rotaDasMetas } from "./metas";
 
 const LEMBRETE = { dia: "todo dia", semana: "uma vez por semana", mes: "uma vez por mês" } as const;
@@ -37,6 +39,7 @@ export function TelaDaMeta({ metaId, area = "pessoa", pessoaId: doPainel }: { me
   const [guardando, setGuardando] = useState(false);
   const [animar, setAnimar] = useState(false);
   const [recado, setRecado] = useState("");
+  const [ajustando, setAjustando] = useState(false);
   if (!dados || !agora) return <Carregando />;
 
   const voltar = (
@@ -141,10 +144,13 @@ export function TelaDaMeta({ metaId, area = "pessoa", pessoaId: doPainel }: { me
                 <Plus aria-hidden="true" />
                 Guardar dinheiro
               </Botao>
-              <BotaoLink href={`/app/metas/${meta.id}/ajustar`} variante="secundario">
+              <Botao variante="secundario" onClick={() => setAjustando(true)}>
                 <PencilLine aria-hidden="true" />
                 Ajustar
-              </BotaoLink>
+              </Botao>
+              <Janela aberta={ajustando} fechar={() => setAjustando(false)} rotulo="Ajustar meta" larga>
+                {ajustando && <TelaFormularioDaMeta metaId={meta.id} fechar={() => setAjustando(false)} />}
+              </Janela>
             </div>
           )}
         </section>

@@ -22,6 +22,7 @@ import { ListaDeDividas, PainelCustoEmocional, PainelFaturas, RaioX } from "../d
 import { PlanoEditavel, PlanoLeitura } from "../dividas/plano";
 import type { Area } from "../moldura/navegacao";
 import { useMinhaPessoaId } from "../sessao";
+import { Janela } from "../ui/janela";
 import { Carregando, Kpi, Painel, Sub, TituloCelular } from "../ui/blocos";
 import { Botao, BotaoLink } from "../ui/botao";
 import { FormularioDeDivida } from "../dividas/formulario";
@@ -39,31 +40,39 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
   const { persona, dividas, plano, faturas, compras } = dados;
   const daPessoa = area === "pessoa";
 
-  const formulario = daPessoa && editando && (
-    <FormularioDeDivida key={editando === "nova" ? "nova" : editando.id} pessoaId={pessoaId} divida={editando === "nova" ? null : editando} fechar={() => setEditando(null)} />
+  const formulario = daPessoa && (
+    <Janela aberta={editando !== null} fechar={() => setEditando(null)} rotulo={editando === "nova" ? "Nova dívida" : "Editar dívida"}>
+      {editando && (
+        <FormularioDeDivida
+          key={editando === "nova" ? "nova" : editando.id}
+          pessoaId={pessoaId}
+          divida={editando === "nova" ? null : editando}
+          fechar={() => setEditando(null)}
+        />
+      )}
+    </Janela>
   );
 
   if (!dividas.length) {
     return (
       <div className="grid gap-4">
         {daPessoa && <TituloCelular titulo="Dívidas" subtitulo="Quanto suas dívidas custam e como sair delas" />}
-        {formulario || (
-          <Painel titulo={daPessoa ? "Você não tem dívidas cadastradas" : `${persona.apelido} não tem dívidas cadastradas`}>
-            <Sub>
-              {daPessoa
-                ? "Cadastre cartão, cheque especial, empréstimos e parcelados para ver quanto custam e montar o plano para sair deles. Também dá para enviar a fatura."
-                : "Quando a pessoa cadastrar as dívidas, o raio-x e o plano aparecem aqui."}
-            </Sub>
-            {daPessoa && (
-              <div className="mt-3 flex flex-wrap gap-2.5">
-                <Botao onClick={() => setEditando("nova")}>Adicionar dívida</Botao>
-                <BotaoLink href="/app/dividas/fatura" variante="secundario">
-                  Enviar fatura
-                </BotaoLink>
-              </div>
-            )}
-          </Painel>
-        )}
+        {formulario}
+        <Painel titulo={daPessoa ? "Você não tem dívidas cadastradas" : `${persona.apelido} não tem dívidas cadastradas`}>
+          <Sub>
+            {daPessoa
+              ? "Cadastre cartão, cheque especial, empréstimos e parcelados para ver quanto custam e montar o plano para sair deles. Também dá para enviar a fatura."
+              : "Quando a pessoa cadastrar as dívidas, o raio-x e o plano aparecem aqui."}
+          </Sub>
+          {daPessoa && (
+            <div className="mt-3 flex flex-wrap gap-2.5">
+              <Botao onClick={() => setEditando("nova")}>Adicionar dívida</Botao>
+              <BotaoLink href="/app/dividas/fatura" variante="secundario">
+                Enviar fatura
+              </BotaoLink>
+            </div>
+          )}
+        </Painel>
       </div>
     );
   }
@@ -81,7 +90,7 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
       dono={daPessoa ? "suas dívidas geram" : `as dívidas de ${persona.apelido} geram`}
     />
   );
-  const lista = formulario || (
+  const lista = (
     <ListaDeDividas
       dividas={dividas}
       titulo={daPessoa ? "Suas dívidas" : `Dívidas de ${persona.apelido}`}
@@ -117,23 +126,16 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
   return (
     <>
       {daPessoa && <TituloCelular titulo="Dívidas" subtitulo="Quanto suas dívidas custam e como sair delas" />}
-      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 desk:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)] desk:gap-5">
+      {formulario}
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 desk:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] desk:gap-5">
+        {/* Esquerda: quanto custa e o plano. Direita: as dívidas, o custo emocional e as faturas. */}
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
           {raioX}
           {kpis}
-          {daPessoa ? (
-            <>
-              {planoPainel}
-              {lista}
-            </>
-          ) : (
-            <>
-              {lista}
-              {planoPainel}
-            </>
-          )}
+          {planoPainel}
         </div>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+          {lista}
           {custo && <PainelCustoEmocional custo={custo} sujeito={daPessoa ? "você estava" : `${persona.apelido} estava`} />}
           <PainelFaturas faturas={faturas} podeEnviar={daPessoa} />
         </div>

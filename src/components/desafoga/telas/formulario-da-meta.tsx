@@ -51,7 +51,14 @@ function Segmentos<T extends string>({ opcoes, valor, mudar, rotulo }: { opcoes:
 }
 
 /** Nova meta ou ajuste: nome, ícone, cor, valor e como chegar lá (data ou valor por período). */
-export function TelaFormularioDaMeta({ metaId }: { metaId?: string }) {
+export function TelaFormularioDaMeta({
+  metaId,
+  fechar,
+}: {
+  metaId?: string;
+  /** Aberto numa janela: fecha em vez de trocar de página. */
+  fechar?: () => void;
+}) {
   const pessoaId = useMinhaPessoaId();
   const dados = usePessoa(pessoaId);
   const agora = useAgora();
@@ -59,7 +66,15 @@ export function TelaFormularioDaMeta({ metaId }: { metaId?: string }) {
   const meta = metaId ? dados.metas.find((m) => m.id === metaId) : null;
   if (metaId && !meta) return <Sub>Essa meta não existe mais.</Sub>;
   const maisCara = dividaMaisCara(dados.dividas);
-  return <Formulario pessoaId={pessoaId} meta={meta ?? null} hoje={chaveDoDia(agora)} dividaCara={maisCara && maisCara.taxaMensal >= 0.02 ? maisCara : null} />;
+  return (
+    <Formulario
+      pessoaId={pessoaId}
+      meta={meta ?? null}
+      hoje={chaveDoDia(agora)}
+      dividaCara={maisCara && maisCara.taxaMensal >= 0.02 ? maisCara : null}
+      fechar={fechar}
+    />
+  );
 }
 
 function Formulario({
@@ -67,11 +82,13 @@ function Formulario({
   meta,
   hoje,
   dividaCara,
+  fechar,
 }: {
   pessoaId: string;
   meta: Meta | null;
   hoje: string;
   dividaCara: { nome: string; taxaMensal: number } | null;
+  fechar?: () => void;
 }) {
   const router = useRouter();
   const [nome, setNome] = useState(meta?.nome ?? "");
@@ -176,7 +193,8 @@ function Formulario({
         prazo: modo === "prazo" ? prazo : null,
         lembrete,
       });
-      router.push(`/app/metas/${salva.id}`);
+      if (fechar) fechar();
+      else router.push(`/app/metas/${salva.id}`);
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Não consegui salvar.");
       setSalvando(false);
@@ -193,10 +211,12 @@ function Formulario({
 
   return (
     <>
-      <BotaoLink href={voltar} variante="link">
-        <ChevronLeft aria-hidden="true" />
-        {meta ? "Voltar à meta" : "Voltar às metas"}
-      </BotaoLink>
+      {!fechar && (
+        <BotaoLink href={voltar} variante="link">
+          <ChevronLeft aria-hidden="true" />
+          {meta ? "Voltar à meta" : "Voltar às metas"}
+        </BotaoLink>
+      )}
       <form
         onSubmit={(e) => {
           e.preventDefault();

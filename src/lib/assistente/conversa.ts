@@ -174,7 +174,9 @@ function respostaExtra(ctx: ContextoAssistente, extra: number): string {
   const antes = c.soMinimo.quitavel && c.mesesAMenos > 0 ? `, ${meses(c.mesesAMenos)} antes do que pagando só o mínimo` : "";
   return [
     `Boa pergunta, ${nome}. Pagando ${reais(extra)} a mais por mês, você fica livre das dívidas em ${meses(c.comExtra.meses)} (${mesDaqui(ctx.agora, c.comExtra.meses)})${antes}.`,
-    `Isso economiza ${reais(c.economiaJuros)} em juros.`,
+    c.economiaJuros === null
+      ? "Pagando só o mínimo, as dívidas não terminariam: o mínimo não cobre os juros."
+      : `Isso economiza ${reais(c.economiaJuros)} em juros.`,
     AVISO_EDUCATIVO,
   ].join("\n");
 }

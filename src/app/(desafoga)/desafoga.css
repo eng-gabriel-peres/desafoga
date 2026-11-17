@@ -122,9 +122,15 @@ body {
   line-height: 1.45;
 }
 
-:focus-visible {
-  outline: 3px solid var(--primary);
-  outline-offset: 2px;
+/*
+ * Contorno de foco padrão na camada base: assim o "outline-none" dos campos
+ * com borda própria vence, e não aparece um segundo retângulo por dentro.
+ */
+@layer base {
+  :focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
+  }
 }
 
 /*
@@ -137,7 +143,7 @@ body {
   outline: none;
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 22%, transparent);
 }
-.caixa-de-campo :focus-visible {
+.caixa-de-campo :is(input, textarea, select):focus-visible {
   outline: none;
 }
 
@@ -299,4 +305,16 @@ summary {
 }
 html:has(.janela-de-registro[open]) {
   overflow: hidden;
+}
+
+/* Dentro da janela, o formulário aparece sem a moldura de painel (a janela já é a moldura). */
+.janela section.entrar {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  animation: none;
+}
+.janela section.entrar > div:first-child h2 {
+  padding-right: 2.75rem;
+  font-size: 1.3rem;
 }

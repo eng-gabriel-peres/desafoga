@@ -11,7 +11,9 @@ import { CartaoDaMeta } from "../metas/cartao";
 import type { Area } from "../moldura/navegacao";
 import { usePessoaDaSessao } from "../sessao";
 import { Carregando, TituloCelular } from "../ui/blocos";
-import { BotaoLink } from "../ui/botao";
+import { Botao } from "../ui/botao";
+import { Janela } from "../ui/janela";
+import { TelaFormularioDaMeta } from "./formulario-da-meta";
 
 /** Aviso curto depois de guardar ou incentivar, lido pelo leitor de tela. */
 export function Recado({ texto }: { texto: string }) {
@@ -31,6 +33,7 @@ export function TelaMetas({ area = "pessoa", pessoaId: doPainel }: { area?: Area
   const dados = usePessoa(pessoaId);
   const agora = useAgora();
   const [recado, setRecado] = useState("");
+  const [criando, setCriando] = useState(false);
   if (!dados || !agora) return <Carregando />;
 
   const { persona, metas } = dados;
@@ -72,10 +75,15 @@ export function TelaMetas({ area = "pessoa", pessoaId: doPainel }: { area?: Area
           </span>
         </div>
         {!profissional && (
-          <BotaoLink href="/app/metas/nova" tamanho="pequeno">
-            <Plus aria-hidden="true" />
-            Nova meta
-          </BotaoLink>
+          <>
+            <Botao tamanho="pequeno" onClick={() => setCriando(true)}>
+              <Plus aria-hidden="true" />
+              Nova meta
+            </Botao>
+            <Janela aberta={criando} fechar={() => setCriando(false)} rotulo="Nova meta" larga>
+              {criando && <TelaFormularioDaMeta fechar={() => setCriando(false)} />}
+            </Janela>
+          </>
         )}
       </div>
       <Recado texto={recado} />

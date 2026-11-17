@@ -148,11 +148,22 @@ export function projecaoSoMinimo(
   return { jurosTotal, saldoFinal: saldos.reduce((s, d) => s + d.saldo, 0) };
 }
 
+/** Juros a menos no plano do que pagando só o mínimo; null se só o mínimo não quita. */
+export function economiaContraOMinimo(dividas: Divida[], valorMensal: number, estrategia: Estrategia): number | null {
+  const soMinimo = simularQuitacao(dividas, somaDosMinimos(dividas), estrategia);
+  if (!soMinimo.quitavel) return null;
+  return Math.max(0, soMinimo.jurosTotal - simularQuitacao(dividas, valorMensal, estrategia).jurosTotal);
+}
+
 export interface ComparacaoExtra {
   soMinimo: ResultadoQuitacao;
   comExtra: ResultadoQuitacao;
-  /** Juros a menos pagando o extra, em centavos (nunca negativo). */
-  economiaJuros: number;
+  /**
+   * Juros a menos pagando o extra, em centavos (nunca negativo). null quando
+   * só o mínimo não quita as dívidas: aí os juros crescem sem fim e a diferença
+   * não é um número que faça sentido mostrar.
+   */
+  economiaJuros: number | null;
   mesesAMenos: number;
 }
 
@@ -168,7 +179,7 @@ export function compararExtra(
   return {
     soMinimo,
     comExtra,
-    economiaJuros: Math.max(0, soMinimo.jurosTotal - comExtra.jurosTotal),
+    economiaJuros: soMinimo.quitavel ? Math.max(0, soMinimo.jurosTotal - comExtra.jurosTotal) : null,
     mesesAMenos: Math.max(0, soMinimo.meses - comExtra.meses),
   };
 }
