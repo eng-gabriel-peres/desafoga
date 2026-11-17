@@ -239,3 +239,24 @@ Em ordem, a primeira que decidir vence:
 - Usar ou não o Gemini como último recurso de categoria (em lote, com o resultado salvo como regra).
 - Como mostrar progresso da primeira sincronização.
 - Testes: unitários para classificação, transferências, parcelas, travas do empréstimo e próximos meses; integração da sincronização com cliente Pluggy falso alimentado pelas respostas do sandbox.
+
+## 9. Documentos como fonte gratuita (acréscimo de 17/11/2026)
+
+A Pluggy em produção é paga (plano Dados, a partir de R$ 2.500/mês) e o MeuPluggy não traz empréstimos. Os **documentos que a pessoa sobe** são o caminho de graça para o mesmo resultado. Eles alimentam **as mesmas estruturas** (`CompraParcelada`, sugestões de dívida, `proximosMeses`); não há caminho paralelo.
+
+- **Fatura em PDF**:
+  - a `parcela` impressa ("03/06") monta a `CompraParcelada` (mesma chave e mesma junção com compra manual);
+  - vencimento, total, pagamento mínimo e juros do rotativo ficam guardados na `Fatura` e vão para Próximos meses e para a sugestão de rotativo;
+  - se a mesma fatura também vier da Pluggy, **a Pluggy vence** e o PDF só completa o que faltar.
+- **Extrato**: nova natureza `parcela_emprestimo` (PARC EMPREST, CONSIGNADO, FINANC). A mesma descrição em 2 ou mais meses, ou 1 com "PARC x/y", vira sugestão de dívida. Nunca é compra nem entra no orçamento.
+- **Registrato** (SCR do Banco Central):
+  - novo tipo de documento; cada instituição × modalidade vira sugestão;
+  - sem taxa e sem número de parcelas, que ficam como "confira" para a pessoa completar;
+  - valores vencidos em destaque;
+  - a dica da tela de Dívidas ganha o botão **Enviar Registrato**.
+- **Contrato ou print do empréstimo**: novo tipo de documento. Lê saldo, parcela, parcelas pagas/restantes, taxa, CET e seguro, e passa pelas mesmas travas.
+- **Regras comuns**:
+  - a IA só transcreve; o código converte (`lerValorEmReais`, `lerPercentual`);
+  - **uma dívida só por contrato**: chave por instituição normalizada + tipo (+ parcela);
+  - confiança: Pluggy > contrato > Registrato > fatura/extrato. A fonte mais confiável atualiza a menos confiável, nunca o contrário, e correções da pessoa nunca são sobrescritas;
+  - `Divida.origem` passa a ser manual / banco / documento, e o selo mostra a fonte ("do banco", "do Registrato", "do contrato", "do extrato").
