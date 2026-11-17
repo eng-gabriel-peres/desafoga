@@ -12,7 +12,7 @@ export const ehEncargo = (l: Lancamento) => l.tipo === "juros" || l.tipo === "io
 
 /** Juros, IOF e tarifas encontrados nas faturas e extratos. */
 export function encargosDasFaturas(faturas: Fatura[]): Encargos {
-  const linhas = faturas.flatMap((f) => f.lancamentos);
+  const linhas = faturas.filter((f) => !f.foraDosCalculos).flatMap((f) => f.lancamentos);
   const deTipo = (t: Lancamento["tipo"]) => soma(linhas.filter((l) => l.tipo === t));
   const juros = deTipo("juros");
   const iof = deTipo("iof");
@@ -40,7 +40,7 @@ export interface CustoEmocional {
  */
 export function custoEmocional(faturas: Fatura[], compras: Compra[]): CustoEmocional | null {
   const porId = new Map(compras.map((c) => [c.id, c]));
-  const cartoes = faturas.filter((f) => f.tipo === "fatura");
+  const cartoes = faturas.filter((f) => f.tipo === "fatura" && !f.foraDosCalculos);
   const linhas = cartoes.flatMap((f) => f.lancamentos);
   const encargos = soma(linhas.filter((l) => l.tipo === "juros" || l.tipo === "iof"));
   const comprasDaFatura = linhas.filter((l) => l.tipo === "compra");
@@ -81,5 +81,23 @@ export function separarFatura(fatura: Fatura): FaturaSeparada {
     jaRegistradas: l.filter((x) => x.tipo === "compra" && x.compraId),
     novas: l.filter((x) => x.tipo === "compra" && !x.compraId),
     assinaturas: l.filter((x) => x.tipo === "assinatura"),
+  };
+}
+
+/**
+ * A mesma fatura veio do banco (Pluggy) e de um PDF: a do banco vale; o PDF
+ * só completa os números que o banco não mandou e sai dos cálculos.
+ */
+export function fundirFaturas(pluggy: Fatura, doc: Fatura): { pluggy: Fatura; doc: Fatura } {
+  const completar = <K extends "vencimento" | "total" | "pagamentoMinimo" | "taxaRotativoMensal">(k: K) => pluggy[k] ?? doc[k] ?? null;
+  return {
+    pluggy: {
+      ...pluggy,
+      vencimento: completar("vencimento"),
+      total: completar("total"),
+      pagamentoMinimo: completar("pagamentoMinimo"),
+      taxaRotativoMensal: completar("taxaRotativoMensal"),
+    },
+    doc: { ...doc, foraDosCalculos: true },
   };
 }

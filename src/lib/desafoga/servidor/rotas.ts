@@ -61,7 +61,7 @@ const lancamento = z.object({
   data: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   descricao: z.string().max(200),
   valor: centavos,
-  tipo: z.enum(["compra", "juros", "iof", "tarifa", "assinatura", "pagamento"]),
+  tipo: z.enum(["compra", "juros", "iof", "tarifa", "assinatura", "pagamento", "parcela_emprestimo"]),
   categoria: categoria.optional(),
   compraId: z.string().max(80).nullable().optional(),
 });

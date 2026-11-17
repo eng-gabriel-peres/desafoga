@@ -11,7 +11,7 @@ const LancamentoLido = z.object({
   natureza: z
     .enum(NATUREZAS)
     .describe(
-      "compra = qualquer gasto: compra no cartão ou no débito, Pix ou transferência enviada a outra pessoa ou empresa, boleto, conta paga, saque; juros = juros e encargos do rotativo, do cheque especial ou de parcelamento de fatura; iof; tarifa_ou_multa = anuidade, tarifas, multa, mora; entrada = dinheiro que entrou na conta vindo de fora: salário, Pix ou transferência recebida de outra pessoa ou empresa, depósito, rendimento, reembolso; pagamento_de_fatura = em extrato de conta, o débito que paga a fatura do cartão; transferencia_propria = movimentação entre contas da mesma pessoa (mesma titularidade, ou o nome do outro lado é o do titular), aplicação e resgate de investimento ou caixinha; pagamento_ou_credito = em fatura de cartão, o pagamento recebido ou um estorno; saldo_anterior = saldo de fatura anterior ou saldo inicial do extrato",
+      "compra = qualquer gasto: compra no cartão ou no débito, Pix ou transferência enviada a outra pessoa ou empresa, boleto, conta paga, saque; juros = juros e encargos do rotativo, do cheque especial ou de parcelamento de fatura; iof; tarifa_ou_multa = anuidade, tarifas, multa, mora; entrada = dinheiro que entrou na conta vindo de fora: salário, Pix ou transferência recebida de outra pessoa ou empresa, depósito, rendimento, reembolso; pagamento_de_fatura = em extrato de conta, o débito que paga a fatura do cartão; transferencia_propria = movimentação entre contas da mesma pessoa (mesma titularidade, ou o nome do outro lado é o do titular), aplicação e resgate de investimento ou caixinha; pagamento_ou_credito = em fatura de cartão, o pagamento recebido ou um estorno; parcela_emprestimo = em extrato de conta, o débito de parcela de empréstimo, consignado ou financiamento (PARC EMPREST, CONSIGNADO, FINANC, CDC); saldo_anterior = saldo de fatura anterior ou saldo inicial do extrato",
     ),
   categoria: z
     .enum(CATEGORIAS)
@@ -21,15 +21,36 @@ const LancamentoLido = z.object({
   parcela: z.string().nullable().describe('Ex.: "03/06" quando for compra parcelada'),
 });
 
+const ContratoLido = z.object({
+  instituicao: z.string().describe("Banco ou financeira, como impresso"),
+  modalidade: z.string().describe("Ex.: crédito pessoal consignado, cheque especial, cartão de crédito rotativo, financiamento de veículo"),
+  aVencer: z.string().nullable().describe("Valor a vencer, como impresso"),
+  vencido: z.string().nullable().describe("Valor vencido (em atraso), como impresso"),
+  saldoDevedor: z.string().nullable(),
+  valorParcela: z.string().nullable(),
+  parcelasPagas: z.string().nullable().describe("Só o número"),
+  parcelasRestantes: z.string().nullable().describe("Só o número"),
+  totalParcelas: z.string().nullable().describe("Só o número"),
+  taxaMensal: z.string().nullable().describe("Juros ao mês, como impresso"),
+  taxaAnual: z.string().nullable().describe("Juros ao ano, como impresso"),
+  cet: z.string().nullable().describe("Custo efetivo total ao ano, como impresso"),
+  seguro: z.boolean().nullable().describe("true se há seguro contratado junto"),
+  proximoVencimento: z.string().nullable().describe("AAAA-MM-DD"),
+});
+
 export const DocumentoLido = z.object({
-  legivel: z.boolean().describe("false se não der para ler nenhum gasto no arquivo"),
-  tipo: z.enum(["fatura_cartao", "extrato_conta", "print_de_compras", "comprovante", "outro"]),
+  legivel: z.boolean().describe("false se não der para ler nenhum gasto, contrato ou dívida no arquivo"),
+  tipo: z.enum(["fatura_cartao", "extrato_conta", "print_de_compras", "comprovante", "registrato", "contrato_emprestimo", "outro"]),
   emissor: z.string().nullable(),
   vencimento: z.string().nullable().describe("AAAA-MM-DD"),
   total: z.string().nullable().describe("Total da fatura, como impresso"),
   pagamentoMinimo: z.string().nullable(),
   taxaRotativoMensal: z.string().nullable().describe("Juros do rotativo ao mês em %, como impresso"),
   saldoEmConta: z.string().nullable().describe("Saldo disponível em conta, se aparecer"),
+  dataBase: z.string().nullable().describe("AAAA-MM de referência do Registrato"),
+  contratos: z
+    .array(ContratoLido)
+    .describe("Registrato: uma linha por instituição e modalidade. Contrato ou print do empréstimo: um item. Vazio nos outros tipos"),
   lancamentos: z.array(LancamentoLido),
 });
 export type DocumentoLido = z.infer<typeof DocumentoLido>;
@@ -96,7 +117,7 @@ const REGRAS_DE_LEITURA = `Regras:
 export async function lerDocumento(bytes: Uint8Array, mime: string, hoje: string): Promise<DocumentoLido> {
   return gerarJson(
     DocumentoLido,
-    `Você lê documentos financeiros brasileiros: faturas de cartão, extratos, prints de compras do app do banco, notificações de compra e comprovantes. Transcreva cada lançamento e classifique a natureza e a categoria. Em extrato de conta, cada linha de movimentação é um lançamento: crédito na conta é entrada, débito é compra, salvo os casos de pagamento_de_fatura e transferencia_propria. Não transcreva linhas de saldo do dia. O valor vai sempre sem sinal.\n\n${REGRAS_DE_LEITURA.replace("{HOJE}", hoje)}`,
+    `Você lê documentos financeiros brasileiros: faturas de cartão, extratos, prints de compras do app do banco, notificações de compra, comprovantes, o Registrato do Banco Central (Relatório de Empréstimos e Financiamentos do SCR, com uma linha por instituição e modalidade e valores a vencer e vencidos) e contratos ou prints da tela de um empréstimo. Transcreva cada lançamento e classifique a natureza e a categoria. No Registrato e no contrato, preencha "contratos" e deixe "lancamentos" vazio. Em extrato de conta, cada linha de movimentação é um lançamento: crédito na conta é entrada, débito é compra, salvo os casos de pagamento_de_fatura e transferencia_propria. Não transcreva linhas de saldo do dia. O valor vai sempre sem sinal.\n\n${REGRAS_DE_LEITURA.replace("{HOJE}", hoje)}`,
     [parteDeArquivo(bytes, mime), { text: "Leia este documento." }],
   );
 }

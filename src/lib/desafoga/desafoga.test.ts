@@ -173,6 +173,8 @@ describe("fatura lida pela IA", () => {
     pagamentoMinimo: null,
     taxaRotativoMensal: null,
     saldoEmConta: null,
+    dataBase: null,
+    contratos: [],
     lancamentos: [
       { data: "2026-11-12", descricao: "LOJA ONLINE MODA", valor: "320,00", natureza: "compra", categoria: "compras", parcela: null },
       { data: "2026-11-10", descricao: "PERFUMARIA", valor: "189,90", natureza: "compra", categoria: "compras", parcela: null },

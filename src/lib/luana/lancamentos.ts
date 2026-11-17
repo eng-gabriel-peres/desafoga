@@ -42,6 +42,7 @@ export const NATUREZAS = [
   "entrada",
   "pagamento_de_fatura",
   "transferencia_propria",
+  "parcela_emprestimo",
 ] as const;
 export type Natureza = (typeof NATUREZAS)[number];
 

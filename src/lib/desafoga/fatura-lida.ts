@@ -3,7 +3,7 @@
  * fatura do Desafoga e liga cada compra ao que a pessoa já registrou.
  * A IA só transcreve; a conversão de valores e a conferência são do código.
  */
-import { lerValorEmReais } from "@/lib/dinheiro";
+import { lerPercentual, lerValorEmReais } from "@/lib/dinheiro";
 import { reais } from "@/lib/assistente/textos";
 import { chaveDoMes, separarFatura, type Compra, type Fatura, type Lancamento, type TipoLancamento } from "@/lib/finance";
 import type { DocumentoLido } from "@/lib/luana/ler";
@@ -19,7 +19,19 @@ const TIPO_DA_NATUREZA: Record<string, TipoLancamento | null> = {
   pagamento_de_fatura: "pagamento",
   saldo_anterior: null,
   transferencia_propria: null,
+  parcela_emprestimo: "parcela_emprestimo",
 };
+
+/** "03/06" → { parcela: 3, totalParcelas: 6 }; só quando faz sentido. */
+export function lerParcela(texto: string | null | undefined): { parcela: number; totalParcelas: number } | null {
+  const m = texto?.match(/(\d{1,3})\s*(?:\/|de)\s*(\d{1,3})/i);
+  if (!m) return null;
+  const parcela = Number(m[1]);
+  const totalParcelas = Number(m[2]);
+  return parcela >= 1 && totalParcelas >= 2 && parcela <= totalParcelas ? { parcela, totalParcelas } : null;
+}
+
+const dataValida = (d: string | null | undefined) => (d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null);
 
 /** Compras registradas e lançamento da fatura são a mesma compra: mesmo valor e até 3 dias de diferença. */
 const DIAS_DE_FOLGA = 3;
@@ -40,6 +52,8 @@ export function paraFatura(doc: DocumentoLido, compras: Compra[], agora: Date, i
     const data = l.data && /^\d{4}-\d{2}-\d{2}$/.test(l.data) ? l.data : hoje;
     const tipo: TipoLancamento = natureza === "compra" && l.categoria === "assinaturas" ? "assinatura" : natureza;
     const lancamento: Lancamento = { id: `${id}-${i}`, data, descricao: l.descricao.trim().slice(0, 120), valor, tipo };
+    const parcela = tipo === "compra" || tipo === "parcela_emprestimo" ? lerParcela(l.parcela) : null;
+    if (parcela) Object.assign(lancamento, parcela);
     if (tipo === "compra") {
       lancamento.categoria = categoriaDaLeitura(l.descricao, l.categoria);
       const igual = compras.find(
@@ -51,12 +65,18 @@ export function paraFatura(doc: DocumentoLido, compras: Compra[], agora: Date, i
     lancamentos.push(lancamento);
   });
 
+  const vencimento = dataValida(doc.vencimento);
   return {
     id,
     tipo: doc.tipo === "fatura_cartao" ? "fatura" : "extrato",
     origem: doc.emissor ?? (doc.tipo === "fatura_cartao" ? "Fatura do cartão" : "Extrato enviado"),
-    mes: chaveDoMes(agora),
+    mes: vencimento ? vencimento.slice(0, 7) : chaveDoMes(agora),
     lancamentos,
+    vencimento,
+    total: doc.total ? lerValorEmReais(doc.total) : null,
+    pagamentoMinimo: doc.pagamentoMinimo ? lerValorEmReais(doc.pagamentoMinimo) : null,
+    taxaRotativoMensal: doc.taxaRotativoMensal ? lerPercentual(doc.taxaRotativoMensal) : null,
+    fonte: "documento",
   };
 }
 

@@ -67,7 +67,9 @@ export type TipoLancamento =
   | "iof"
   | "tarifa"
   | "assinatura"
-  | "pagamento";
+  | "pagamento"
+  /** Parcela de empréstimo, consignado ou financiamento num extrato: não é compra nem encargo. */
+  | "parcela_emprestimo";
 
 export interface Lancamento {
   id: string;
@@ -80,6 +82,9 @@ export interface Lancamento {
   categoria?: Categoria;
   /** Compra registrada pela pessoa que corresponde a este lançamento. */
   compraId?: string | null;
+  /** Compra parcelada: número desta parcela e total. */
+  parcela?: number;
+  totalParcelas?: number;
 }
 
 export interface Fatura {
@@ -90,6 +95,19 @@ export interface Fatura {
   /** YYYY-MM */
   mes: string;
   lancamentos: Lancamento[];
+  /** YYYY-MM-DD do vencimento da fatura. */
+  vencimento?: string | null;
+  /** Total da fatura (centavos). */
+  total?: number | null;
+  pagamentoMinimo?: number | null;
+  /** Juros do rotativo ao mês (fração). */
+  taxaRotativoMensal?: number | null;
+  /** Cartão conectado (Pluggy) a que esta fatura pertence. */
+  contaId?: string | null;
+  /** "pluggy": veio do banco; "documento": a pessoa enviou. Ausente = documento. */
+  fonte?: "documento" | "pluggy";
+  /** A mesma fatura veio do banco: este documento fica só como registro. */
+  foraDosCalculos?: boolean;
 }
 
 /** Quanto a pessoa se permite gastar por mês numa categoria. */
