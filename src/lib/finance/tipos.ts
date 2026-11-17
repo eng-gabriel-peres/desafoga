@@ -61,6 +61,10 @@ export interface Divida {
   parcelaMinima: number;
   /** Dia do mês em que vence. */
   vencimento: number;
+  /** "banco": veio da Pluggy; "documento": de um documento enviado; ausente = a pessoa cadastrou. */
+  origem?: "manual" | "banco" | "documento";
+  /** Parcelas que faltam, quando o contrato informa. */
+  parcelasRestantes?: number | null;
 }
 
 /** "mais-cara": maior taxa primeiro (avalanche). "menor": menor saldo primeiro (bola de neve). */
