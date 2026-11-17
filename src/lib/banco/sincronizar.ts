@@ -144,6 +144,16 @@ export async function sincronizar(
       }
     }
 
+    // Investimentos (poupança, CDB, fundos): podem ser ligados a metas.
+    await semDerrubar("investimentos", async () => {
+      const lista = await cliente.investimentos(itemId);
+      await repo.salvarInvestimentos(
+        pessoaId,
+        conexaoId,
+        lista.map((i) => ({ pluggyId: i.id, nome: i.name, tipo: i.type, saldo: Math.round((i.balance ?? 0) * 100) })),
+      );
+    });
+
     // 4. Fatura aberta de cada cartão (alimenta a tela de fatura e os próximos meses).
     for (const c of contas.filter((x) => x.tipo === "cartao")) await semDerrubar("fatura aberta", () => gravarFaturaAberta(pessoaId, c, agora));
 

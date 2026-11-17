@@ -152,7 +152,19 @@ function paraMeta(m: MetaDoBanco): Meta {
     criadaEm: chaveDoDia(m.criadaEm),
     lembrete: m.lembrete,
     depositos: m.movimentos.map((v) => ({ id: v.id, valor: v.valor, descricao: v.descricao, quando: iso(v.quando), via: v.via as "app" | "whatsapp" })),
+    ...(m.investimentos.length ? { investimentos: m.investimentos } : {}),
   };
+}
+
+/** Meta ligada a investimentos do banco: o guardado é o saldo deles (se algum ainda existir). */
+async function comSaldoDoBanco(pessoaId: string, metas: Meta[]): Promise<Meta[]> {
+  const ids = metas.flatMap((m) => m.investimentos ?? []);
+  if (!ids.length) return metas;
+  const saldos = new Map((await prisma().investimentoBancario.findMany({ where: { pessoaId, id: { in: ids } } })).map((i) => [i.id, i.saldo]));
+  return metas.map((m) => {
+    const ligados = (m.investimentos ?? []).filter((id) => saldos.has(id));
+    return ligados.length ? { ...m, guardadoPeloBanco: ligados.reduce((s, id) => s + saldos.get(id)!, 0) } : m;
+  });
 }
 
 const PLANO_VAZIO: Plano = { valorMensal: 0, estrategia: "mais-cara", valorSugerido: null };
@@ -184,7 +196,7 @@ export async function orcamentos(pessoaId: string): Promise<Orcamento[]> {
 
 export async function metas(pessoaId: string): Promise<Meta[]> {
   const lista = await prisma().meta.findMany({ where: { pessoaId }, include: COM_DEPOSITOS, orderBy: { criadaEm: "asc" } });
-  return lista.map(paraMeta);
+  return comSaldoDoBanco(pessoaId, lista.map(paraMeta));
 }
 
 export async function plano(pessoaId: string): Promise<Plano> {
@@ -345,7 +357,7 @@ const dataDoPrazo = (prazo: string | null) => (prazo ? new Date(`${prazo}T00:00:
 async function metaDaPessoa(pessoaId: string, metaId: string): Promise<Meta> {
   const m = await prisma().meta.findFirst({ where: { id: metaId, pessoaId }, include: COM_DEPOSITOS });
   if (!m) throw new NaoEncontrado("Meta não encontrada.");
-  return paraMeta(m);
+  return (await comSaldoDoBanco(pessoaId, [paraMeta(m)]))[0];
 }
 
 /** Cria (sem id) ou ajusta uma meta. O que já tinha guardado entra como primeiro depósito. */

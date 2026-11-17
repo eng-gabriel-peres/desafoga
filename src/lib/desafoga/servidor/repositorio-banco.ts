@@ -634,3 +634,36 @@ export async function completarEmocao(pessoaId: string, compraId: string, emocao
   const r = await prisma().compra.updateMany({ where: { id: compraId, pessoaId }, data: { emocao, necessidade } });
   if (!r.count) throw new NaoEncontrado("Compra não encontrada.");
 }
+
+// ---------- investimentos ----------
+
+export interface InvestimentoDoBanco {
+  id: string;
+  conexaoId: string;
+  nome: string;
+  tipo: string;
+  saldo: number;
+}
+
+export async function investimentos(pessoaId: string): Promise<InvestimentoDoBanco[]> {
+  const lista = await prisma().investimentoBancario.findMany({ where: { pessoaId }, orderBy: { saldo: "desc" } });
+  return lista.map((i) => ({ id: i.id, conexaoId: i.conexaoId, nome: i.nome, tipo: i.tipo, saldo: i.saldo }));
+}
+
+export async function salvarInvestimentos(pessoaId: string, conexaoId: string, lista: { pluggyId: string; nome: string; tipo: string; saldo: number }[]): Promise<void> {
+  for (const i of lista) {
+    await prisma().investimentoBancario.upsert({
+      where: { pluggyId: i.pluggyId },
+      create: { pessoaId, conexaoId, ...i },
+      update: { nome: i.nome, tipo: i.tipo, saldo: i.saldo, atualizadoEm: new Date() },
+    });
+  }
+}
+
+/** Liga a meta a investimentos da própria pessoa (lista vazia desliga e a meta volta aos depósitos). */
+export async function ligarInvestimentos(pessoaId: string, metaId: string, ids: string[]): Promise<void> {
+  const meus = await prisma().investimentoBancario.count({ where: { pessoaId, id: { in: ids } } });
+  if (meus !== new Set(ids).size) throw new NaoEncontrado("Investimento não encontrado.");
+  const r = await prisma().meta.updateMany({ where: { id: metaId, pessoaId }, data: { investimentos: [...new Set(ids)] } });
+  if (!r.count) throw new NaoEncontrado("Meta não encontrada.");
+}

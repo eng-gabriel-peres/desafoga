@@ -46,19 +46,19 @@ model Sessao {
 }
 
 model Pessoa {
-  id                 String            @id @default(uuid())
+  id                 String                 @id @default(uuid())
   espacoId           String
-  espaco             Espaco            @relation(fields: [espacoId], references: [id], onDelete: Cascade)
+  espaco             Espaco                 @relation(fields: [espacoId], references: [id], onDelete: Cascade)
   /// Id curto dos dados fictícios ("ana"), para a demo achar a persona.
   slug               String?
   nome               String
   apelido            String
   idade              Int?
   cor                String
-  perfil             String            @default("")
+  perfil             String                 @default("")
   /// WhatsApp confirmado (só dígitos, com 55).
-  telefone           String?           @unique
-  criadaEm           DateTime          @default(now())
+  telefone           String?                @unique
+  criadaEm           DateTime               @default(now())
   compras            Compra[]
   dividas            Divida[]
   plano              Plano?
@@ -81,12 +81,13 @@ model Pessoa {
   /// Dia do mês em que recebe.
   diaDaRenda         Int?
   /// Compras do banco: revisar (padrão), automatico ou desligado.
-  modoComprasDoBanco String            @default("revisar")
+  modoComprasDoBanco String                 @default("revisar")
   conexoes           ConexaoBancaria[]
   movimentos         Movimento[]
   parceladas         CompraParcelada[]
   sugestoes          Sugestao[]
   regrasDoBanco      RegraDoBanco[]
+  investimentos      InvestimentoBancario[]
 
   @@unique([espacoId, slug])
   @@map("pessoas")
@@ -460,22 +461,23 @@ model Pagamento {
 
 /// Banco conectado pela Pluggy (um "item"). pluggyItemId nulo = Banco Demonstração.
 model ConexaoBancaria {
-  id                        String          @id @default(uuid())
+  id                        String                 @id @default(uuid())
   pessoaId                  String
-  pessoa                    Pessoa          @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
-  pluggyItemId              String?         @unique
+  pessoa                    Pessoa                 @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  pluggyItemId              String?                @unique
   banco                     String
   logo                      String?
   /// ok, atualizando, reconectar ou erro.
-  status                    String          @default("ok")
+  status                    String                 @default("ok")
   erro                      String?
   ultimaSincronizacao       DateTime?
   ultimoPedidoDeAtualizacao DateTime?
   sincronizandoDesde        DateTime?
   consentimentoAte          DateTime?
   cpfDoTitular              String?
-  conectadaEm               DateTime        @default(now())
+  conectadaEm               DateTime               @default(now())
   contas                    ContaBancaria[]
+  investimentos             InvestimentoBancario[]
 
   @@index([pessoaId])
   @@map("conexoes_bancarias")
@@ -596,4 +598,22 @@ model RegraDoBanco {
 
   @@unique([pessoaId, padrao])
   @@map("regras_do_banco")
+}
+
+/// Investimento lido do banco (poupança, CDB, fundo…): pode ser ligado a uma meta.
+model InvestimentoBancario {
+  id           String          @id @default(uuid())
+  pessoaId     String
+  pessoa       Pessoa          @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  conexaoId    String
+  conexao      ConexaoBancaria @relation(fields: [conexaoId], references: [id], onDelete: Cascade)
+  pluggyId     String          @unique
+  nome         String
+  tipo         String
+  /// Centavos.
+  saldo        Int
+  atualizadoEm DateTime        @default(now())
+
+  @@index([pessoaId])
+  @@map("investimentos_bancarios")
 }

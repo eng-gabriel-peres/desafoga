@@ -51,6 +51,7 @@ describe.runIf(url)("sincronizar com a Pluggy", () => {
     );
     dados.faturas = Object.fromEntries(Object.entries(dados.faturas).map(([conta, l]) => [trocar(conta), l]));
     dados.emprestimos = dados.emprestimos.map((l) => ({ ...l, id: trocar(l.id) }));
+    dados.investimentos = dados.investimentos.map((i) => ({ ...i, id: trocar(i.id) }));
     return base;
   }
 
@@ -241,6 +242,20 @@ describe.runIf(url)("sincronizar com a Pluggy", () => {
     const cartao = (await repo.conexoes(pessoaId))[0].contas.find((x) => x.tipo === "cartao")!;
     expect((await repo.parceladas(pessoaId)).find((x) => x.chave === "pdf")?.origem).toBe(cartao.id);
     expect((await repo.faturas(pessoaId)).find((f) => f.fonte === "documento")?.contaId).toBe(cartao.id);
+  });
+
+  it("investimentos são lidos e a meta ligada a eles passa a usar o saldo", async () => {
+    await sync();
+    const investimentos = await repo.investimentos(pessoaId);
+    expect(investimentos).toHaveLength(8);
+    const previdencia = investimentos.find((i) => i.nome === "ITAU Sandbox previdencia")!;
+    expect(previdencia.saldo).toBe(1172042);
+    const meta = await repo.salvarMeta(pessoaId, { nome: "Reserva", icone: "shield", cor: "azul", alvo: 2000000, inicial: 0, modo: "valor", frequencia: "mes", valorPorPeriodo: 50000, prazo: null, lembrete: false } as never);
+    await repo.ligarInvestimentos(pessoaId, meta.id, [previdencia.id]);
+    const [lida] = (await repo.metas(pessoaId)).filter((m) => m.id === meta.id);
+    expect(lida).toMatchObject({ investimentos: [previdencia.id], guardadoPeloBanco: 1172042 });
+    // Investimento de outra pessoa não pode ser ligado.
+    await expect(repo.ligarInvestimentos(pessoaId, meta.id, ["nao-existe"])).rejects.toThrow();
   });
 
   it("parcela de empréstimo na conta não é compra nem aviso", async () => {

@@ -168,6 +168,10 @@ export interface Meta {
   /** Lembrar no WhatsApp nos dias de guardar. */
   lembrete: boolean;
   depositos: Deposito[];
+  /** Investimentos do banco ligados à meta (ids). */
+  investimentos?: string[];
+  /** Saldo somado desses investimentos (centavos); null sem investimento ligado. Vale no lugar dos depósitos. */
+  guardadoPeloBanco?: number | null;
 }
 
 /** Dinheiro guardado na meta. A transferência para o cofrinho é registrada uma vez só e já conta. */

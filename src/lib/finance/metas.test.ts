@@ -60,3 +60,15 @@ describe("metas de economia", () => {
     expect(situacaoDaMeta(meta({ depositos: [60000, 40000] }), agora)).toMatchObject({ concluida: true, fracao: 1, falta: 0 });
   });
 });
+
+describe("meta ligada a investimentos do banco", () => {
+  it("o guardado é o saldo dos investimentos, não os depósitos", () => {
+    const m = { ...meta({ alvo: 1000000, depositos: [10000] }), investimentos: ["inv-1"], guardadoPeloBanco: 600000 };
+    expect(situacaoDaMeta(m, new Date(2026, 10, 17)).guardado).toBe(600000);
+  });
+
+  it("sem investimento ligado, continua pelos depósitos", () => {
+    const m = { ...meta({ alvo: 1000000, depositos: [10000] }), guardadoPeloBanco: null };
+    expect(situacaoDaMeta(m, new Date(2026, 10, 17)).guardado).toBe(10000);
+  });
+});

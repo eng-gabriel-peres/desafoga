@@ -32,7 +32,8 @@ export function somarPeriodos(chave: string, frequencia: Frequencia, n: number):
   return chaveDoDia(d);
 }
 
-export const guardadoNaMeta = (meta: Meta) => meta.depositos.reduce((s, d) => s + d.valor, 0);
+/** O que já está guardado: o saldo dos investimentos ligados, se houver; senão a soma dos depósitos. */
+export const guardadoNaMeta = (meta: Meta) => meta.guardadoPeloBanco ?? meta.depositos.reduce((s, d) => s + d.valor, 0);
 
 export interface OpcoesDoPrazo {
   dias: number;
