@@ -105,7 +105,7 @@ export async function sincronizar(
     const tipoDaConta = new Map(contas.map((c) => [c.id, c.tipo]));
     const novasCompras = novos.filter((m) => m.natureza === "compra" && m.situacao !== "ignorada").sort((a, b) => a.data.localeCompare(b.data));
     for (const m of novasCompras) {
-      const r = await tratarCompra(pessoaId, m, { modo, compras, ligadas, naJanela: m.data >= inicioDaJanela, cartao: tipoDaConta.get(m.contaId) === "cartao", agora });
+      const r = await tratarCompraNova(pessoaId, m, { modo, compras, ligadas, naJanela: m.data >= inicioDaJanela, cartao: tipoDaConta.get(m.contaId) === "cartao", agora });
       if (r === "revisar") resultado.paraRevisar++;
       if (r === "automatica") resultado.automaticas++;
     }
@@ -146,7 +146,7 @@ export async function sincronizar(
   }
 }
 
-async function tratarCompra(
+export async function tratarCompraNova(
   pessoaId: string,
   m: Movimento,
   ctx: { modo: ModoCompras; compras: Compra[]; ligadas: Set<string>; naJanela: boolean; cartao: boolean; agora: Date },

@@ -5,6 +5,7 @@
  */
 import { createHash, randomBytes } from "node:crypto";
 import type { Persona, Profissional } from "@/services/tipos";
+import { clientePluggy, pluggyConfigurado } from "@/lib/banco/pluggy";
 import { prisma } from "./prisma";
 import { criarEspacoDemo, novoConvite } from "./semente";
 
@@ -63,6 +64,20 @@ export async function encerrarSessao(sessaoId: string): Promise<void> {
 }
 
 export type PerfilDaDemo = "ana" | "carlos" | "lucia" | "rafael" | "paula" | "marcos";
+
+/**
+ * Antes de apagar espaços de demonstração, apaga na Pluggy os bancos de teste
+ * conectados neles: a conta de desenvolvimento tem limite de 100 conexões.
+ * Falha na Pluggy não impede a limpeza.
+ */
+async function apagarBancosDaPluggy(espacos: { id?: string; tipo: "DEMO"; criadoEm?: { lt: Date } }): Promise<void> {
+  const itens = await prisma().conexaoBancaria.findMany({
+    where: { pluggyItemId: { not: null }, pessoa: { espaco: espacos } },
+    select: { pluggyItemId: true },
+  });
+  if (!itens.length || !pluggyConfigurado()) return;
+  await Promise.allSettled(itens.map((i) => clientePluggy().apagarItem(i.pluggyItemId!)));
+}
 const PROFISSIONAIS_DA_DEMO = new Set(["paula", "marcos"]);
 
 /**
@@ -73,7 +88,9 @@ const PROFISSIONAIS_DA_DEMO = new Set(["paula", "marcos"]);
 export async function entrarNaDemo(perfil: PerfilDaDemo, atual: SessaoAtual | null): Promise<NovaSessao> {
   let espacoId = atual?.demo ? atual.espacoId : null;
   if (!espacoId) {
-    await prisma().espaco.deleteMany({ where: { tipo: "DEMO", criadoEm: { lt: new Date(Date.now() - VIDA_DA_DEMO_MS) } } });
+    const vencidas = { tipo: "DEMO" as const, criadoEm: { lt: new Date(Date.now() - VIDA_DA_DEMO_MS) } };
+    await apagarBancosDaPluggy(vencidas);
+    await prisma().espaco.deleteMany({ where: vencidas });
     espacoId = (await prisma().$transaction((tx) => criarEspacoDemo(tx), { timeout: 60_000 })).espacoId;
   }
   if (atual) await prisma().sessao.deleteMany({ where: { id: atual.id } });
@@ -89,6 +106,7 @@ export async function entrarNaDemo(perfil: PerfilDaDemo, atual: SessaoAtual | nu
 export async function recomecarDemo(atual: SessaoAtual): Promise<NovaSessao> {
   const perfil = (atual.slug ?? "ana") as PerfilDaDemo;
   // O espaço antigo some com tudo dentro (e a sessão junto): recomeçar não acumula cópias.
+  await apagarBancosDaPluggy({ id: atual.espacoId, tipo: "DEMO" });
   await prisma().espaco.deleteMany({ where: { id: atual.espacoId, tipo: "DEMO" } });
   return entrarNaDemo(perfil, null);
 }
@@ -151,6 +169,11 @@ export async function aceitarConvite(pessoaId: string, espacoId: string, convite
 
 /** LGPD: apaga a pessoa e tudo dela (compras, dívidas, conversas, notas). */
 export async function apagarConta(atual: SessaoAtual): Promise<void> {
-  if (atual.pessoa) await prisma().pessoa.delete({ where: { id: atual.pessoa.id } });
+  if (atual.pessoa) {
+    // Os bancos conectados também saem da Pluggy.
+    const itens = await prisma().conexaoBancaria.findMany({ where: { pessoaId: atual.pessoa.id, pluggyItemId: { not: null } }, select: { pluggyItemId: true } });
+    if (itens.length && pluggyConfigurado()) await Promise.allSettled(itens.map((i) => clientePluggy().apagarItem(i.pluggyItemId!)));
+    await prisma().pessoa.delete({ where: { id: atual.pessoa.id } });
+  }
   else if (atual.profissional) await prisma().profissional.delete({ where: { id: atual.profissional.id } });
 }

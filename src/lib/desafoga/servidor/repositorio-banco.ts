@@ -557,3 +557,13 @@ export async function atualizarFatura(
 export async function apagarFatura(faturaId: string): Promise<void> {
   await prisma().fatura.delete({ where: { id: faturaId } });
 }
+
+export async function desmarcarParceladaAvisada(parceladaId: string): Promise<void> {
+  await prisma().compraParcelada.update({ where: { id: parceladaId }, data: { avisada: false } });
+}
+
+/** Compra registrada sozinha pelo banco: a pessoa completa como estava. */
+export async function completarEmocao(pessoaId: string, compraId: string, emocao: number, necessidade: string): Promise<void> {
+  const r = await prisma().compra.updateMany({ where: { id: compraId, pessoaId }, data: { emocao, necessidade } });
+  if (!r.count) throw new NaoEncontrado("Compra não encontrada.");
+}

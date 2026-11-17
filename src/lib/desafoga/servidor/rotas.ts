@@ -7,10 +7,11 @@ import { z } from "zod";
 import { montarContexto } from "@/lib/assistente/contexto";
 import { avisoDeCheckInTriste, mensagemDeIncentivo, mensagemDeLembrete, NOME_DA_EMOCAO, perguntaDoCheckIn, respostaDoCheckIn } from "@/lib/assistente/textos";
 import { situacaoDaMeta } from "@/lib/finance";
-import type { Fatura } from "@/services/tipos";
+import type { Classificacao, Fatura } from "@/services/tipos";
 import { exigirAPropriaPessoa, exigirProfissionalDe, exigirSessao, exigirVer, SemPermissao } from "./acesso";
 import { responderTexto, testarResposta } from "./acoes";
 import { salvarDocumento } from "./documentos";
+import * as banco from "./banco-acoes";
 import { enviarPeloWhatsapp, whatsappConfigurado } from "./enviar";
 import { registros } from "./registros";
 import * as repo from "./repositorio";
@@ -96,6 +97,27 @@ type Recurso = "texto" | "arquivo" | "audio" | "codigo" | "conta" | "envio";
 function acao<A extends z.ZodTypeAny, R>(argumentos: A, executar: (args: z.infer<A>, ctx: Contexto) => Promise<R>, recurso?: Recurso) {
   return { argumentos, executar, recurso };
 }
+
+/** Fatura ou extrato enviado; o cartão conectado escolhido tem que ser desta pessoa. */
+async function salvarFaturaDaPessoa(p: string, f: Fatura, c: Record<string, Classificacao>, contaId: string | null) {
+  const conta = contaId ? (await repo.conexoes(p)).flatMap((x) => x.contas).find((x) => x.id === contaId && x.tipo === "cartao") : null;
+  if (contaId && !conta) throw new ErroDeEntrada("Cartão não encontrado.");
+  return salvarDocumento(p, f, c, conta?.id ?? null);
+}
+
+/** Recusa das ações do banco vira erro de entrada (mensagem para a pessoa). */
+async function doBanco<T>(f: () => Promise<T>): Promise<T> {
+  try {
+    return await f();
+  } catch (e) {
+    if (e instanceof banco.RecusaDoBanco) throw new ErroDeEntrada(e.message);
+    throw e;
+  }
+}
+
+const modoCompras = z.enum(["revisar", "automatico", "desligado"]);
+const campoDaDivida = z.enum(["saldo", "taxaMensal", "parcelaMinima", "parcelasRestantes"]);
+const chave = z.string().min(1).max(200);
 
 /** Converte a recusa do vínculo do WhatsApp em erro de entrada (mensagem para a pessoa). */
 async function comRecusa<T>(f: () => Promise<T>): Promise<T> {
@@ -463,12 +485,95 @@ const ACOES = {
     z.tuple([id, fatura, z.record(z.string(), z.object({ emocao: emocao.optional(), necessidade: necessidade.optional() })), id.nullable().optional()]),
     async ([p, f, c, contaId], { sessao }) => {
       exigirAPropriaPessoa(sessao, p);
-      // O cartão escolhido tem que ser desta pessoa.
-      const conta = contaId ? (await repo.conexoes(p)).flatMap((x) => x.contas).find((x) => x.id === contaId && x.tipo === "cartao") : null;
-      if (contaId && !conta) throw new ErroDeEntrada("Cartão não encontrado.");
-      return salvarDocumento(p, f as Fatura, c, conta?.id ?? null);
+      return salvarFaturaDaPessoa(p, f as Fatura, c, contaId ?? null);
     },
   ),
+
+  "documentos.salvar": acao(
+    z.tuple([id, fatura, z.record(z.string(), z.object({ emocao: emocao.optional(), necessidade: necessidade.optional() })), id.nullable()]),
+    async ([p, f, c, contaId], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      return salvarFaturaDaPessoa(p, f as Fatura, c, contaId);
+    },
+  ),
+
+  // ----- bancos conectados (Pluggy) -----
+  "banco.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
+    const s = await exigirVer(sessao, p);
+    if (s.pessoa?.id !== p && !(await repo.rotina(p)).compartilharContas) return banco.BANCO_ESCONDIDO;
+    return banco.dadosDoBanco(p);
+  }),
+  "banco.tokenDeConexao": acao(z.tuple([id, z.string().max(80).optional()]), async ([p, itemId], { sessao }) => {
+    const s = exigirAPropriaPessoa(sessao, p);
+    return doBanco(() => banco.tokenDeConexao(p, s.demo, itemId));
+  }),
+  "banco.conectado": acao(z.tuple([id, z.string().min(1).max(80)]), async ([p, itemId], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    return doBanco(() => banco.conectado(p, itemId));
+  }),
+  "banco.atualizar": acao(z.tuple([id, id]), async ([p, conexaoId], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    return banco.atualizar(p, conexaoId);
+  }),
+  "banco.desconectar": acao(z.tuple([id, id]), async ([p, conexaoId], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await banco.desconectar(p, conexaoId);
+  }),
+  "banco.modo": acao(z.tuple([id, modoCompras]), async ([p, modo], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await banco.mudarModo(p, modo);
+  }),
+  "banco.ignorar": acao(z.tuple([id, id]), async ([p, m], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await banco.ignorar(p, m);
+  }),
+  "banco.marcarTransferencia": acao(z.tuple([id, id]), async ([p, m], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await banco.marcarTransferencia(p, m);
+  }),
+  "banco.registrar": acao(
+    z.tuple([id, id, z.object({ item: texto(80), categoria, emocao, necessidade })]),
+    async ([p, m, r], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      await doBanco(() => banco.registrarDoBanco(p, m, r));
+    },
+  ),
+  "banco.completarEmocao": acao(z.tuple([id, id, emocao, necessidade]), async ([p, compraId, e, n], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await repo.completarEmocao(p, compraId, e, n);
+  }),
+  "banco.renomearParcelada": acao(z.tuple([id, id, texto(80), categoria.optional()]), async ([p, parcelada, nome, cat], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    return repo.renomearParcelada(p, parcelada, nome, cat);
+  }),
+  "banco.aceitarSugestao": acao(
+    z.tuple([id, chave, z.record(campoDaDivida, z.number().min(0).max(1e10)).optional(), z.number().int().min(1).max(31).optional()]),
+    async ([p, c, correcoes, vencimento], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      return repo.aceitarSugestao(p, c, correcoes ?? {}, vencimento);
+    },
+  ),
+  "banco.vincularSugestao": acao(z.tuple([id, chave, id]), async ([p, c, dividaId], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    return repo.vincularSugestao(p, c, dividaId);
+  }),
+  "banco.dispensarSugestao": acao(z.tuple([id, chave]), async ([p, c], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await repo.dispensarSugestao(p, c);
+  }),
+  "banco.simularCompra": acao(z.tuple([id]), async ([p], { sessao }) => {
+    const s = exigirAPropriaPessoa(sessao, p);
+    if (!s.demo) throw new SemPermissao("Só na demonstração.");
+    await banco.simularCompra(p);
+  }),
+  "dividas.desvincular": acao(z.tuple([id, id]), async ([p, d], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    return repo.desvincularDivida(p, d);
+  }),
+  "dividas.corrigir": acao(z.tuple([id, id, campoDaDivida, z.number().min(0).max(1e10)]), async ([p, d, campo, valor], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    return repo.corrigirDivida(p, d, campo, valor);
+  }),
 
   // ----- memória (profissionais) -----
   "memoria.obter": acao(z.tuple([id]), async ([p], { sessao }) => {

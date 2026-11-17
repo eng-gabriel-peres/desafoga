@@ -33,9 +33,10 @@ async function chamar<T>(acao: string, args: unknown[] = [], muda = false): Prom
   return dados;
 }
 
-async function enviarArquivo<T>(acao: string, pessoaId: string, arquivo: Blob | null, nome = "arquivo"): Promise<T> {
+async function enviarArquivo<T>(acao: string, pessoaId: string, arquivo: Blob | null, nome = "arquivo", exemplo?: string): Promise<T> {
   const corpo = new FormData();
   corpo.append("pessoaId", pessoaId);
+  if (exemplo) corpo.append("exemplo", exemplo);
   if (arquivo) corpo.append("arquivo", arquivo, arquivo instanceof File ? arquivo.name : nome);
   const r = await fetch(`/api/desafoga/${acao}`, { method: "POST", headers: CABECALHO, body: corpo });
   return resposta<T>(r);
@@ -104,7 +105,30 @@ export const servicosDaApi: Servicos = {
   faturas: {
     listar: (id) => chamar("faturas.listar", [id]),
     ler: (id, arquivo) => enviarArquivo("faturas.ler", id, arquivo),
-    salvar: (id, fatura, c) => chamar("faturas.salvar", [id, fatura, c], true),
+    salvar: (id, fatura, c, contaId) => chamar("faturas.salvar", [id, fatura, c, contaId ?? null], true),
+  },
+  documentos: {
+    ler: (id, arquivo, exemplo) => enviarArquivo("documentos.ler", id, arquivo, "arquivo", exemplo),
+    salvar: (id, fatura, c, contaId) => chamar("documentos.salvar", [id, fatura, c, contaId], true),
+  },
+  banco: {
+    listar: (id) => chamar("banco.listar", [id]),
+    tokenDeConexao: (id, itemId) => chamar("banco.tokenDeConexao", itemId ? [id, itemId] : [id]),
+    conectado: (id, itemId) => chamar("banco.conectado", [id, itemId], true),
+    atualizar: (id, conexaoId) => chamar("banco.atualizar", [id, conexaoId], true),
+    desconectar: (id, conexaoId) => chamar("banco.desconectar", [id, conexaoId], true),
+    modo: (id, modo) => chamar("banco.modo", [id, modo], true),
+    ignorar: (id, m) => chamar("banco.ignorar", [id, m], true),
+    marcarTransferencia: (id, m) => chamar("banco.marcarTransferencia", [id, m], true),
+    registrar: (id, m, r) => chamar("banco.registrar", [id, m, r], true),
+    completarEmocao: (id, c, e, n) => chamar("banco.completarEmocao", [id, c, e, n], true),
+    renomearParcelada: (id, p, nome, cat) => chamar("banco.renomearParcelada", cat ? [id, p, nome, cat] : [id, p, nome], true),
+    aceitarSugestao: (id, chave, correcoes, vencimento) => chamar("banco.aceitarSugestao", [id, chave, correcoes ?? {}, ...(vencimento ? [vencimento] : [])], true),
+    vincularSugestao: (id, chave, dividaId) => chamar("banco.vincularSugestao", [id, chave, dividaId], true),
+    dispensarSugestao: (id, chave) => chamar("banco.dispensarSugestao", [id, chave], true),
+    desvincularDivida: (id, d) => chamar("dividas.desvincular", [id, d], true),
+    corrigirDivida: (id, d, campo, valor) => chamar("dividas.corrigir", [id, d, campo, valor], true),
+    simularCompra: (id) => chamar("banco.simularCompra", [id], true),
   },
   memoria: {
     obter: (id) => chamar("memoria.obter", [id]),

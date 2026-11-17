@@ -29,6 +29,8 @@ import type {
   Renda,
   Rotina,
 } from "./tipos";
+import type { CampoDaDivida, CompraParcelada, ModoCompras } from "@/lib/banco/tipos";
+import type { Categoria, DadosDoBanco, LeituraDeDocumento, Necessidade, ResultadoDaSincronizacao } from "./tipos";
 
 /** Quem está usando o app neste navegador. */
 export interface Eu {
@@ -141,8 +143,34 @@ export interface FaturasService {
   listar(pessoaId: string): Promise<Fatura[]>;
   /** Lê o arquivo enviado com a IA. Sem IA ou sem arquivo, lê um documento de exemplo. */
   ler(pessoaId: string, arquivo: File | null): Promise<{ fatura: Fatura; deExemplo: boolean }>;
-  /** Guarda a fatura lida e registra as compras novas classificadas. */
-  salvar(pessoaId: string, fatura: Fatura, classificacoes: Record<string, Classificacao>): Promise<void>;
+  /** Guarda a fatura lida e registra as compras novas classificadas. `contaId`: cartão conectado a que a fatura pertence. */
+  salvar(pessoaId: string, fatura: Fatura, classificacoes: Record<string, Classificacao>, contaId?: string | null): Promise<void>;
+}
+
+export interface DocumentosService {
+  /** Lê fatura, extrato, print, Registrato ou contrato. `exemplo` só na demonstração. */
+  ler(pessoaId: string, arquivo: File | null, exemplo?: "fatura" | "registrato" | "contrato"): Promise<LeituraDeDocumento>;
+  salvar(pessoaId: string, fatura: Fatura, classificacoes: Record<string, Classificacao>, contaId: string | null): Promise<{ parceladas: number; sugestoes: number }>;
+}
+
+export interface BancoService {
+  listar(pessoaId: string): Promise<DadosDoBanco>;
+  tokenDeConexao(pessoaId: string, itemId?: string): Promise<{ token: string; incluirSandbox: boolean }>;
+  conectado(pessoaId: string, itemId: string): Promise<ResultadoDaSincronizacao>;
+  atualizar(pessoaId: string, conexaoId: string): Promise<ResultadoDaSincronizacao | null>;
+  desconectar(pessoaId: string, conexaoId: string): Promise<void>;
+  modo(pessoaId: string, modo: ModoCompras): Promise<void>;
+  ignorar(pessoaId: string, movimentoId: string): Promise<void>;
+  marcarTransferencia(pessoaId: string, movimentoId: string): Promise<void>;
+  registrar(pessoaId: string, movimentoId: string, r: { item: string; categoria: Categoria; emocao: Emocao; necessidade: Necessidade }): Promise<void>;
+  completarEmocao(pessoaId: string, compraId: string, emocao: Emocao, necessidade: Necessidade): Promise<void>;
+  renomearParcelada(pessoaId: string, parceladaId: string, nome: string, categoria?: Categoria): Promise<CompraParcelada>;
+  aceitarSugestao(pessoaId: string, chave: string, correcoes?: Partial<Record<CampoDaDivida, number>>, vencimento?: number): Promise<Divida>;
+  vincularSugestao(pessoaId: string, chave: string, dividaId: string): Promise<Divida>;
+  dispensarSugestao(pessoaId: string, chave: string): Promise<void>;
+  desvincularDivida(pessoaId: string, dividaId: string): Promise<Divida>;
+  corrigirDivida(pessoaId: string, dividaId: string, campo: CampoDaDivida, valor: number): Promise<Divida>;
+  simularCompra(pessoaId: string): Promise<void>;
 }
 
 export interface MemoriaService {
@@ -184,6 +212,8 @@ export interface Servicos {
   rotina: RotinaService;
   contas: ContasService;
   faturas: FaturasService;
+  documentos: DocumentosService;
+  banco: BancoService;
   memoria: MemoriaService;
   assistente: AssistenteService;
   avisos: AvisosService;
