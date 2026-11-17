@@ -7,7 +7,7 @@ import { usePessoa } from "@/hooks/use-pessoa";
 import { chaveDoDia, situacaoDaMeta } from "@/lib/finance";
 import { NOME_DA_FREQUENCIA, dataCurta, reaisCurto } from "@/lib/assistente/textos";
 import { nomeDoDia } from "@/lib/formatar";
-import { servicos } from "@/services";
+import { servicos, type InvestimentoDoBanco } from "@/services";
 import { CaixaDeDeposito } from "../metas/deposito";
 import { Anel, IconeDaMetaBadge, corDaMeta } from "../metas/visual";
 import type { Area } from "../moldura/navegacao";
@@ -112,7 +112,7 @@ export function TelaDaMeta({ metaId, area = "pessoa", pessoaId: doPainel }: { me
             {recadoDoRitmo}
           </p>
           <div className="my-4 grid grid-cols-2 gap-2 desk:grid-cols-4">
-            <Numero rotulo="Guardado" valor={reaisCurto(s.guardado)} />
+            <Numero rotulo="Guardado" valor={reaisCurto(s.guardado)} detalhe={meta.guardadoPeloBanco != null ? "pelo banco" : undefined} />
             <Numero rotulo="Faltam" valor={reaisCurto(s.falta)} />
             <Numero rotulo="Plano" valor={reaisCurto(meta.valorPorPeriodo)} detalhe={NOME_DA_FREQUENCIA[meta.frequencia].por} />
             <Numero
@@ -181,6 +181,9 @@ export function TelaDaMeta({ metaId, area = "pessoa", pessoaId: doPainel }: { me
               <Sub>Nenhum depósito ainda.</Sub>
             )}
           </Painel>
+          {!profissional && dados.banco.investimentos.length > 0 && (
+            <LigarAoBanco pessoaId={pessoaId} metaId={meta.id} ligados={meta.investimentos ?? []} investimentos={dados.banco.investimentos} />
+          )}
           {!profissional && (
             <Painel titulo="Lembretes">
               <Sub>
@@ -197,5 +200,33 @@ export function TelaDaMeta({ metaId, area = "pessoa", pessoaId: doPainel }: { me
         </div>
       </div>
     </>
+  );
+}
+
+/** Meta ligada a investimentos do banco: o guardado passa a ser o saldo deles. */
+function LigarAoBanco({ pessoaId, metaId, ligados, investimentos }: { pessoaId: string; metaId: string; ligados: string[]; investimentos: InvestimentoDoBanco[] }) {
+  const marcar = (id: string) => {
+    const novos = ligados.includes(id) ? ligados.filter((x) => x !== id) : [...ligados, id];
+    servicos.banco.ligarInvestimentos(pessoaId, metaId, novos);
+  };
+  return (
+    <Painel titulo="Ligar ao banco">
+      <Sub className="mb-2">
+        {ligados.length
+          ? "O valor guardado acompanha o saldo do banco sozinho. Depósitos registrados aqui ficam só no histórico."
+          : "Marque onde esse dinheiro está guardado. O valor da meta passa a acompanhar o saldo do banco sozinho."}
+      </Sub>
+      <ul className="grid gap-1.5">
+        {investimentos.map((i) => (
+          <li key={i.id}>
+            <label className="flex cursor-pointer items-center gap-2.5 rounded-[12px] border border-line px-3 py-2 hover:border-primary">
+              <input type="checkbox" checked={ligados.includes(i.id)} onChange={() => marcar(i.id)} className="size-4 accent-[var(--primary)]" />
+              <span className="min-w-0 flex-1 truncate">{i.nome}</span>
+              <b>{reaisCurto(i.saldo)}</b>
+            </label>
+          </li>
+        ))}
+      </ul>
+    </Painel>
   );
 }

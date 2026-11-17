@@ -105,6 +105,17 @@ describe.runIf(url)("ações dos bancos conectados", () => {
     expect(parceladas[0]).toMatchObject({ totalParcelas: 10, valorParcela: 48000 });
     const sugestoes = await repo.sugestoes(p);
     expect(sugestoes.map((s) => s.dados.tipo).sort()).toEqual(["cheque", "emprestimo"]);
+    // Extras da entrega 2.
+    const cartao = conexoes[0].contas.find((c) => c.tipo === "cartao")!;
+    expect(cartao).toMatchObject({ limite: 300000, limiteDisponivel: 45000 });
+    expect(cartao.fechamento).not.toBeNull();
+    expect(conexoes[0].consentimentoAte).not.toBeNull();
+    const [cdb] = await repo.investimentos(p);
+    expect(cdb).toMatchObject({ nome: "CDB Viagem" });
+    const viagem = (await repo.metas(p)).find((m) => m.nome === "Viagem para a praia")!;
+    expect(viagem.guardadoPeloBanco).toBe(cdb.saldo);
+    const tipos = (await repo.avisos([p])).map((a) => a.tipo);
+    expect(tipos).toEqual(expect.arrayContaining(["limite-cartao", "consentimento"]));
 
     // O Registrato de exemplo tem o mesmo consignado do extrato: junta, e soma Nubank e Caixa.
     const { lerDocumentoEnviado } = await import("./documentos");
@@ -225,6 +236,16 @@ describe.runIf(url)("ações dos bancos conectados", () => {
     const args = [p, "itau|emprestimo|61000", { taxaMensal: 0.019, saldo: 1840000 }];
     await Promise.allSettled([chamar("banco.aceitarSugestao", args, ana), chamar("banco.aceitarSugestao", args, ana)]);
     expect((await repo.dividas(p)).length).toBe(antes + 1);
+  });
+
+  it("ligar meta a investimento: só da própria pessoa, e a profissional não pode", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    const [meta] = await repo.metas(p);
+    await expect(chamar("metas.ligarInvestimentos", [p, meta.id, [crypto.randomUUID()]], ana)).rejects.toThrow();
+    const paula = await entrar("paula", ana);
+    await expect(chamar("metas.ligarInvestimentos", [p, meta.id, []], paula)).rejects.toThrow();
+    await expect(chamar("banco.aceitarRenda", [p], paula)).rejects.toThrow();
   });
 
   it("vincular uma sugestão a uma dívida manual", async () => {

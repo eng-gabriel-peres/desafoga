@@ -11,7 +11,7 @@ import { urlDoWebhook } from "@/lib/banco/webhook";
 import { diaEmBrasilia } from "@/lib/banco/normalizar";
 import type { Categoria, Emocao, Necessidade } from "@/lib/finance";
 import * as repo from "./repositorio";
-import type { SugestaoGuardada } from "./repositorio-banco";
+import type { InvestimentoDoBanco, SugestaoGuardada } from "./repositorio-banco";
 
 export class RecusaDoBanco extends Error {}
 
@@ -25,19 +25,21 @@ export interface DadosDoBanco {
   movimentos: Movimento[];
   parceladas: CompraParcelada[];
   sugestoes: SugestaoGuardada[];
+  investimentos: InvestimentoDoBanco[];
 }
 
 const DIAS_DE_MOVIMENTOS = 120;
 
 export async function dadosDoBanco(pessoaId: string, agora = new Date()): Promise<DadosDoBanco> {
   const desde = diaEmBrasilia(new Date(agora.getTime() - DIAS_DE_MOVIMENTOS * 86_400_000));
-  const [modo, conexoes, recentes, revisar, parceladas, sugestoes] = await Promise.all([
+  const [modo, conexoes, recentes, revisar, parceladas, sugestoes, investimentos] = await Promise.all([
     repo.modoCompras(pessoaId),
     repo.conexoes(pessoaId),
     repo.movimentos(pessoaId, { desde }),
     repo.movimentos(pessoaId, { situacao: ["revisar"] }),
     repo.parceladas(pessoaId),
     repo.sugestoes(pessoaId),
+    repo.investimentos(pessoaId),
   ]);
   const vistos = new Set(recentes.map((m) => m.id));
   return {
@@ -48,10 +50,11 @@ export async function dadosDoBanco(pessoaId: string, agora = new Date()): Promis
     movimentos: [...recentes, ...revisar.filter((m) => !vistos.has(m.id))],
     parceladas,
     sugestoes,
+    investimentos,
   };
 }
 
-export const BANCO_ESCONDIDO: DadosDoBanco = { compartilhadas: false, configurado: false, modo: "revisar", conexoes: [], movimentos: [], parceladas: [], sugestoes: [] };
+export const BANCO_ESCONDIDO: DadosDoBanco = { compartilhadas: false, configurado: false, modo: "revisar", conexoes: [], movimentos: [], parceladas: [], sugestoes: [], investimentos: [] };
 
 const SEM_RESPOSTA = "Não consegui falar com a Pluggy agora (sem resposta). Tente de novo em instantes.";
 

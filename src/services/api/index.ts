@@ -130,6 +130,8 @@ export const servicosDaApi: Servicos = {
     desvincularDivida: (id, d) => chamar("dividas.desvincular", [id, d], true),
     corrigirDivida: (id, d, campo, valor) => chamar("dividas.corrigir", [id, d, campo, valor], true),
     simularCompra: (id) => chamar("banco.simularCompra", [id], true),
+    aceitarRenda: (id) => chamar("banco.aceitarRenda", [id], true),
+    ligarInvestimentos: (id, metaId, ids) => chamar("metas.ligarInvestimentos", [id, metaId, ids], true),
   },
   memoria: {
     obter: (id) => chamar("memoria.obter", [id]),

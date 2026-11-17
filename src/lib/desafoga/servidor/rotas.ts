@@ -576,6 +576,14 @@ const ACOES = {
     exigirAPropriaPessoa(sessao, p);
     return repo.vincularSugestao(p, c, dividaId);
   }),
+  "banco.aceitarRenda": acao(z.tuple([id]), async ([p], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await repo.aceitarRenda(p);
+  }),
+  "metas.ligarInvestimentos": acao(z.tuple([id, id, z.array(id).max(20)]), async ([p, metaId, ids], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await repo.ligarInvestimentos(p, metaId, ids);
+  }),
   "banco.dispensarSugestao": acao(z.tuple([id, chave]), async ([p, c], { sessao }) => {
     exigirAPropriaPessoa(sessao, p);
     await repo.dispensarSugestao(p, c);

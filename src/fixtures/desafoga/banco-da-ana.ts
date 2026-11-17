@@ -27,7 +27,22 @@ export interface SementeMovimento {
 
 export interface SementeBanco {
   banco: string;
-  contas: { id: ContaDaDemo; nome: string; saldo: number; limite?: number; chequeEspecialUsado?: number; chequeEspecialLimite?: number }[];
+  contas: {
+    id: ContaDaDemo;
+    nome: string;
+    saldo: number;
+    limite?: number;
+    limiteDisponivel?: number;
+    /** Dia do mês do fechamento e do vencimento da fatura (cartão). */
+    fechamentoDia?: number;
+    vencimentoDia?: number;
+    chequeEspecialUsado?: number;
+    chequeEspecialLimite?: number;
+  }[];
+  /** Autorização do Open Finance vence em N dias. */
+  consentimentoEmDias: number;
+  /** Investimento ligado a uma meta da semente (pelo nome). */
+  investimento: { nome: string; tipo: string; saldo: number; meta: string };
   movimentos: SementeMovimento[];
   parcelada: { nome: string; lojaOriginal: string; categoria: Categoria; valorParcela: number; totalParcelas: number; parcelasVistas: number[]; primeiraHaMeses: number };
   sugestoes: SugestaoDeDivida[];
@@ -40,8 +55,10 @@ export const BANCO_DA_ANA: SementeBanco = {
   banco: "Itaú · demonstração",
   contas: [
     { id: "corrente", nome: "Conta corrente", saldo: 31240, chequeEspecialUsado: 35000, chequeEspecialLimite: 100000 },
-    { id: "cartao", nome: "Cartão Itaú", saldo: 0, limite: 300000 },
+    { id: "cartao", nome: "Cartão Itaú", saldo: 255000, limite: 300000, limiteDisponivel: 45000, fechamentoDia: 3, vencimentoDia: 10 },
   ],
+  consentimentoEmDias: 10,
+  investimento: { nome: "CDB Viagem", tipo: "FIXED_INCOME", saldo: 42000, meta: "Viagem para a praia" },
   movimentos: [
     // Para revisar (desta semana).
     { id: "ifood", conta: "cartao", dias: 0, descricao: "IFOOD *SABOR DA CASA", valor: 4590, direcao: "saida", natureza: "compra", categoria: "Comida pronta", situacao: "revisar" },

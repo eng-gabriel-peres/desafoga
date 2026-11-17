@@ -16,6 +16,7 @@ import type { Area } from "../moldura/navegacao";
 import { BancosConectados } from "../banco/bancos-conectados";
 import { ComprasParceladas } from "../banco/parcelada";
 import { ProximosMeses } from "../banco/proximos-meses";
+import { Assinaturas, SugestaoDeRenda } from "../banco/extras";
 import { useEu, usePessoaDaSessao } from "../sessao";
 import { Carregando, Painel, Sub, TituloCelular } from "../ui/blocos";
 import { Botao } from "../ui/botao";
@@ -123,9 +124,11 @@ export function TelaContas({ area = "pessoa", pessoaId: doPainel }: { area?: Are
           <ComprasParceladas pessoaId={pessoaId} parceladas={dados.banco.parceladas} agora={agora} somenteLeitura={somenteLeitura} />
         </div>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+          {!somenteLeitura && <SugestaoDeRenda pessoaId={pessoaId} banco={dados.banco} />}
           {(!somenteLeitura || dados.banco.conexoes.length > 0) && (
             <BancosConectados pessoaId={pessoaId} dados={dados.banco} demo={eu.demo} agora={agora} somenteLeitura={somenteLeitura} />
           )}
+          <Assinaturas pessoaId={pessoaId} banco={dados.banco} contas={contas.contas} somenteLeitura={somenteLeitura} />
           <CalendarioDoMes compromissos={compromissos} agora={agora} dia={dia} escolher={setDia} />
           <ContasPorCategoria grupos={contasPorCategoria(contas.contas)} />
         </div>

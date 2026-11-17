@@ -158,6 +158,14 @@ O Desafoga lê o banco de dois jeitos, que alimentam as mesmas telas (compras pa
 - **Documentos (grátis):** fatura em PDF (parcelas "03/10", total, mínimo e juros do rotativo), extrato (parcelas de empréstimo), **Registrato** do Banco Central (todas as dívidas, em todos os bancos) e contrato ou print do empréstimo. Envio em Dívidas, no chat ou pelo WhatsApp. A IA só transcreve; o código converte e confere.
 - **Uma dívida só:** a mesma dívida vinda de várias fontes vira uma. Ordem de confiança: Pluggy > contrato > Registrato > fatura/extrato. O que a pessoa corrigiu à mão nunca é sobrescrito.
 - **Compras do banco:** "Revisar antes" (aviso e registro já preenchido, com categoria automática), "Registrar sozinho" (a emoção a pessoa completa depois) ou "Não usar compras". Transferência entre as próprias contas e pagamento de fatura não contam como gasto.
+- **O que mais o banco mostra:**
+  - **Cartão:** limite usado (aviso ao passar de 80%) e melhor dia de compra.
+  - **Autorização do Open Finance:** aviso quando vence em 15 dias, com o botão "Renovar".
+  - **Salário percebido:** vira sugestão de renda.
+  - **Assinaturas** que se repetem, com o botão "Virar conta fixa".
+  - **Custos:** tarifas do banco e juros de boleto pago com atraso, em Dívidas.
+  - **Seguro embutido** em empréstimo gera um aviso.
+  - **Investimentos:** podem ser ligados a uma meta; o valor guardado passa a acompanhar o saldo do banco.
 - **Demonstração:** a Ana já vem com um banco fictício ("Itaú · demonstração"), 3 compras para revisar, uma compra parcelada e duas dívidas encontradas. O botão "Simular compra do banco" (em Contas) faz chegar uma compra nova na hora, e "Enviar Registrato › Usar exemplo" (em Dívidas) mostra a junção com o consignado do extrato.
 
 ## O que ainda é simulado ou falta
@@ -169,7 +177,7 @@ O Desafoga lê o banco de dois jeitos, que alimentam as mesmas telas (compras pa
 - **Mensagens nos horários:** os check-ins da rotina e o lembrete de conta "um dia antes" ainda não são enviados sozinhos pelo WhatsApp (falta um agendador); hoje a pessoa responde o check-in pelo cartão da tela Hoje.
 - **Lembretes das metas:** a meta guarda se a pessoa quer lembrete, mas o envio automático nos dias de guardar ainda não existe (falta um agendador); hoje dá para pedir um lembrete na hora, no detalhe da meta.
 - **Exportar os dados** (LGPD): apagar já existe; exportar ainda não.
-- **Bancos, entrega 2:** melhor dia de compra, alerta de limite do cartão, salário e assinaturas detectados, tarifas, metas ligadas a investimentos e aviso de autorização do Open Finance vencendo ainda não aparecem nas telas.
+- **Webhook da Pluggy em produção:** falta configurar `PLUGGY_WEBHOOK_URL` e `PLUGGY_WEBHOOK_SEGREDO` (e as chaves da Pluggy) na Vercel; sem isso, o app atualiza ao abrir e pelo botão.
 
 Saúde mental: se uma mensagem indicar sofrimento intenso, a Luana acolhe, indica o CVV (188) e o SAMU (192) e avisa o responsável. Ela nunca faz diagnóstico.
 

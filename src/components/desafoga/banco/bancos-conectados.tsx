@@ -8,6 +8,7 @@ import { Opcao, Painel, Sub } from "../ui/blocos";
 import { Botao } from "../ui/botao";
 import { Janela } from "../ui/janela";
 import { JanelaDaPluggy } from "./conectar";
+import { DetalhesDoCartao, diasParaVencer } from "./extras";
 
 type Estado =
   | { etapa: "parado" }
@@ -197,6 +198,7 @@ function LinhaDoBanco({
 }) {
   const [menu, setMenu] = useState(false);
   const bloqueado = c.proximaAtualizacaoPossivel !== null;
+  const vence = diasParaVencer(c.consentimentoAte, agora);
   const situacao =
     c.status === "reconectar"
       ? "precisa reconectar"
@@ -224,6 +226,19 @@ function LinhaDoBanco({
           {situacao}
           {c.contas.length ? ` · ${c.contas.map((x) => x.nome).join(", ")}` : ""}
         </p>
+        {vence !== null && (
+          <p className="mt-1 flex flex-wrap items-center gap-2 text-[0.85rem] font-bold text-maybe">
+            {vence <= 0 ? "A autorização do banco venceu" : `A autorização vence em ${vence} ${vence === 1 ? "dia" : "dias"}`}
+            {!somenteLeitura && c.pluggyItemId && (
+              <Botao tamanho="pequeno" variante="secundario" onClick={reconectar}>
+                Renovar
+              </Botao>
+            )}
+          </p>
+        )}
+        {c.contas.filter((x) => x.tipo === "cartao").map((x) => (
+          <DetalhesDoCartao key={x.id} conta={x} />
+        ))}
       </div>
       {!somenteLeitura && c.pluggyItemId && (
         <div className="relative flex items-center gap-2">

@@ -24,6 +24,7 @@ import type { Area } from "../moldura/navegacao";
 import { useEu, useMinhaPessoaId } from "../sessao";
 import { CamposParaConferir, lerCampo, SugestoesDeDivida } from "../banco/sugestoes-de-divida";
 import { EnviarDocumento } from "../dividas/enviar-documento";
+import { CustoDoBanco } from "../banco/extras";
 import type { CampoDaDivida } from "@/services";
 import { Janela } from "../ui/janela";
 import { Carregando, Kpi, Painel, Sub, TituloCelular } from "../ui/blocos";
@@ -177,6 +178,7 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
           {lista}
           {custo && <PainelCustoEmocional custo={custo} sujeito={daPessoa ? "você estava" : `${persona.apelido} estava`} />}
           <PainelFaturas faturas={faturas} podeEnviar={daPessoa} />
+          <CustoDoBanco banco={banco} agora={agora} />
           {registrato}
         </div>
       </div>

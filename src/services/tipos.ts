@@ -140,6 +140,6 @@ export type {
   SugestaoDeDivida,
 } from "@/lib/banco/tipos";
 export type { DadosDoBanco } from "@/lib/desafoga/servidor/banco-acoes";
-export type { SugestaoGuardada } from "@/lib/desafoga/servidor/repositorio-banco";
+export type { InvestimentoDoBanco, SugestaoGuardada } from "@/lib/desafoga/servidor/repositorio-banco";
 export type { ResultadoDaSincronizacao } from "@/lib/banco/sincronizar";
 export type { LeituraDeDocumento } from "@/lib/desafoga/servidor/documentos";

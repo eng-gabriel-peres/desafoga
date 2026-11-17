@@ -171,6 +171,8 @@ export interface BancoService {
   desvincularDivida(pessoaId: string, dividaId: string): Promise<Divida>;
   corrigirDivida(pessoaId: string, dividaId: string, campo: CampoDaDivida, valor: number): Promise<Divida>;
   simularCompra(pessoaId: string): Promise<void>;
+  aceitarRenda(pessoaId: string): Promise<void>;
+  ligarInvestimentos(pessoaId: string, metaId: string, ids: string[]): Promise<void>;
 }
 
 export interface MemoriaService {

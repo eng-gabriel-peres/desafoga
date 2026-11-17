@@ -6,7 +6,7 @@
 import { randomBytes } from "node:crypto";
 import { materializar, PROFISSIONAIS, SEMENTES } from "@/fixtures/desafoga";
 import type { SementeBanco } from "@/fixtures/desafoga/banco-da-ana";
-import { avisoDeCompraDoBanco } from "@/lib/assistente/textos";
+import { avisoDeCompraDoBanco, avisoDeConsentimento, avisoDeLimiteDoCartao } from "@/lib/assistente/textos";
 import { diaEmBrasilia } from "@/lib/banco/normalizar";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 
@@ -197,7 +197,9 @@ function mesAtras(agora: Date, meses: number): string {
 
 /** Banco de demonstração (sem Pluggy): conexão, contas, movimentos, compra parcelada, avisos e sugestões de dívida. */
 async function criarBancoDaDemo(db: Transacao, pessoaId: string, b: SementeBanco, agora: Date): Promise<void> {
-  const conexao = await db.conexaoBancaria.create({ data: { pessoaId, pluggyItemId: null, banco: b.banco, status: "ok", ultimaSincronizacao: agora } });
+  const conexao = await db.conexaoBancaria.create({
+    data: { pessoaId, pluggyItemId: null, banco: b.banco, status: "ok", ultimaSincronizacao: agora, consentimentoAte: new Date(agora.getTime() + b.consentimentoEmDias * 86_400_000) },
+  });
   const contas: Record<string, string> = {};
   for (const c of b.contas) {
     const criada = await db.contaBancaria.create({
@@ -208,7 +210,9 @@ async function criarBancoDaDemo(db: Transacao, pessoaId: string, b: SementeBanco
         nome: c.nome,
         saldo: c.saldo,
         limite: c.limite ?? null,
-        limiteDisponivel: c.limite ?? null,
+        limiteDisponivel: c.limiteDisponivel ?? c.limite ?? null,
+        fechamento: c.fechamentoDia ? proximoDia(c.fechamentoDia, agora) : null,
+        vencimento: c.vencimentoDia ? proximoDia(c.vencimentoDia, agora) : null,
         chequeEspecialUsado: c.chequeEspecialUsado ?? null,
         chequeEspecialLimite: c.chequeEspecialLimite ?? null,
       },
@@ -264,4 +268,26 @@ async function criarBancoDaDemo(db: Transacao, pessoaId: string, b: SementeBanco
   for (const s of b.sugestoes) {
     await db.sugestao.create({ data: { pessoaId, chave: s.chave, tipo: "divida", dados: { ...s, conexaoId: conexao.id } as unknown as Prisma.InputJsonValue } });
   }
+
+  // Investimento ligado à meta: o guardado da meta acompanha o saldo do banco.
+  const inv = await db.investimentoBancario.create({
+    data: { pessoaId, conexaoId: conexao.id, pluggyId: `demo-${conexao.id}-investimento`, nome: b.investimento.nome, tipo: b.investimento.tipo, saldo: b.investimento.saldo },
+  });
+  await db.meta.updateMany({ where: { pessoaId, nome: b.investimento.meta }, data: { investimentos: [inv.id] } });
+
+  // Avisos que a sincronização daria: limite do cartão e autorização vencendo.
+  const cartao = b.contas.find((c) => c.id === "cartao");
+  if (cartao?.limite && cartao.limiteDisponivel !== undefined) {
+    const fracao = (cartao.limite - cartao.limiteDisponivel) / cartao.limite;
+    await db.aviso.create({ data: { pessoaId, tipo: "limite-cartao", texto: avisoDeLimiteDoCartao(cartao.nome, fracao, cartao.limiteDisponivel), quando: agora, referencia: `limite:${contas.cartao}` } });
+  }
+  await db.aviso.create({ data: { pessoaId, tipo: "consentimento", texto: avisoDeConsentimento(b.banco, b.consentimentoEmDias), quando: agora, referencia: `consentimento:${conexao.id}` } });
+}
+
+/** Próxima data (YYYY-MM-DD) com esse dia do mês, a partir de hoje. */
+function proximoDia(dia: number, agora: Date): string {
+  const hoje = diaEmBrasilia(agora);
+  const [a, m, d] = hoje.split("-").map(Number);
+  const [ano, mes] = d < dia ? [a, m] : m === 12 ? [a + 1, 1] : [a, m + 1];
+  return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
 }
