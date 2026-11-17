@@ -13,6 +13,8 @@ export class IaSobrecarregada extends IaIndisponivel {}
  */
 const MODELOS = [
   ...(process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []),
+  // Primeiro o que responde com as chaves novas do AI Studio; os outros ficam de reserva.
+  "gemini-3.5-flash",
   "gemini-3.6-flash",
   "gemini-3.8-flash",
   "gemini-3.5-flash-lite",
