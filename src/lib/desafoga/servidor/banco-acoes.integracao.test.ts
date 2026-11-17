@@ -127,6 +127,33 @@ describe.runIf(url)("ações dos bancos conectados", () => {
     expect(naturezaDe({ ...m, documentoContraparte: null }, { cpfDoTitular: null, regras, tipoDaConta: "corrente" })).toBe("transferencia-propria");
   });
 
+  it("aceitar sugestão completando só alguns campos e o dia de vencimento", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    await repo.receberSugestaoDeDivida(p, {
+      chave: "caixa|parcelamento",
+      fonte: "registrato",
+      pluggyLoanId: null,
+      tipo: "parcelamento",
+      nome: "Financiamento de veículo · Caixa",
+      instituicao: "Caixa",
+      detalhe: "Financiamento de veículo",
+      saldo: 2290000,
+      vencido: null,
+      taxaMensal: null,
+      parcelaMinima: 0,
+      vencimento: null,
+      parcelasRestantes: null,
+      cet: null,
+      temSeguro: null,
+      faltaPagarComJuros: null,
+      confira: ["taxaMensal", "parcelaMinima", "parcelasRestantes"],
+    });
+    const d = (await chamar("banco.aceitarSugestao", [p, "caixa|parcelamento", { taxaMensal: 0.019, parcelaMinima: 61000 }, 7], ana)) as { taxaMensal: number; vencimento: number; confira: string[] };
+    expect(d).toMatchObject({ taxaMensal: 0.019, vencimento: 7 });
+    expect(d.confira).toEqual(["parcelasRestantes"]);
+  });
+
   it("vincular uma sugestão a uma dívida manual", async () => {
     const ana = await entrar("ana");
     const p = ana.pessoa!.id;

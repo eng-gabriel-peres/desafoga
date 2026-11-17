@@ -21,7 +21,10 @@ import { servicos } from "@/services";
 import { ListaDeDividas, PainelCustoEmocional, PainelFaturas, RaioX } from "../dividas/paineis";
 import { PlanoEditavel, PlanoLeitura } from "../dividas/plano";
 import type { Area } from "../moldura/navegacao";
-import { useMinhaPessoaId } from "../sessao";
+import { useEu, useMinhaPessoaId } from "../sessao";
+import { CamposParaConferir, lerCampo, SugestoesDeDivida } from "../banco/sugestoes-de-divida";
+import { EnviarDocumento } from "../dividas/enviar-documento";
+import type { CampoDaDivida } from "@/services";
 import { Janela } from "../ui/janela";
 import { Carregando, Kpi, Painel, Sub, TituloCelular } from "../ui/blocos";
 import { Botao, BotaoLink } from "../ui/botao";
@@ -35,10 +38,40 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
   const dados = usePessoa(pessoaId);
   const agora = useAgora();
   const [editando, setEditando] = useState<Divida | "nova" | null>(null);
+  const [enviando, setEnviando] = useState<"registrato" | "contrato" | null>(null);
+  const [conferindo, setConferindo] = useState<Divida | null>(null);
+  const eu = useEu();
   if (!dados || !agora) return <Carregando />;
 
-  const { persona, dividas, plano, faturas, compras } = dados;
+  const { persona, dividas, plano, faturas, compras, banco } = dados;
   const daPessoa = area === "pessoa";
+
+  const sugestoes = daPessoa && <SugestoesDeDivida pessoaId={pessoaId} sugestoes={banco.sugestoes} dividas={dividas} />;
+  const registrato = daPessoa && (
+    <Painel titulo="Não lembra de todas?">
+      <Sub>
+        O{" "}
+        <a href="https://registrato.bcb.gov.br" target="_blank" rel="noreferrer" className="font-bold text-primary">
+          Registrato do Banco Central
+        </a>{" "}
+        mostra todos os seus empréstimos, em todos os bancos (entra com a conta gov.br). Envie o relatório aqui, ou o contrato e o print do empréstimo, que a gente monta as dívidas para você conferir.
+      </Sub>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Botao tamanho="pequeno" onClick={() => setEnviando("registrato")}>
+          Enviar Registrato
+        </Botao>
+        <Botao tamanho="pequeno" variante="secundario" onClick={() => setEnviando("contrato")}>
+          Enviar contrato ou print
+        </Botao>
+      </div>
+      <EnviarDocumento pessoaId={pessoaId} tipo={enviando ?? "registrato"} aberta={enviando !== null} fechar={() => setEnviando(null)} demo={eu.demo} />
+    </Painel>
+  );
+  const conferir = daPessoa && (
+    <Janela aberta={conferindo !== null} fechar={() => setConferindo(null)} rotulo="Conferir dívida">
+      {conferindo && <ConferirDivida key={conferindo.id} pessoaId={pessoaId} divida={conferindo} fechar={() => setConferindo(null)} />}
+    </Janela>
+  );
 
   const formulario = daPessoa && (
     <Janela aberta={editando !== null} fechar={() => setEditando(null)} rotulo={editando === "nova" ? "Nova dívida" : "Editar dívida"}>
@@ -58,6 +91,7 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
       <div className="grid gap-4">
         {daPessoa && <TituloCelular titulo="Dívidas" subtitulo="Quanto suas dívidas custam e como sair delas" />}
         {formulario}
+        {sugestoes}
         <Painel titulo={daPessoa ? "Você não tem dívidas cadastradas" : `${persona.apelido} não tem dívidas cadastradas`}>
           <Sub>
             {daPessoa
@@ -73,6 +107,7 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
             </div>
           )}
         </Painel>
+        {registrato}
       </div>
     );
   }
@@ -96,6 +131,8 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
       titulo={daPessoa ? "Suas dívidas" : `Dívidas de ${persona.apelido}`}
       aoAdicionar={daPessoa ? () => setEditando("nova") : undefined}
       aoEditar={daPessoa ? setEditando : undefined}
+      aoConferir={daPessoa ? setConferindo : undefined}
+      aoDesvincular={daPessoa ? (d) => servicos.banco.desvincularDivida(pessoaId, d.id) : undefined}
     />
   );
   const planoPainel = daPessoa ? (
@@ -127,6 +164,8 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
     <>
       {daPessoa && <TituloCelular titulo="Dívidas" subtitulo="Quanto suas dívidas custam e como sair delas" />}
       {formulario}
+      {conferir}
+      {sugestoes && <div className="mb-4">{sugestoes}</div>}
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 desk:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] desk:gap-5">
         {/* Esquerda: quanto custa e o plano. Direita: as dívidas, o custo emocional e as faturas. */}
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
@@ -138,6 +177,7 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
           {lista}
           {custo && <PainelCustoEmocional custo={custo} sujeito={daPessoa ? "você estava" : `${persona.apelido} estava`} />}
           <PainelFaturas faturas={faturas} podeEnviar={daPessoa} />
+          {registrato}
         </div>
       </div>
     </>
@@ -147,4 +187,49 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
 /** Dívidas de quem está na sessão (área do app). */
 export function TelaMinhasDividas() {
   return <TelaDividas pessoaId={useMinhaPessoaId()} area="pessoa" />;
+}
+
+/** A pessoa completa ou corrige o que a fonte não trouxe: vale sobre o que ela disser depois. */
+function ConferirDivida({ pessoaId, divida, fechar }: { pessoaId: string; divida: Divida; fechar: () => void }) {
+  const campos = (divida.confira ?? []) as CampoDaDivida[];
+  const [valores, setValores] = useState<Partial<Record<CampoDaDivida, string>>>({});
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  return (
+    <form
+      className="grid gap-3"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const prontos: [CampoDaDivida, number][] = [];
+        for (const c of campos) {
+          if (!valores[c]) continue;
+          const v = lerCampo(c, valores[c]!);
+          if (v === null) return setErro("Confira os valores digitados.");
+          prontos.push([c, v]);
+        }
+        if (!prontos.length) return setErro("Preencha pelo menos um campo.");
+        setSalvando(true);
+        for (const [c, v] of prontos) await servicos.banco.corrigirDivida(pessoaId, divida.id, c, v);
+        setSalvando(false);
+        fechar();
+      }}
+    >
+      <h2 className="text-[1.3rem] font-bold">Conferir {divida.nome}</h2>
+      <Sub>O que você preencher aqui vale mesmo quando o banco ou outro documento atualizar a dívida.</Sub>
+      <CamposParaConferir campos={campos} valores={valores} mudar={(c, v) => setValores((x) => ({ ...x, [c]: v }))} />
+      {erro && (
+        <p role="alert" className="font-bold text-bad">
+          {erro}
+        </p>
+      )}
+      <div className="flex justify-end gap-2">
+        <Botao variante="secundario" onClick={fechar}>
+          Cancelar
+        </Botao>
+        <Botao type="submit" disabled={salvando}>
+          Salvar
+        </Botao>
+      </div>
+    </form>
+  );
 }

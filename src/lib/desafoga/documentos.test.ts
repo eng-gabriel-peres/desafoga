@@ -88,6 +88,16 @@ describe("Registrato", () => {
     expect(s.find((x) => x.tipo === "parcelamento")).toBeDefined();
   });
 
+  it("nomes de banco legíveis e só pede parcelas do que é parcelado", () => {
+    const s = sugestoesDoRegistrato(REGISTRATO_DE_EXEMPLO);
+    const itau = s.find((x) => x.tipo === "emprestimo")!;
+    expect(itau.nome).toBe("Consignado · Itaú");
+    expect(itau.confira).toEqual(expect.arrayContaining(["parcelaMinima", "parcelasRestantes"]));
+    const cartao = s.find((x) => x.tipo === "cartao")!;
+    expect(cartao.nome).toBe("Cartão de crédito · Nubank");
+    expect(cartao.confira).not.toContain("parcelasRestantes");
+  });
+
   it("modalidades do SCR", () => {
     expect(tipoDaModalidade("Empréstimo - crédito pessoal consignado")).toEqual({ tipo: "emprestimo", detalhe: "Consignado" });
     expect(tipoDaModalidade("Cheque especial")).toMatchObject({ tipo: "cheque" });

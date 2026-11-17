@@ -3,7 +3,7 @@
  * a Luana usa a IA de verdade e o WhatsApp cadastrado cai na mesma conta.
  */
 import type { Servicos } from "../contratos";
-import type { Mensagem } from "../tipos";
+import type { LeituraDeDocumento, Mensagem } from "../tipos";
 
 /** De quanto em quanto tempo as telas buscam novidades (mensagens que chegaram pelo WhatsApp, por exemplo). */
 const INTERVALO_DE_ATUALIZACAO = 15_000;
@@ -108,7 +108,8 @@ export const servicosDaApi: Servicos = {
     salvar: (id, fatura, c, contaId) => chamar("faturas.salvar", [id, fatura, c, contaId ?? null], true),
   },
   documentos: {
-    ler: (id, arquivo, exemplo) => enviarArquivo("documentos.ler", id, arquivo, "arquivo", exemplo),
+    // Registrato e contrato já gravam as sugestões: as telas recarregam.
+    ler: (id, arquivo, exemplo) => enviarArquivo<LeituraDeDocumento>("documentos.ler", id, arquivo, "arquivo", exemplo).finally(avisarMudanca),
     salvar: (id, fatura, c, contaId) => chamar("documentos.salvar", [id, fatura, c, contaId], true),
   },
   banco: {

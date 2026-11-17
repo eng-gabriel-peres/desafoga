@@ -6,6 +6,7 @@
  */
 import { chaveDaDescricao } from "@/lib/banco/classificar";
 import { aplicarTravas, chaveDaDivida, taxaMensalDe } from "@/lib/banco/dividas";
+import { nomeDaInstituicao } from "@/lib/banco/instituicoes";
 import type { CampoDaDivida, CandidataParcelada, SugestaoDeDivida } from "@/lib/banco/tipos";
 import { lerPercentual, lerValorEmReais } from "@/lib/dinheiro";
 import type { Fatura, Lancamento, TipoDivida } from "@/lib/finance";
@@ -52,16 +53,17 @@ export function sugestoesDoRegistrato(doc: DocumentoLido): SugestaoDeDivida[] {
     const saldo = aVencer + vencido;
     if (!saldo) continue;
     const { tipo, detalhe } = tipoDaModalidade(c.modalidade);
-    const confira: CampoDaDivida[] = ["taxaMensal", "parcelasRestantes"];
-    if (tipo !== "cheque") confira.push("parcelaMinima");
+    const instituicao = nomeDaInstituicao(c.instituicao);
+    // Parcela e quantas faltam só fazem sentido no que é parcelado (empréstimo, financiamento).
+    const confira: CampoDaDivida[] = tipo === "emprestimo" || tipo === "parcelamento" ? ["taxaMensal", "parcelaMinima", "parcelasRestantes"] : ["taxaMensal"];
     lista.push(
       aplicarTravas({
-        chave: chaveDaDivida({ instituicao: c.instituicao, tipo, parcelaMinima: 0 }),
+        chave: chaveDaDivida({ instituicao, tipo, parcelaMinima: 0 }),
         fonte: "registrato",
         pluggyLoanId: null,
         tipo,
-        nome: `${detalhe} · ${c.instituicao}`,
-        instituicao: c.instituicao,
+        nome: `${detalhe} · ${instituicao}`,
+        instituicao,
         detalhe,
         saldo,
         vencido: vencido || null,
@@ -107,8 +109,8 @@ export function sugestaoDoContrato(doc: DocumentoLido): SugestaoDeDivida | null 
     fonte: "contrato",
     pluggyLoanId: null,
     tipo,
-    nome: `${detalhe} · ${c.instituicao}`,
-    instituicao: c.instituicao,
+    nome: `${detalhe} · ${nomeDaInstituicao(c.instituicao)}`,
+    instituicao: nomeDaInstituicao(c.instituicao),
     detalhe,
     saldo,
     vencido: valor(c.vencido),
@@ -176,8 +178,8 @@ export function parcelasDeEmprestimoNosExtratos(extratos: Fatura[]): SugestaoDeD
         fonte: "extrato",
         pluggyLoanId: null,
         tipo,
-        nome: `${detalhe} · ${ultima.instituicao}`,
-        instituicao: ultima.instituicao,
+        nome: `${detalhe} · ${nomeDaInstituicao(ultima.instituicao)}`,
+        instituicao: nomeDaInstituicao(ultima.instituicao),
         detalhe,
         saldo: restantes ? ultima.valor * restantes : 0,
         vencido: null,
@@ -205,8 +207,8 @@ export function sugestaoDeRotativoDaFatura(f: Fatura): SugestaoDeDivida | null {
     fonte: "fatura",
     pluggyLoanId: null,
     tipo: "cartao",
-    nome: `Rotativo do cartão · ${f.origem}`,
-    instituicao: f.origem,
+    nome: `Rotativo do cartão · ${nomeDaInstituicao(f.origem)}`,
+    instituicao: nomeDaInstituicao(f.origem),
     detalhe: "Rotativo do cartão",
     saldo: f.total,
     vencido: null,

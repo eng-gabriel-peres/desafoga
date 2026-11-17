@@ -1,5 +1,5 @@
 /** Painéis da tela de dívidas. Os números vêm de `lib/finance`. */
-import { Banknote, Brain, CreditCard, Pencil, Plus, FileText, Landmark, Percent, Receipt, ScanLine, Upload, Wallet, type LucideIcon } from "lucide-react";
+import { Banknote, Brain, CreditCard, Pencil, Plus, FileText, Landmark, Percent, Receipt, ScanLine, Unlink, Upload, Wallet, type LucideIcon } from "lucide-react";
 import {
   dividaMaisCara,
   ehEncargo,
@@ -14,6 +14,7 @@ import { percentual } from "@/lib/assistente/textos";
 import { reais } from "@/lib/formatar";
 import { Etiqueta, Painel, Sub, Vazio } from "../ui/blocos";
 import { Botao, BotaoLink } from "../ui/botao";
+import { seloDaFonte } from "../banco/sugestoes-de-divida";
 
 const ICONE_DA_DIVIDA: Record<TipoDivida, LucideIcon> = {
   cartao: CreditCard,
@@ -84,12 +85,17 @@ export function ListaDeDividas({
   titulo,
   aoAdicionar,
   aoEditar,
+  aoConferir,
+  aoDesvincular,
 }: {
   dividas: Divida[];
   titulo: string;
   /** Só na área da pessoa: cadastrar e editar as próprias dívidas. */
   aoAdicionar?: () => void;
   aoEditar?: (d: Divida) => void;
+  /** Dívida do banco ou de documento: conferir os campos marcados e desvincular. */
+  aoConferir?: (d: Divida) => void;
+  aoDesvincular?: (d: Divida) => void;
 }) {
   const maisCara = dividaMaisCara(dividas);
   return (
@@ -109,6 +115,9 @@ export function ListaDeDividas({
           {dividas.map((d) => {
             const Icone = ICONE_DA_DIVIDA[d.tipo];
             const destaque = d.id === maisCara?.id;
+            const externa = d.origem === "banco" || d.origem === "documento";
+            const selo = externa ? seloDaFonte(d.fonte) : null;
+            const conferir = d.confira ?? [];
             return (
               <li key={d.id} className="grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-1.5 border-b border-line py-3 last:border-0">
                 <span aria-hidden="true" className="grid size-11 place-items-center rounded-xl bg-primary-soft text-primary">
@@ -118,18 +127,38 @@ export function ListaDeDividas({
                   <b className="block">{d.nome}</b>
                   <span className="text-[0.88rem] text-muted">
                     {d.detalhe ? `${d.detalhe}, ` : ""}vence dia {d.vencimento}
+                    {d.parcelasRestantes ? `, faltam ${d.parcelasRestantes} parcelas` : ""}
                   </span>
                 </div>
                 <div className="text-right">
                   <b className="block">{reais(d.saldo)}</b>
                   <span className="text-[0.88rem] text-muted">mín. {reais(d.parcelaMinima)}</span>
+                  {d.faltaPagarComJuros ? <span className="block text-[0.8rem] text-muted">Falta pagar (com juros): {reais(d.faltaPagarComJuros)}</span> : null}
+                  {d.vencido ? <span className="block text-[0.8rem] font-bold text-bad">Vencido: {reais(d.vencido)}</span> : null}
                 </div>
                 <div className="col-span-2 col-start-2 flex flex-wrap items-center gap-x-2.5 gap-y-1">
-                  <Etiqueta tom={destaque ? "ruim" : "neutra"}>
-                    {percentual(d.taxaMensal)} ao mês{destaque ? ", a mais cara" : ""}
-                  </Etiqueta>
+                  {conferir.includes("taxaMensal") ? (
+                    <Etiqueta tom="talvez">juros a conferir</Etiqueta>
+                  ) : (
+                    <Etiqueta tom={destaque ? "ruim" : "neutra"}>
+                      {percentual(d.taxaMensal)} ao mês{destaque ? ", a mais cara" : ""}
+                    </Etiqueta>
+                  )}
+                  {selo && <Etiqueta tom="primaria">{selo}</Etiqueta>}
+                  {d.temSeguro && <Etiqueta tom="talvez">tem seguro</Etiqueta>}
                   <span className="text-[0.88rem] text-muted">Juros: {reais(jurosDoMes(d))} por mês</span>
-                  {aoEditar && (
+                  {externa && aoConferir && conferir.length > 0 && (
+                    <Botao variante="link" tamanho="pequeno" className="ml-auto" onClick={() => aoConferir(d)}>
+                      Conferir
+                    </Botao>
+                  )}
+                  {externa && aoDesvincular && (
+                    <Botao variante="link" tamanho="pequeno" className={conferir.length ? "" : "ml-auto"} onClick={() => aoDesvincular(d)} aria-label={`Desvincular ${d.nome}`}>
+                      <Unlink aria-hidden="true" />
+                      Desvincular
+                    </Botao>
+                  )}
+                  {!externa && aoEditar && (
                     <Botao variante="link" tamanho="pequeno" className="ml-auto" onClick={() => aoEditar(d)} aria-label={`Editar ${d.nome}`}>
                       <Pencil aria-hidden="true" />
                       Editar

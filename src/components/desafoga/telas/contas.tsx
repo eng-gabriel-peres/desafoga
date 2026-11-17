@@ -15,6 +15,7 @@ import {
 import type { Area } from "../moldura/navegacao";
 import { BancosConectados } from "../banco/bancos-conectados";
 import { ComprasParceladas } from "../banco/parcelada";
+import { ProximosMeses } from "../banco/proximos-meses";
 import { useEu, usePessoaDaSessao } from "../sessao";
 import { Carregando, Painel, Sub, TituloCelular } from "../ui/blocos";
 import { Botao } from "../ui/botao";
@@ -114,6 +115,16 @@ export function TelaContas({ area = "pessoa", pessoaId: doPainel }: { area?: Are
           {(!somenteLeitura || dados.banco.conexoes.length > 0) && (
             <BancosConectados pessoaId={pessoaId} dados={dados.banco} demo={eu.demo} agora={agora} somenteLeitura={somenteLeitura} />
           )}
+          <ProximosMeses
+            contas={contas.contas}
+            dividas={dividas}
+            plano={plano}
+            parceladas={dados.banco.parceladas}
+            conexoes={dados.banco.conexoes}
+            faturas={dados.faturas}
+            renda={contas.renda}
+            agora={agora}
+          />
           <ComprasParceladas pessoaId={pessoaId} parceladas={dados.banco.parceladas} agora={agora} somenteLeitura={somenteLeitura} />
           <CalendarioDoMes compromissos={compromissos} agora={agora} dia={dia} escolher={setDia} />
           <ContasPorCategoria grupos={contasPorCategoria(contas.contas)} />

@@ -124,12 +124,16 @@ export function proximosMeses(
       }
     }
 
-    for (const d of doContrato) {
+    // A fatura do cartão já inclui o que se paga da dívida do cartão: não conta duas vezes no mesmo mês.
+    const temFatura = itens.some((x) => x.tipo === "fatura");
+    const contar = (d: Divida) => !(temFatura && d.tipo === "cartao");
+
+    for (const d of doContrato.filter(contar)) {
       if (i < d.parcelasRestantes!) itens.push({ tipo: "divida", nome: d.nome, valor: d.parcelaMinima, previsto: false });
       if (i === d.parcelasRestantes! - 1) terminam.push(d.nome);
     }
     if (simulacao) {
-      for (const d of peloPlano) {
+      for (const d of peloPlano.filter(contar)) {
         const valor = simulacao.pagamentoPrimeiroMes[d.id] ?? 0;
         const quitada = simulacao.quitadaNoMes[d.id];
         if (!valor || (quitada !== undefined && i >= quitada)) continue;

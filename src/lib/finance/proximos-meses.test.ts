@@ -81,6 +81,13 @@ describe("proximosMeses", () => {
     expect(r[2].itens).toHaveLength(0);
   });
 
+  it("dívida do cartão não conta de novo no mês em que a fatura do cartão já aparece", () => {
+    const cartaoDivida = { id: "c", tipo: "cartao", nome: "Cartão de crédito", detalhe: "", saldo: 185000, taxaMensal: 0.14, parcelaMinima: 52000, vencimento: 10 } as Divida;
+    const r = proximosMeses({ contas: [], dividas: [cartaoDivida], plano, parceladas: [parcelada("doc:nubank")], cartoes: [cartao("doc:nubank")], renda: null }, AGORA);
+    expect(r[0].itens.filter((i) => i.tipo === "divida")).toHaveLength(0);
+    expect(r[0].itens.find((i) => i.tipo === "fatura")?.valor).toBe(123000);
+  });
+
   it("renda e sobra", () => {
     const r = proximosMeses({ contas: [aluguel], dividas: [], plano, parceladas: [], cartoes: [], renda: { valor: 280000, dia: 5 } }, AGORA);
     expect(r[0]).toMatchObject({ renda: 280000, sobra: 160000 });

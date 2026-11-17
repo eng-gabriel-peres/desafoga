@@ -550,7 +550,7 @@ const ACOES = {
     return repo.renomearParcelada(p, parcelada, nome, cat);
   }),
   "banco.aceitarSugestao": acao(
-    z.tuple([id, chave, z.record(campoDaDivida, z.number().min(0).max(1e10)).optional(), z.number().int().min(1).max(31).optional()]),
+    z.tuple([id, chave, z.partialRecord(campoDaDivida, z.number().min(0).max(1e10)).optional(), z.number().int().min(1).max(31).optional()]),
     async ([p, c, correcoes, vencimento], { sessao }) => {
       exigirAPropriaPessoa(sessao, p);
       return repo.aceitarSugestao(p, c, correcoes ?? {}, vencimento);

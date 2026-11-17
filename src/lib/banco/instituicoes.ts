@@ -41,3 +41,44 @@ export function chaveDaInstituicao(nome: string): string {
     .replace(/[^A-Z0-9]/g, "")
     .toLowerCase();
 }
+
+const NOMES: Record<string, string> = {
+  itau: "Itaú",
+  bradesco: "Bradesco",
+  santander: "Santander",
+  caixa: "Caixa",
+  bb: "Banco do Brasil",
+  nubank: "Nubank",
+  inter: "Inter",
+  c6: "C6 Bank",
+  picpay: "PicPay",
+  mercadopago: "Mercado Pago",
+  pan: "Banco Pan",
+  bmg: "BMG",
+  safra: "Safra",
+  original: "Original",
+  neon: "Neon",
+  next: "Next",
+  btg: "BTG",
+  xp: "XP",
+  sicoob: "Sicoob",
+  sicredi: "Sicredi",
+  banrisul: "Banrisul",
+  brb: "BRB",
+  digio: "Digio",
+  willbank: "Will Bank",
+  agibank: "Agibank",
+  daycoval: "Daycoval",
+  mercantil: "Mercantil",
+  credicard: "Credicard",
+  porto: "Porto Seguro",
+};
+
+/** Nome para mostrar: "ITAU UNIBANCO S.A." → "Itaú"; desconhecido fica como veio, sem caixa alta gritando. */
+export function nomeDaInstituicao(nome: string): string {
+  const conhecido = NOMES[chaveDaInstituicao(nome)];
+  if (conhecido) return conhecido;
+  const limpo = nome.trim();
+  if (limpo !== limpo.toUpperCase()) return limpo;
+  return limpo.toLowerCase().replace(/(^|\s)\p{L}/gu, (l) => l.toUpperCase());
+}
