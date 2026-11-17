@@ -2,12 +2,13 @@
 
 import { Check, ChevronLeft, CircleHelp, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useLayoutEffect, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useState } from "react";
 import { useAgora } from "@/hooks/use-agora";
 import { useConsulta } from "@/hooks/use-consulta";
 import { lerValorEmReais } from "@/lib/dinheiro";
 import {
   chaveDoDia,
+  comEmocao,
   comprasDoDia,
   gastoDoMes,
   notaMedia,
@@ -26,6 +27,7 @@ import { Painel } from "../ui/blocos";
 import { useMinhaPessoaId } from "../sessao";
 import { Botao } from "../ui/botao";
 import { Carinha, COR_DA_EMOCAO } from "../ui/carinha";
+import type { PreviaDoRegistro } from "../registro";
 
 interface Rascunho {
   item: string;
@@ -46,27 +48,33 @@ export function TelaRegistrar() {
  * Registrar compra em 3 passos. Abre por cima de qualquer tela (ver
  * JanelaDeRegistro) ou na página própria; `fechar` decide para onde volta.
  */
-export function FluxoDeRegistro({ fechar }: { fechar: () => void }) {
+export function FluxoDeRegistro({ fechar, previa }: { fechar: () => void; previa?: PreviaDoRegistro }) {
   const pessoaId = useMinhaPessoaId();
-  const [passo, setPasso] = useState<1 | 2 | 3 | 4>(1);
-  const [rascunho, setRascunho] = useState<Rascunho>(VAZIO);
+  // A prévia não muda enquanto a janela está aberta (cada abertura remonta o fluxo).
+  const inicial = useMemo<Rascunho>(() => (previa ? { item: previa.item, valorTexto: "", categoria: previa.categoria, emocao: null } : VAZIO), [previa]);
+  // Completar uma compra do banco começa direto em "como você estava".
+  const primeiroPasso = previa?.tipo === "completar" ? 2 : 1;
+  const [passo, setPasso] = useState<1 | 2 | 3 | 4>(primeiroPasso);
+  const [rascunho, setRascunho] = useState<Rascunho>(inicial);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [salva, setSalva] = useState<{ item: string; valor: number; categoria: Categoria } | null>(null);
 
-  const reiniciar = () => {
-    setPasso(1);
-    setRascunho(VAZIO);
+  const reiniciar = useCallback(() => {
+    setPasso(primeiroPasso);
+    setRascunho(inicial);
     setErro("");
     setSalva(null);
-  };
+  }, [primeiroPasso, inicial]);
   // O Next guarda a tela ao navegar; ao sair, o fluxo volta ao começo.
-  useLayoutEffect(() => () => reiniciar(), []);
+  useLayoutEffect(() => () => reiniciar(), [reiniciar]);
 
   const mudar = (m: Partial<Rascunho>) => setRascunho((r) => ({ ...r, ...m }));
 
+  const valorDoRascunho = () => (previa ? previa.valor : lerValorEmReais(rascunho.valorTexto));
+
   function continuar() {
-    const valor = lerValorEmReais(rascunho.valorTexto);
+    const valor = valorDoRascunho();
     if (!rascunho.item.trim()) return setErro("Escreva o que você comprou.");
     if (!valor) return setErro("Escreva quanto custou, por exemplo: 49,90.");
     if (!rascunho.categoria) return setErro("Escolha o tipo de compra.");
@@ -75,18 +83,23 @@ export function FluxoDeRegistro({ fechar }: { fechar: () => void }) {
   }
 
   async function concluir(necessidade: Necessidade) {
-    const valor = lerValorEmReais(rascunho.valorTexto);
+    const valor = valorDoRascunho();
     if (!valor || !rascunho.categoria || !rascunho.emocao || salvando) return;
     setSalvando(true);
     const item = rascunho.item.trim().charAt(0).toUpperCase() + rascunho.item.trim().slice(1);
-    await servicos.compras.registrar(pessoaId, {
-      item,
-      valor,
-      categoria: rascunho.categoria,
-      emocao: rascunho.emocao,
-      necessidade,
-      via: "app",
-    });
+    try {
+      if (previa?.tipo === "banco") {
+        await servicos.banco.registrar(pessoaId, previa.movimentoId, { item, categoria: rascunho.categoria, emocao: rascunho.emocao, necessidade });
+      } else if (previa?.tipo === "completar") {
+        await servicos.banco.completarEmocao(pessoaId, previa.compraId, rascunho.emocao, necessidade);
+      } else {
+        await servicos.compras.registrar(pessoaId, { item, valor, categoria: rascunho.categoria, emocao: rascunho.emocao, necessidade, via: "app" });
+      }
+    } catch (e) {
+      setSalvando(false);
+      setErro(e instanceof Error ? e.message : "Não consegui salvar agora. Tente de novo.");
+      return;
+    }
     setSalvando(false);
     setSalva({ item, valor, categoria: rascunho.categoria });
     setPasso(4);
@@ -96,13 +109,13 @@ export function FluxoDeRegistro({ fechar }: { fechar: () => void }) {
     return <Concluido {...salva} outra={reiniciar} sair={fechar} />;
   }
 
-  const voltar = () => (passo === 1 ? fechar() : setPasso((p) => (p - 1) as 1 | 2 | 3));
+  const voltar = () => (passo === primeiroPasso ? fechar() : setPasso((p) => (p - 1) as 1 | 2 | 3));
 
   return (
     <div className="mx-auto max-w-[620px]">
       <Botao variante="link" onClick={voltar}>
         <ChevronLeft aria-hidden="true" />
-        {passo === 1 ? "Cancelar" : "Voltar"}
+        {passo === primeiroPasso ? "Cancelar" : "Voltar"}
       </Botao>
       <div className="mt-1 mb-4.5 flex gap-1.5" role="progressbar" aria-valuemin={1} aria-valuemax={3} aria-valuenow={passo} aria-label={`Passo ${passo} de 3`}>
         {[1, 2, 3].map((i) => (
@@ -110,6 +123,11 @@ export function FluxoDeRegistro({ fechar }: { fechar: () => void }) {
         ))}
       </div>
 
+      {erro && passo !== 1 && (
+        <p role="alert" className="mb-3 font-bold text-bad">
+          {erro}
+        </p>
+      )}
       {passo === 1 && (
         <form
           onSubmit={(e) => {
@@ -118,7 +136,8 @@ export function FluxoDeRegistro({ fechar }: { fechar: () => void }) {
           }}
           noValidate
         >
-          <h1 className="mb-1.5 text-[1.6rem] leading-tight font-bold">O que você comprou?</h1>
+          <h1 className="mb-1.5 text-[1.6rem] leading-tight font-bold">{previa ? "Compra do banco" : "O que você comprou?"}</h1>
+          {previa && <p className="text-muted">Confira o nome e o tipo. Dá para trocar os dois.</p>}
           <label className="mt-4 block">
             <span className="mb-1.5 block font-bold">Nome da compra</span>
             <input
@@ -130,6 +149,18 @@ export function FluxoDeRegistro({ fechar }: { fechar: () => void }) {
               className="min-h-14 w-full rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3.5 text-[1.15rem] outline-none campo focus:border-primary desk:min-h-12 desk:text-[1.05rem]"
             />
           </label>
+          {previa?.tipo === "banco" ? (
+            <div className="mt-4">
+              <span className="mb-1.5 block font-bold">Quanto custou</span>
+              <p className="text-[2rem] leading-tight font-bold">
+                {reais(previa.valor)}
+                {previa.parcelas && previa.parcelas > 1 && <span className="ml-2 text-[1.05rem] font-normal text-muted">em {previa.parcelas}x de {reais(Math.round(previa.valor / previa.parcelas))}</span>}
+              </p>
+              <p className="text-[0.88rem] text-muted">
+                Do banco{previa.parcelas && previa.parcelas > 1 ? " · o que você responder vale para todas as parcelas" : ""}
+              </p>
+            </div>
+          ) : (
           <label className="mt-4 block">
             <span className="mb-1.5 block font-bold">Quanto custou?</span>
             <span className="flex items-center rounded-2xl border-2 border-line bg-surface px-4 caixa-de-campo focus-within:border-primary">
@@ -147,6 +178,7 @@ export function FluxoDeRegistro({ fechar }: { fechar: () => void }) {
               />
             </span>
           </label>
+          )}
           <fieldset className="mt-4 min-w-0">
             <legend className="mb-1.5 font-bold">Tipo de compra</legend>
             <div role="radiogroup" aria-label="Tipo de compra" className="grid grid-cols-4 gap-2">
@@ -287,7 +319,7 @@ function Concluido({ item, valor, categoria, outra, sair }: { item: string; valo
       <p className="mb-4.5 text-center text-muted">
         {item}, {reais(valor)}
       </p>
-      {compras && <NotaDoDia nota={notaMedia(deHoje)} quantidade={deHoje.length} sujeito="você estava" />}
+      {compras && <NotaDoDia nota={notaMedia(deHoje)} quantidade={comEmocao(deHoje).length} sujeito="você estava" />}
       {situacao && (
         <Painel titulo="Seu orçamento" className="mt-4">
           <ListaDoOrcamento situacoes={[situacao]} />

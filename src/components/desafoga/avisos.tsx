@@ -1,4 +1,5 @@
 import { CreditCard, FileSearch, Frown, HeartHandshake, Lightbulb, Target, TriangleAlert, Wallet, type LucideIcon } from "lucide-react";
+import Link from "next/link";
 import { quando } from "@/lib/formatar";
 import type { Aviso, TipoAviso } from "@/services";
 
@@ -26,6 +27,16 @@ export function ListaDeAvisos({ avisos, agora, vazio = "Nenhum aviso ainda." }: 
             </span>
             <div>
               <p className={a.tipo === "sofrimento" ? "font-bold" : ""}>{a.texto}</p>
+              {a.tipo === "compra-banco" && (
+                <Link href="/app/hoje" className="text-[0.88rem] font-bold text-primary">
+                  Registrar em Hoje
+                </Link>
+              )}
+              {a.tipo === "divida-encontrada" && (
+                <Link href="/app/dividas" className="text-[0.88rem] font-bold text-primary">
+                  Conferir em Dívidas
+                </Link>
+              )}
               <time dateTime={a.quando} className="block text-[0.8rem] text-muted">
                 {quando(a.quando, agora)}
               </time>

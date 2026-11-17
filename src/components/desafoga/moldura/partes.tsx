@@ -54,7 +54,7 @@ export function MenuInferior({ itens, caminho }: { itens: ItemDoMenu[]; caminho:
             return (
               <li key={href}>
                 {abreRegistro ? (
-                  <button type="button" onClick={abrirRegistro} className={classe}>
+                  <button type="button" onClick={() => abrirRegistro()} className={classe}>
                     {conteudo}
                   </button>
                 ) : (
@@ -129,7 +129,7 @@ export function MenuLateral({ itens, caminho, recolhida = false }: { itens: Item
           return (
             <li key={href}>
               {abreRegistro ? (
-                <button type="button" onClick={abrirRegistro} aria-label={recolhida ? rotulo : undefined} className={classe}>
+                <button type="button" onClick={() => abrirRegistro()} aria-label={recolhida ? rotulo : undefined} className={classe}>
                   {conteudo}
                 </button>
               ) : (

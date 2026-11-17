@@ -8,6 +8,7 @@ import { NOME_DA_EMOCAO, NOME_DA_NECESSIDADE } from "@/lib/assistente/textos";
 import { descricaoLegivel, reais } from "@/lib/formatar";
 import { servicos, type Classificacao } from "@/services";
 import { useMinhaPessoaId } from "../sessao";
+import { usePessoa } from "@/hooks/use-pessoa";
 import { Painel, Sub, TituloCelular } from "../ui/blocos";
 import { Botao } from "../ui/botao";
 import { COR_DA_EMOCAO, RostoSvg } from "../ui/carinha";
@@ -29,6 +30,9 @@ export function TelaFatura() {
   const [classificacoes, setClassificacoes] = useState<Record<string, Classificacao>>({});
   const [salvando, setSalvando] = useState(false);
   const [arrastando, setArrastando] = useState(false);
+  /** Cartão conectado a que a fatura pertence ("" = nenhum). */
+  const [cartao, setCartao] = useState("");
+  const cartoes = (usePessoa(pessoaId)?.banco.conexoes ?? []).flatMap((c) => c.contas.filter((x) => x.tipo === "cartao").map((x) => ({ id: x.id, nome: `${x.nome} · ${c.banco}` })));
 
   // Ao sair da tela, o fluxo volta ao começo.
   useLayoutEffect(
@@ -60,7 +64,7 @@ export function TelaFatura() {
 
   async function salvar(fatura: Fatura) {
     setSalvando(true);
-    await servicos.faturas.salvar(pessoaId, fatura, classificacoes);
+    await servicos.faturas.salvar(pessoaId, fatura, classificacoes, cartao || null);
     setSalvando(false);
     router.push("/app/dividas");
   }
@@ -173,6 +177,14 @@ export function TelaFatura() {
           <p className="mt-2 text-[1.25rem]">
             Encontramos <b className="text-[1.5rem]">{reais(s.totalEncargos)}</b> em juros, IOF e tarifas.
           </p>
+          {(fatura.total || fatura.vencimento || fatura.pagamentoMinimo || fatura.taxaRotativoMensal) && (
+            <dl className="mt-3 grid grid-cols-2 gap-2 text-[0.92rem] desk:grid-cols-4">
+              {fatura.total ? <Numero rotulo="Total" valor={reais(fatura.total)} /> : null}
+              {fatura.vencimento ? <Numero rotulo="Vence" valor={new Date(`${fatura.vencimento}T12:00:00`).toLocaleDateString("pt-BR")} /> : null}
+              {fatura.pagamentoMinimo ? <Numero rotulo="Mínimo" valor={reais(fatura.pagamentoMinimo)} /> : null}
+              {fatura.taxaRotativoMensal ? <Numero rotulo="Juros do rotativo" valor={`${(fatura.taxaRotativoMensal * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% ao mês`} /> : null}
+            </dl>
+          )}
           <ul className="mt-3 flex flex-wrap gap-2 text-[0.9rem]">
             {s.encargos.map((l) => (
               <li key={l.id} className="rounded-full border border-line bg-surface px-3 py-1">
@@ -192,6 +204,11 @@ export function TelaFatura() {
                     <b>{descricaoLegivel(l.descricao)}</b>
                     <b>{reais(l.valor)}</b>
                   </div>
+                  {l.parcela && l.totalParcelas && (
+                    <p className="text-[0.85rem] text-muted">
+                      Parcela {l.parcela} de {l.totalParcelas} · o que você responder vale para a compra inteira ({reais(l.valor * l.totalParcelas)})
+                    </p>
+                  )}
                   <ClassificarCompra
                     nome={descricaoLegivel(l.descricao)}
                     valor={classificacoes[l.id] ?? {}}
@@ -230,10 +247,38 @@ export function TelaFatura() {
           </Painel>
         )}
 
+        {fatura.tipo === "fatura" && cartoes.length > 0 && (
+          <Painel titulo="Esta fatura é de um cartão conectado?">
+            <Sub className="mb-2">Se for, a fatura que veio do banco vale e esta só completa o que faltar. Assim nada conta duas vezes.</Sub>
+            <select
+              value={cartao}
+              onChange={(e) => setCartao(e.target.value)}
+              aria-label="Cartão conectado desta fatura"
+              className="campo min-h-12 w-full rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-3 outline-none focus:border-primary"
+            >
+              <option value="">Não, é de outro cartão</option>
+              {cartoes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </select>
+          </Painel>
+        )}
+
         <Botao tamanho="grande" bloco onClick={() => salvar(fatura)} disabled={salvando}>
           {salvando ? "Salvando…" : "Salvar e atualizar meu raio-x"}
         </Botao>
       </div>
+    </div>
+  );
+}
+
+function Numero({ rotulo, valor }: { rotulo: string; valor: string }) {
+  return (
+    <div className="rounded-[12px] bg-surface px-3 py-2">
+      <dt className="text-[0.8rem] text-muted">{rotulo}</dt>
+      <dd className="font-bold">{valor}</dd>
     </div>
   );
 }

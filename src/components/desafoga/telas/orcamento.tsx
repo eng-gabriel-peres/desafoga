@@ -4,6 +4,7 @@ import { CalendarDays } from "lucide-react";
 import { useAgora } from "@/hooks/use-agora";
 import { usePessoa } from "@/hooks/use-pessoa";
 import { orcamentoDoMes, resumoDoOrcamento } from "@/lib/finance";
+import { gastosAvulsosDoBanco } from "../banco/avulsos";
 import { reaisCurto } from "@/lib/assistente/textos";
 import { CATEGORIAS } from "../categorias";
 import { Anel } from "../metas/visual";
@@ -17,7 +18,7 @@ export function TelaOrcamento() {
   const agora = useAgora();
   if (!dados || !agora) return <Carregando />;
 
-  const situacoes = orcamentoDoMes(dados.orcamentos, dados.compras, agora);
+  const situacoes = orcamentoDoMes(dados.orcamentos, dados.compras, agora, gastosAvulsosDoBanco(dados.banco));
   const resumo = resumoDoOrcamento(situacoes, agora);
   const semLimite = CATEGORIAS.filter((c) => !situacoes.some((s) => s.categoria === c));
   const mes = agora.toLocaleDateString("pt-BR", { month: "long" });

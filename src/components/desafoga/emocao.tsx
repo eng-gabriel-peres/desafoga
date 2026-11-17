@@ -12,6 +12,8 @@ import { diaDaSemanaCurto, hora, nomeDoDia, reais } from "@/lib/formatar";
 import { ICONE_DA_CATEGORIA } from "./categorias";
 import { Carinha, COR_DA_EMOCAO, RostoSvg } from "./ui/carinha";
 import { EtiquetaNecessidade } from "./ui/blocos";
+import { useAbrirRegistro } from "./registro";
+import { usePessoaDaSessao } from "./sessao";
 
 /**
  * Nota do dia: carinha grande, número e escala de 1 a 5 com marcador.
@@ -78,6 +80,9 @@ export function NotaDoDia({ nota, quantidade, sujeito }: { nota: number | null; 
 
 export function LinhaDeCompra({ compra, semNecessidade }: { compra: Compra; semNecessidade?: boolean }) {
   const Icone = ICONE_DA_CATEGORIA[compra.categoria];
+  const abrirRegistro = useAbrirRegistro();
+  // Só a própria pessoa completa a emoção (no painel, quem acompanha só lê).
+  const minha = usePessoaDaSessao() !== null;
   const via = compra.via === "whatsapp" ? " · pelo WhatsApp" : compra.via === "fatura" ? " · pela fatura" : compra.via === "banco" ? " · do banco" : "";
   const parcelas = compra.parcelas && compra.parcelas > 1 && compra.valorDaParcela ? ` em ${compra.parcelas}x de ${reais(compra.valorDaParcela)}` : "";
   return (
@@ -94,13 +99,24 @@ export function LinhaDeCompra({ compra, semNecessidade }: { compra: Compra; semN
       <div className="min-w-0">
         <p className="font-bold">{compra.item}</p>
         <p className="flex flex-wrap items-center gap-1 text-[0.85rem] text-muted">
-          {hora(compra.quando)} · <Icone aria-hidden="true" className="size-3.5" /> {compra.categoria}
+          {/* O banco só informa o dia: sem hora inventada. */}
+          {compra.via !== "banco" && <>{hora(compra.quando)} · </>}
+          <Icone aria-hidden="true" className="size-3.5" /> {compra.categoria}
           {via}
         </p>
       </div>
       <div className="text-right">
         <b>{reais(compra.valor)}</b>
         {parcelas && <p className="text-[0.8rem] text-muted">{parcelas}</p>}
+        {compra.emocao === null && minha && (
+          <button
+            type="button"
+            onClick={() => abrirRegistro({ tipo: "completar", compraId: compra.id, item: compra.item, valor: compra.valor, categoria: compra.categoria })}
+            className="mt-1 text-[0.85rem] font-bold text-primary"
+          >
+            Completar emoção
+          </button>
+        )}
         {!semNecessidade && compra.necessidade !== null && (
           <div className="mt-1">
             <EtiquetaNecessidade necessidade={compra.necessidade} />

@@ -1,11 +1,21 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import type { Categoria } from "@/lib/finance";
 import { FluxoDeRegistro } from "./telas/registrar";
 
-const AbrirRegistro = createContext<() => void>(() => {});
+/**
+ * Registro já preenchido:
+ * - "banco": uma compra que veio do banco (valor fixo, categoria automática que dá para trocar);
+ * - "completar": uma compra registrada sozinha pelo banco, só falta dizer como estava.
+ */
+export type PreviaDoRegistro =
+  | { tipo: "banco"; movimentoId: string; item: string; valor: number; categoria: Categoria; parcelas: number | null }
+  | { tipo: "completar"; compraId: string; item: string; valor: number; categoria: Categoria };
 
-/** Abre o registro de compra por cima da tela atual, de qualquer lugar do app. */
+const AbrirRegistro = createContext<(previa?: PreviaDoRegistro) => void>(() => {});
+
+/** Abre o registro de compra por cima da tela atual, de qualquer lugar do app (vazio, ou com uma prévia). */
 export const useAbrirRegistro = () => useContext(AbrirRegistro);
 
 /**
@@ -18,9 +28,11 @@ export function ComRegistro({ children }: { children: ReactNode }) {
   const [aberto, setAberto] = useState(false);
   /** Cada abertura começa o fluxo do zero. */
   const [vez, setVez] = useState(0);
+  const [previa, setPrevia] = useState<PreviaDoRegistro | null>(null);
   const janela = useRef<HTMLDialogElement>(null);
 
-  const abrir = useCallback(() => {
+  const abrir = useCallback((p?: PreviaDoRegistro) => {
+    setPrevia(p ?? null);
     setVez((v) => v + 1);
     setAberto(true);
   }, []);
@@ -46,7 +58,7 @@ export function ComRegistro({ children }: { children: ReactNode }) {
       >
         {aberto && (
           <div className="px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(2rem+env(safe-area-inset-bottom))] desk:px-8 desk:pt-6 desk:pb-8">
-            <FluxoDeRegistro key={vez} fechar={fechar} />
+            <FluxoDeRegistro key={vez} fechar={fechar} previa={previa ?? undefined} />
           </div>
         )}
       </dialog>

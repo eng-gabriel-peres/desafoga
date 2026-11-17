@@ -1,5 +1,6 @@
 "use client";
 
+import { gastosAvulsosDoBanco } from "../banco/avulsos";
 import { useAgora } from "@/hooks/use-agora";
 import { useConsulta } from "@/hooks/use-consulta";
 import { usePessoa } from "@/hooks/use-pessoa";
@@ -67,7 +68,8 @@ export function TelaResumo({ pessoaId }: { pessoaId: string }) {
   if (!dados || !agora || !avisos) return <Carregando />;
 
   const { persona, compras, orcamentos } = dados;
-  const doMes = orcamentoDoMes(orcamentos, compras, agora);
+  // O banco só entra se a pessoa compartilha as contas (senão `banco` vem vazio).
+  const doMes = orcamentoDoMes(orcamentos, compras, agora, gastosAvulsosDoBanco(dados.banco));
   const semana = resumoDaSemana(compras, agora);
   const sujeito = `${persona.apelido} estava`;
 
