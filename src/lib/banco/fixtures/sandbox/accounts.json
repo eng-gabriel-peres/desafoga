@@ -1,0 +1,78 @@
+[
+ {
+  "id": "891f0e61-463b-44b1-a914-908e579ac8df",
+  "type": "BANK",
+  "subtype": "CHECKING_ACCOUNT",
+  "name": "Conta Corrente",
+  "balance": 43516.43,
+  "currencyCode": "BRL",
+  "itemId": "b8d60f2d-4b45-4b3d-81f6-361f26e80ad6",
+  "number": "0001/12345-0",
+  "createdAt": "2026-11-17T12:46:54.869Z",
+  "updatedAt": "2026-11-17T12:46:54.931Z",
+  "marketingName": "GOLD Conta Corrente",
+  "taxNumber": "416.799.495-00",
+  "owner": "John Doe",
+  "bankData": {
+   "transferNumber": "123/0001/12345-0",
+   "closingBalance": 43516.43,
+   "automaticallyInvestedBalance": 4351.643,
+   "overdraftContractedLimit": null,
+   "overdraftUsedLimit": null,
+   "unarrangedOverdraftAmount": null,
+   "hasReservedBalance": true,
+   "reservedBalances": [
+    {
+     "name": "Caixinha Para Férias",
+     "identification": "d78fc4e5-37ca-4da3-adf2-9b082bf92280",
+     "availableAmounts": [
+      {
+       "amount": 1000.04,
+       "currencyCode": "BRL",
+       "remuneration": {
+        "indexer": "CDI",
+        "rateType": "LINEAR",
+        "calculation": "DIAS_UTEIS",
+        "preFixedRate": 0.3,
+        "ratePeriodicity": "MENSAL"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "creditData": null
+ },
+ {
+  "id": "d2cbd67e-2de7-45b3-bdae-63ab6541349f",
+  "type": "CREDIT",
+  "subtype": "CREDIT_CARD",
+  "name": "Mastercard Black",
+  "balance": -1006.2,
+  "currencyCode": "BRL",
+  "itemId": "b8d60f2d-4b45-4b3d-81f6-361f26e80ad6",
+  "number": "9437",
+  "createdAt": "2026-11-17T12:46:54.942Z",
+  "updatedAt": "2026-11-17T12:46:55.005Z",
+  "marketingName": "PLUGGY UNICLASS MASTERCARD BLACK",
+  "taxNumber": null,
+  "owner": null,
+  "bankData": null,
+  "creditData": {
+   "level": "BLACK",
+   "brand": "MASTERCARD",
+   "brandAdditionalInfo": null,
+   "balanceCloseDate": "2026-11-17",
+   "balanceDueDate": "2026-11-22",
+   "availableCreditLimit": 300000,
+   "balanceForeignCurrency": null,
+   "minimumPayment": 201.24,
+   "creditLimit": 300000,
+   "isLimitFlexible": false,
+   "holderType": "MAIN",
+   "status": "ACTIVE",
+   "disaggregatedCreditLimits": null,
+   "additionalCards": null
+  }
+ }
+]

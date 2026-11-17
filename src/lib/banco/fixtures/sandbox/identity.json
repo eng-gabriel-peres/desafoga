@@ -1,0 +1,72 @@
+{
+ "id": "28675e4c-0f75-4e89-909d-7c4444ae91e6",
+ "itemId": "b8d60f2d-4b45-4b3d-81f6-361f26e80ad6",
+ "createdAt": "2026-11-17T12:46:55.300Z",
+ "updatedAt": "2026-11-17T12:46:55.300Z",
+ "birthDate": "1991-05-01T00:00:00.000Z",
+ "taxNumber": "38.512.121/0001-95",
+ "document": "076.630.975-48",
+ "documentType": "CPF",
+ "jobTitle": "Comercial",
+ "companyName": "Pluggy LTDA",
+ "fullName": "Francisco Sousa",
+ "phoneNumbers": [
+  {
+   "value": "+55 19 12345678",
+   "type": "Personal",
+   "countryCallingCode": null,
+   "areaCode": null,
+   "extension": null,
+   "additionalInfo": null
+  }
+ ],
+ "emails": [
+  {
+   "value": "myemail@pluggy.ai",
+   "type": "Personal"
+  }
+ ],
+ "addresses": [
+  {
+   "fullAddress": "Av. Lúcio Costa 1234, Copacabana, Rio de Janeiro, Brasil",
+   "state": "RJ",
+   "primaryAddress": "Av. Lúcio Costa, 1234",
+   "country": "Brasil",
+   "type": "Personal",
+   "postalCode": "22620-171",
+   "city": "Rio de Janeiro",
+   "additionalInfo": null,
+   "district": null,
+   "ibgeTownCode": null,
+   "countryCode": null,
+   "geographicCoordinates": null
+  }
+ ],
+ "relations": [
+  {
+   "name": "Juan Do Lopez",
+   "type": "Father",
+   "document": null
+  },
+  {
+   "name": "Laura De Oliva",
+   "type": "Spouse",
+   "document": null
+  }
+ ],
+ "investorProfile": "Moderate",
+ "establishmentCode": null,
+ "establishmentName": null,
+ "financialRelationships": null,
+ "qualifications": null,
+ "socialName": null,
+ "sex": null,
+ "maritalStatus": null,
+ "nationality": null,
+ "otherDocuments": null,
+ "passport": null,
+ "incorporationDate": null,
+ "parties": null,
+ "businessOtherDocuments": null,
+ "companiesCnpj": null
+}

@@ -1,0 +1,51 @@
+[
+ {
+  "id": "fc068df6-5e9e-4304-9259-1c4f5dc49a3b",
+  "dueDate": "2023-07-31T03:00:00.000Z",
+  "billClosingDate": "2023-07-24T03:00:00.000Z",
+  "totalAmount": 5000,
+  "totalAmountCurrencyCode": "BRL",
+  "minimumPaymentAmount": null,
+  "allowsInstallments": null,
+  "financeCharges": [
+   {
+    "id": "6202f2bc-efd4-4c3c-938f-0da5deaf1f9f",
+    "type": "LATE_PAYMENT_FEE",
+    "amount": 500,
+    "currencyCode": "BRL",
+    "additionalInfo": null
+   },
+   {
+    "id": "ca129c77-8817-45f4-a8ad-e5234b80ae09",
+    "type": "IOF",
+    "amount": 70.5,
+    "currencyCode": "BRL",
+    "additionalInfo": "NA"
+   }
+  ],
+  "payments": [],
+  "createdAt": "2026-11-17T12:46:54.960Z",
+  "updatedAt": "2026-11-17T12:46:54.960Z"
+ },
+ {
+  "id": "c9a74eb1-4c74-493d-afb5-fa761885a155",
+  "dueDate": "2023-06-30T03:00:00.000Z",
+  "billClosingDate": "2023-06-23T03:00:00.000Z",
+  "totalAmount": 3000,
+  "totalAmountCurrencyCode": "BRL",
+  "minimumPaymentAmount": 1000,
+  "allowsInstallments": true,
+  "financeCharges": [
+   {
+    "id": "3dfd6eb9-e0e2-4d1f-b0bf-93d83482fae2",
+    "type": "IOF",
+    "amount": 100,
+    "currencyCode": "BRL",
+    "additionalInfo": "NA"
+   }
+  ],
+  "payments": [],
+  "createdAt": "2026-11-17T12:46:54.953Z",
+  "updatedAt": "2026-11-17T12:46:54.953Z"
+ }
+]

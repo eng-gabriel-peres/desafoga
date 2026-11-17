@@ -1,0 +1,119 @@
+[
+ {
+  "id": "9a7b4191-2f7c-426f-92ea-ee88448e8c2d",
+  "itemId": "b8d60f2d-4b45-4b3d-81f6-361f26e80ad6",
+  "contractNumber": "000000721792794",
+  "ipocCode": "92792126019929279212650822221989319252576",
+  "productName": "Crédito Pessoal Consignado",
+  "type": "CREDITO_PESSOAL_COM_CONSIGNACAO",
+  "kind": "LOAN",
+  "productSubTypeCategory": "CONSIGNADO_SIAPE",
+  "hasInsuranceContracted": true,
+  "totalRemainingAmount": 28500.04,
+  "nextInstallmentAmount": 1000.04,
+  "date": "2023-07-20T00:00:00.000Z",
+  "contractDate": "2022-08-01T00:00:00.000Z",
+  "disbursementDates": [
+   "2018-01-15T00:00:00.000Z"
+  ],
+  "settlementDate": "2018-01-15T00:00:00.000Z",
+  "contractAmount": 50000,
+  "currencyCode": "BRL",
+  "dueDate": "2028-01-15T00:00:00.000Z",
+  "installmentPeriodicity": "MONTHLY",
+  "installmentPeriodicityAdditionalInfo": "",
+  "firstInstallmentDueDate": "2018-02-15T00:00:00.000Z",
+  "CET": 0.29,
+  "amortizationScheduled": "SAC",
+  "amortizationScheduledAdditionalInfo": "",
+  "cnpjConsignee": "60.500.998/0001-35",
+  "interestRates": [
+   {
+    "additionalInfo": "",
+    "calculation": "21/252",
+    "interestRateType": "SIMPLE",
+    "postFixedRate": 0.55,
+    "preFixedRate": 0.6,
+    "referentialRateIndexerAdditionalInfo": "",
+    "referentialRateIndexerSubType": "TJLP",
+    "referentialRateIndexerType": "PRE_FIXADO",
+    "taxPeriodicity": "YEARLY",
+    "taxType": "EFFECTIVE"
+   }
+  ],
+  "contractedFees": [
+   {
+    "amount": 100000.04,
+    "charge": "MINIMUM",
+    "chargeType": "UNIQUE",
+    "code": "CADASTRO",
+    "name": "Renovação de cadastro",
+    "rate": 0.062
+   }
+  ],
+  "contractedFinanceCharges": [
+   {
+    "additionalInfo": "",
+    "rate": 0.07,
+    "type": "JUROS_REMUNERATORIOS_POR_ATRASO"
+   }
+  ],
+  "warranties": [
+   {
+    "amount": 1000.04,
+    "currencyCode": "BRL",
+    "subtype": "NOTAS_PROMISSORIAS_OUTROS_DIREITOS_CREDITO",
+    "type": "CESSAO_DIREITOS_CREDITORIOS"
+   }
+  ],
+  "installments": {
+   "contractRemainingNumber": 14600,
+   "dueInstallments": 57,
+   "paidInstallments": 73,
+   "pastDueInstallments": 73,
+   "totalNumberOfInstallments": 130632,
+   "typeContractRemaining": "DAY",
+   "typeNumberOfInstallments": "MONTH",
+   "balloonPayments": [
+    {
+     "dueDate": "2021-05-21T00:00:00.000Z",
+     "amount": {
+      "value": 1000.04,
+      "currencyCode": "BRL"
+     }
+    }
+   ]
+  },
+  "payments": {
+   "contractOutstandingBalance": 1000.04,
+   "contractOutstandingBalanceUpdatedAt": "2021-05-21T00:00:00.000Z",
+   "releases": [
+    {
+     "currencyCode": "BRL",
+     "installmentId": "WGx0aExYcEJMVm93TFRsZFcyRXRla0V0V2pBdE9Wd3RYWH",
+     "isOverParcelPayment": true,
+     "paidAmount": 1000.04,
+     "paidDate": "2021-05-21T00:00:00.000Z",
+     "overParcel": {
+      "charges": [
+       {
+        "additionalInfo": "",
+        "amount": 1000.04,
+        "type": "JUROS_REMUNERATORIOS_POR_ATRASO"
+       }
+      ],
+      "fees": [
+       {
+        "amount": 100000.04,
+        "code": "aval_bem",
+        "name": "Reavaliação periódica do bem"
+       }
+      ]
+     }
+    }
+   ]
+  },
+  "createdAt": "2026-11-17T12:46:55.313Z",
+  "updatedAt": "2026-11-17T12:46:55.313Z"
+ }
+]

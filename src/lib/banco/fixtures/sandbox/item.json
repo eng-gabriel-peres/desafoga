@@ -1,0 +1,81 @@
+{
+ "id": "b8d60f2d-4b45-4b3d-81f6-361f26e80ad6",
+ "connector": {
+  "id": 2,
+  "name": "Pluggy Bank",
+  "primaryColor": "ef294b",
+  "institutionUrl": "https://pluggy.ai",
+  "country": "BR",
+  "type": "PERSONAL_BANK",
+  "credentials": [
+   {
+    "label": "User",
+    "name": "user",
+    "type": "text",
+    "placeholder": "",
+    "validation": "^user-.{2,50}$",
+    "validationMessage": "O user deve começar com \"user-\"",
+    "optional": false
+   },
+   {
+    "label": "Password",
+    "name": "password",
+    "type": "password",
+    "placeholder": "",
+    "validation": "^.{6,20}$",
+    "validationMessage": "A senha deve ter entre 6 e 20 caracteres",
+    "optional": false
+   }
+  ],
+  "imageUrl": "https://cdn.pluggy.ai/assets/connector-icons/sandbox.svg",
+  "hasMFA": false,
+  "health": {
+   "status": "ONLINE",
+   "stage": null
+  },
+  "products": [
+   "ACCOUNTS",
+   "CREDIT_CARDS",
+   "TRANSACTIONS",
+   "PAYMENT_DATA",
+   "INVESTMENTS",
+   "INVESTMENTS_TRANSACTIONS",
+   "IDENTITY",
+   "LOANS",
+   "ACCOUNT_STATEMENTS"
+  ],
+  "createdAt": "2020-09-07T00:08:06.588Z",
+  "isSandbox": true,
+  "isOpenFinance": false,
+  "updatedAt": "2026-11-17T13:07:19.832Z",
+  "supportsPaymentInitiation": false,
+  "supportsScheduledPayments": false,
+  "supportsSmartTransfers": false,
+  "supportsBoletoManagement": false,
+  "supportsAutomaticPix": false,
+  "supportsPixBiometric": false
+ },
+ "createdAt": "2026-11-17T12:46:36.798Z",
+ "updatedAt": "2026-11-17T12:46:55.325Z",
+ "status": "UPDATED",
+ "executionStatus": "SUCCESS",
+ "lastUpdatedAt": "2026-11-17T12:46:55.318Z",
+ "webhookUrl": null,
+ "error": null,
+ "clientUserId": null,
+ "consecutiveFailedLoginAttempts": 0,
+ "statusDetail": null,
+ "parameter": null,
+ "userAction": null,
+ "nextAutoSyncAt": null,
+ "autoSyncDisabledAt": null,
+ "consentExpiresAt": null,
+ "resourcesCollectedAt": null,
+ "hasResourcesPendingAuthorization": null,
+ "products": [
+  "ACCOUNTS",
+  "CREDIT_CARDS",
+  "TRANSACTIONS"
+ ],
+ "oauthRedirectUri": null
+}
