@@ -27,6 +27,15 @@ export interface ClientePluggy {
   tokenDeConexao(o: { itemId?: string; clientUserId: string; webhookUrl?: string }): Promise<string>;
 }
 
+/** Promessa com prazo: a Pluggy às vezes não responde (rede bloqueada, fora do ar). */
+export function comPrazoDe<T>(promessa: Promise<T>, ms = 45_000): Promise<T> {
+  let relogio: ReturnType<typeof setTimeout> | undefined;
+  const prazo = new Promise<never>((_, rejeitar) => {
+    relogio = setTimeout(() => rejeitar(new Error("A Pluggy não respondeu a tempo.")), ms);
+  });
+  return Promise.race([promessa, prazo]).finally(() => clearTimeout(relogio));
+}
+
 export function pluggyConfigurado(): boolean {
   return Boolean(process.env.PLUGGY_CLIENT_ID && process.env.PLUGGY_CLIENT_SECRET);
 }
@@ -37,7 +46,7 @@ export function clientePluggy(): ClientePluggy {
   if (unico) return unico;
   if (!pluggyConfigurado()) throw new Error("Pluggy não configurada (PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET).");
   const api = new PluggyClient({ clientId: process.env.PLUGGY_CLIENT_ID!, clientSecret: process.env.PLUGGY_CLIENT_SECRET! });
-  unico = {
+  const base: ClientePluggy = {
     item: (id) => api.fetchItem(id),
     contas: async (id) => (await api.fetchAccounts(id)).results,
     transacoes: (conta, desde) => api.fetchAllTransactions(conta, desde?.criadasDesde ? { createdAtFrom: desde.criadasDesde } : {}),
@@ -60,5 +69,9 @@ export function clientePluggy(): ClientePluggy {
     tokenDeConexao: async ({ itemId, clientUserId, webhookUrl }) =>
       (await api.createConnectToken(itemId, { clientUserId, webhookUrl, avoidDuplicates: true })).accessToken,
   };
+  // Toda chamada à Pluggy tem prazo: sem resposta, falha em vez de travar quem chamou.
+  unico = Object.fromEntries(
+    Object.entries(base).map(([nome, f]) => [nome, (...args: unknown[]) => comPrazoDe((f as (...a: unknown[]) => Promise<unknown>)(...args))]),
+  ) as unknown as ClientePluggy;
   return unico;
 }

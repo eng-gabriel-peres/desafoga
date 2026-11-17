@@ -5,7 +5,7 @@
  */
 import { createHash, randomBytes } from "node:crypto";
 import type { Persona, Profissional } from "@/services/tipos";
-import { clientePluggy, pluggyConfigurado } from "@/lib/banco/pluggy";
+import { clientePluggy, comPrazoDe, pluggyConfigurado } from "@/lib/banco/pluggy";
 import { prisma } from "./prisma";
 import { criarEspacoDemo, novoConvite } from "./semente";
 
@@ -76,7 +76,8 @@ async function apagarBancosDaPluggy(espacos: { id?: string; tipo: "DEMO"; criado
     select: { pluggyItemId: true },
   });
   if (!itens.length || !pluggyConfigurado()) return;
-  await Promise.allSettled(itens.map((i) => clientePluggy().apagarItem(i.pluggyItemId!)));
+  // Não segura a entrada na demo se a Pluggy demorar.
+  await comPrazoDe(Promise.allSettled(itens.map((i) => clientePluggy().apagarItem(i.pluggyItemId!))), 5_000).catch(() => undefined);
 }
 const PROFISSIONAIS_DA_DEMO = new Set(["paula", "marcos"]);
 
@@ -172,7 +173,9 @@ export async function apagarConta(atual: SessaoAtual): Promise<void> {
   if (atual.pessoa) {
     // Os bancos conectados também saem da Pluggy.
     const itens = await prisma().conexaoBancaria.findMany({ where: { pessoaId: atual.pessoa.id, pluggyItemId: { not: null } }, select: { pluggyItemId: true } });
-    if (itens.length && pluggyConfigurado()) await Promise.allSettled(itens.map((i) => clientePluggy().apagarItem(i.pluggyItemId!)));
+    if (itens.length && pluggyConfigurado()) {
+      await comPrazoDe(Promise.allSettled(itens.map((i) => clientePluggy().apagarItem(i.pluggyItemId!))), 5_000).catch(() => undefined);
+    }
     await prisma().pessoa.delete({ where: { id: atual.pessoa.id } });
   }
   else if (atual.profissional) await prisma().profissional.delete({ where: { id: atual.profissional.id } });

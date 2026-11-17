@@ -151,6 +151,28 @@ describe.runIf(url)("documentos enviados no Postgres", () => {
     expect(await repo.faturas(pessoaId)).toHaveLength(0);
   });
 
+  it("PDF sem cartão escolhido vai para o único cartão conectado do mesmo banco", async () => {
+    const conexao = await repo.criarConexao(pessoaId, { pluggyItemId: `item-n-${pessoaId}`, banco: "Nubank", logo: null });
+    const [cartao] = await repo.salvarContas(conexao.id, [
+      { pluggyAccountId: `acc-n-${pessoaId}`, tipo: "cartao", nome: "Cartão Nubank", saldo: 0, limite: null, limiteDisponivel: null, fechamento: null, vencimento: null, chequeEspecialUsado: null, chequeEspecialLimite: null },
+    ]);
+    const r = await ler(documento({}));
+    if (r.tipo !== "fatura") throw new Error();
+    await docs.salvarDocumento(pessoaId, r.fatura, {}, null);
+    expect((await repo.faturas(pessoaId))[0].contaId).toBe(cartao.id);
+    expect((await repo.parceladas(pessoaId))[0].origem).toBe(cartao.id);
+  });
+
+  it("se gravar a fatura de novo falhar no meio, a anterior não some", async () => {
+    const r1 = await ler(documento({ lancamentos: [{ data: "2026-11-05", descricao: "PADARIA", valor: "18,50", natureza: "compra", categoria: "alimentacao", parcela: null }] }));
+    if (r1.tipo !== "fatura") throw new Error();
+    await docs.salvarDocumento(pessoaId, r1.fatura, {}, null);
+    // Mesma fatura, mas com um número que o banco de dados recusa: a gravação nova falha.
+    const quebrada = { ...r1.fatura, id: "outra", lancamentos: r1.fatura.lancamentos.map((l) => ({ ...l, parcela: 3_000_000_000 })) };
+    await expect(docs.salvarDocumento(pessoaId, quebrada, {}, null)).rejects.toThrow();
+    expect(await repo.faturas(pessoaId)).toHaveLength(1);
+  });
+
   it("PDF ligado a um cartão que já tem a fatura do banco fica fora dos cálculos", async () => {
     const conexao = await repo.criarConexao(pessoaId, { pluggyItemId: `item-${pessoaId}`, banco: "Nubank", logo: null });
     const [cartao] = await repo.salvarContas(conexao.id, [

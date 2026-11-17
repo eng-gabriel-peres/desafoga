@@ -110,10 +110,15 @@ describe("compraManualCorrespondente", () => {
     expect(compraManualCorrespondente({ valor: 3500, data: "2026-11-12", parcelada: null }, [almoco], new Set(), 3)?.id).toBe("c1");
   });
 
-  it("compra já ligada ou que veio do banco nunca casa", () => {
+  it("compra já ligada nunca casa", () => {
     expect(compraManualCorrespondente({ valor: 3500, data: "2026-11-10", parcelada: null }, [almoco], new Set(["c1"]), 1)).toBeNull();
-    const doBanco = compra("c2", 3500, "2026-11-10T12:30:00-03:00", "banco" as Compra["via"]);
-    expect(compraManualCorrespondente({ valor: 3500, data: "2026-11-10", parcelada: null }, [doBanco], new Set(), 1)).toBeNull();
+  });
+
+  it("compra registrada pela fatura em PDF ou pelo banco, ainda sem movimento, também casa (não conta duas vezes)", () => {
+    const daFatura = compra("c2", 3500, "2026-11-10T12:30:00-03:00", "fatura");
+    expect(compraManualCorrespondente({ valor: 3500, data: "2026-11-10", parcelada: null }, [daFatura], new Set(), 1)?.id).toBe("c2");
+    const doBanco = compra("c3", 3500, "2026-11-10T12:30:00-03:00", "banco" as Compra["via"]);
+    expect(compraManualCorrespondente({ valor: 3500, data: "2026-11-10", parcelada: null }, [doBanco], new Set(), 1)?.id).toBe("c3");
   });
 
   it("parcelada casa com a compra manual do valor total", () => {

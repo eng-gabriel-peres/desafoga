@@ -9,6 +9,7 @@ import * as repo from "@/lib/desafoga/servidor/repositorio";
 import { categoriaDe, chaveDaDescricao, naturezaDe } from "./classificar";
 import { sugestaoDoChequeEspecial, sugestaoDoEmprestimo, chaveDaDivida, aplicarTravas } from "./dividas";
 import { candidataDoMovimento, diaEmBrasilia, normalizarConta, normalizarTransacao } from "./normalizar";
+import { chaveDaInstituicao } from "./instituicoes";
 import { clientePluggy, type ClientePluggy } from "./pluggy";
 import { compraManualCorrespondente, novaParcelada, paresDeTransferencia } from "./relacionar";
 import type { ContaBancaria, ModoCompras, Movimento, SugestaoDeDivida } from "./tipos";
@@ -64,6 +65,9 @@ export async function sincronizar(
 
     const contas = await repo.salvarContas(conexaoId, (await cliente.contas(itemId)).map(normalizarConta));
     resultado.contas = contas.length;
+    // PDFs do mesmo banco enviados antes (sem cartão escolhido) passam para o cartão, se ele for o único.
+    const cartoesDoBanco = contas.filter((c) => c.tipo === "cartao");
+    if (cartoesDoBanco.length === 1) await repo.moverDocumentosParaCartao(pessoaId, chaveDaInstituicao(banco), cartoesDoBanco[0].id);
     const { cpf } = await cliente.identidade(itemId);
     await repo.atualizarConexao(conexaoId, {
       banco,
@@ -110,19 +114,24 @@ export async function sincronizar(
       if (r === "automatica") resultado.automaticas++;
     }
 
-    // 3. Dívidas: empréstimos, cheque especial e rotativo do cartão.
+    // 3. Dívidas: empréstimos, cheque especial e rotativo do cartão. Banco sem empréstimos ou faturas
+    // (ou produto fora do plano) não derruba o resto da leitura.
     const sugestoes: SugestaoDeDivida[] = [];
-    for (const l of await cliente.emprestimos(itemId)) {
-      const s = sugestaoDoEmprestimo(l, banco, agora);
-      if (s) sugestoes.push(s);
-    }
+    await semDerrubar("empréstimos", async () => {
+      for (const l of await cliente.emprestimos(itemId)) {
+        const s = sugestaoDoEmprestimo(l, banco, agora);
+        if (s) sugestoes.push(s);
+      }
+    });
     for (const c of contas) {
       const s = sugestaoDoChequeEspecial(c, banco);
       if (s) sugestoes.push(s);
     }
     for (const c of contas.filter((x) => x.tipo === "cartao")) {
-      const s = await rotativoDoCartao(pessoaId, c, banco, await cliente.faturas(c.pluggyAccountId), agora);
-      if (s) sugestoes.push(s);
+      await semDerrubar("faturas", async () => {
+        const s = await rotativoDoCartao(pessoaId, c, banco, await cliente.faturas(c.pluggyAccountId), agora);
+        if (s) sugestoes.push(s);
+      });
     }
     for (const s of sugestoes) {
       if ((await repo.receberSugestaoDeDivida(pessoaId, s, { conexaoId })) === "nova") {
@@ -132,7 +141,7 @@ export async function sincronizar(
     }
 
     // 4. Fatura aberta de cada cartão (alimenta a tela de fatura e os próximos meses).
-    for (const c of contas.filter((x) => x.tipo === "cartao")) await gravarFaturaAberta(pessoaId, c, agora);
+    for (const c of contas.filter((x) => x.tipo === "cartao")) await semDerrubar("fatura aberta", () => gravarFaturaAberta(pessoaId, c, agora));
 
     await repo.atualizarConexao(conexaoId, { status: "ok", erro: null, ultimaSincronizacao: agora });
     return resultado;
@@ -143,6 +152,15 @@ export async function sincronizar(
     return { ...resultado, erro };
   } finally {
     await repo.soltarSincronizacao(conexaoId);
+  }
+}
+
+/** Parte opcional da leitura: se falhar, registra e segue. */
+async function semDerrubar(parte: string, f: () => Promise<void>): Promise<void> {
+  try {
+    await f();
+  } catch (e) {
+    console.error(`Desafoga: Pluggy, ${parte} não lidos,`, e instanceof Error ? e.message.slice(0, 200) : "erro");
   }
 }
 

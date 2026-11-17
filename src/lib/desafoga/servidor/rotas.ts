@@ -481,8 +481,11 @@ const ACOES = {
 
   // ----- faturas -----
   "faturas.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
-    await exigirVer(sessao, p);
-    return repo.faturas(p);
+    const s = await exigirVer(sessao, p);
+    const faturas = await repo.faturas(p);
+    // A fatura que veio do banco é dado de banco: só com as contas compartilhadas.
+    if (s.pessoa?.id !== p && !(await repo.rotina(p)).compartilharContas) return faturas.filter((f) => f.fonte !== "pluggy");
+    return faturas;
   }),
   "faturas.salvar": acao(
     z.tuple([id, fatura, z.record(z.string(), z.object({ emocao: emocao.optional(), necessidade: necessidade.optional() })), id.nullable().optional()]),
@@ -553,7 +556,12 @@ const ACOES = {
     z.tuple([id, chave, z.partialRecord(campoDaDivida, z.number().min(0).max(1e10)).optional(), z.number().int().min(1).max(31).optional()]),
     async ([p, c, correcoes, vencimento], { sessao }) => {
       exigirAPropriaPessoa(sessao, p);
-      return repo.aceitarSugestao(p, c, correcoes ?? {}, vencimento);
+      try {
+        return await repo.aceitarSugestao(p, c, correcoes ?? {}, vencimento);
+      } catch (e) {
+        if (e instanceof repo.CamposAConferir) throw new ErroDeEntrada(e.message);
+        throw e;
+      }
     },
   ),
   "banco.vincularSugestao": acao(z.tuple([id, chave, id]), async ([p, c, dividaId], { sessao }) => {

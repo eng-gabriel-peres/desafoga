@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { clienteFalso } from "./cliente-falso";
-import { pluggyConfigurado } from "./pluggy";
+import { comPrazoDe, pluggyConfigurado } from "./pluggy";
 
 const CONTA = "891f0e61-463b-44b1-a914-908e579ac8df";
 const CARTAO = "d2cbd67e-2de7-45b3-bdae-63ab6541349f";
@@ -42,5 +42,16 @@ describe("pluggyConfigurado", () => {
     expect(pluggyConfigurado()).toBe(false);
     vi.stubEnv("PLUGGY_CLIENT_SECRET", "segredo");
     expect(pluggyConfigurado()).toBe(true);
+  });
+});
+
+describe("comPrazoDe", () => {
+  it("desiste quando a Pluggy não responde a tempo", async () => {
+    const nunca = new Promise<string>(() => {});
+    await expect(comPrazoDe(nunca, 20)).rejects.toThrow(/Pluggy/);
+  });
+
+  it("devolve a resposta quando chega a tempo", async () => {
+    await expect(comPrazoDe(Promise.resolve("ok"), 1000)).resolves.toBe("ok");
   });
 });

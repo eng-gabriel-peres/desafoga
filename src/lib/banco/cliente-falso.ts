@@ -41,13 +41,15 @@ export function dadosDoSandbox(): DadosFalsos {
   };
 }
 
-export function clienteFalso(sobrescrever: Partial<DadosFalsos> & { falhar?: boolean } = {}): ClientePluggy & { chamadas: string[]; dados: DadosFalsos } {
-  const { falhar, ...resto } = sobrescrever;
+export function clienteFalso(
+  sobrescrever: Partial<DadosFalsos> & { falhar?: boolean; falharEm?: string[] } = {},
+): ClientePluggy & { chamadas: string[]; dados: DadosFalsos } {
+  const { falhar, falharEm = [], ...resto } = sobrescrever;
   const dados: DadosFalsos = { ...dadosDoSandbox(), ...resto };
   const chamadas: string[] = [];
   const responder = async <T>(nome: string, valor: () => T): Promise<T> => {
     chamadas.push(nome);
-    if (falhar) throw new Error("Pluggy indisponível (teste)");
+    if (falhar || falharEm.includes(nome.split(":")[0])) throw new Error("Pluggy indisponível (teste)");
     return valor();
   };
   return {

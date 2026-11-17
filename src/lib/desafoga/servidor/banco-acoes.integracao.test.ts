@@ -178,6 +178,26 @@ describe.runIf(url)("ações dos bancos conectados", () => {
     expect(d.confira).toEqual(["parcelasRestantes"]);
   });
 
+  it("não aceita dívida com juros ou saldo ainda a conferir (não entra no plano a 0%)", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    // A demo já tem o consignado do extrato, com saldo e juros a conferir.
+    await expect(chamar("banco.aceitarSugestao", [p, "itau|emprestimo|61000", {}, 7], ana)).rejects.toThrow(/juros|saldo/i);
+    const d = (await chamar("banco.aceitarSugestao", [p, "itau|emprestimo|61000", { taxaMensal: 0.019, saldo: 1840000 }], ana)) as { taxaMensal: number };
+    expect(d.taxaMensal).toBe(0.019);
+  });
+
+  it("a profissional não vê a fatura do banco se a pessoa não compartilha as contas", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    await repo.salvarFatura(p, { id: `aberta:x:${p}`, tipo: "fatura", origem: "Cartão Itaú", mes: "2026-11", lancamentos: [], fonte: "pluggy", total: 100000 });
+    await chamar("rotina.salvar", [p, { compartilharContas: false }], ana);
+    const paula = await entrar("paula", ana);
+    const faturas = (await chamar("faturas.listar", [p], paula)) as { fonte?: string }[];
+    expect(faturas.some((f) => f.fonte === "pluggy")).toBe(false);
+    expect(faturas.length).toBeGreaterThan(0);
+  });
+
   it("vincular uma sugestão a uma dívida manual", async () => {
     const ana = await entrar("ana");
     const p = ana.pessoa!.id;

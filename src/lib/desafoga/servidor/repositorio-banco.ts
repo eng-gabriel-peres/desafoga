@@ -5,6 +5,7 @@
  */
 import type { RegraDoBanco } from "@/lib/banco/classificar";
 import { encontrarDivida, fundirDivida } from "@/lib/banco/dividas";
+import { chaveDaInstituicao } from "@/lib/banco/instituicoes";
 import { encontrarParcelada } from "@/lib/banco/relacionar";
 import type {
   CampoDaDivida,
@@ -137,13 +138,31 @@ export async function salvarContas(conexaoId: string, contas: Omit<ContaBancaria
 export async function apagarConexao(pessoaId: string, conexaoId: string): Promise<string | null> {
   const c = await conexaoDaPessoa(pessoaId, conexaoId);
   const contas = c.contas.map((x) => x.id);
+  // Dívidas deste banco voltam a ser manuais com os valores que a pessoa vê (as correções viram os valores).
+  for (const d of await prisma().divida.findMany({ where: { pessoaId, conexaoId }, select: { id: true } })) await desvincularDivida(pessoaId, d.id);
+  const movimentosDoBanco = (await prisma().movimento.findMany({ where: { pessoaId, contaId: { in: contas } }, select: { id: true } })).map((m) => m.id);
   await prisma().$transaction([
+    prisma().aviso.deleteMany({ where: { pessoaId, referencia: { in: movimentosDoBanco } } }),
     prisma().compraParcelada.deleteMany({ where: { pessoaId, origem: { in: contas }, compraId: null } }),
-    prisma().divida.updateMany({ where: { pessoaId, conexaoId }, data: { origem: "manual", fonte: null, pluggyLoanId: null, conexaoId: null } }),
+    prisma().fatura.deleteMany({ where: { pessoaId, contaId: { in: contas }, fonte: "pluggy" } }),
+    // O PDF ligado a este cartão volta a valer sozinho.
+    prisma().fatura.updateMany({ where: { pessoaId, contaId: { in: contas }, fonte: "documento" }, data: { contaId: null, foraDosCalculos: false } }),
     prisma().sugestao.deleteMany({ where: { pessoaId, situacao: "aberta", dados: { path: ["conexaoId"], equals: conexaoId } } }),
     prisma().conexaoBancaria.delete({ where: { id: conexaoId } }),
   ]);
   return c.pluggyItemId;
+}
+
+/**
+ * Ao conectar um cartão, o que veio de PDF do mesmo banco (sem cartão
+ * escolhido) passa a ser desse cartão: parceladas e faturas. Só quando o
+ * banco tem um cartão só, para não adivinhar errado.
+ */
+export async function moverDocumentosParaCartao(pessoaId: string, chaveDoBanco: string, cartaoId: string): Promise<void> {
+  await prisma().compraParcelada.updateMany({ where: { pessoaId, origem: `doc:${chaveDoBanco}` }, data: { origem: cartaoId } });
+  const soltas = await prisma().fatura.findMany({ where: { pessoaId, fonte: "documento", contaId: null, tipo: "fatura" }, select: { id: true, origem: true } });
+  const doBanco = soltas.filter((f) => chaveDaInstituicao(f.origem) === chaveDoBanco).map((f) => f.id);
+  if (doBanco.length) await prisma().fatura.updateMany({ where: { id: { in: doBanco } }, data: { contaId: cartaoId } });
 }
 
 // ---------- movimentos ----------
@@ -443,6 +462,11 @@ async function sugestaoAberta(pessoaId: string, chave: string): Promise<Sugestao
   return paraSugestao(s);
 }
 
+/** A dívida não pode entrar nos cálculos com saldo, juros ou parcela desconhecidos. */
+export class CamposAConferir extends Error {}
+
+const NOME_DO_CAMPO: Record<CampoDaDivida, string> = { saldo: "saldo devedor", taxaMensal: "juros ao mês", parcelaMinima: "valor da parcela", parcelasRestantes: "parcelas que faltam" };
+
 export async function aceitarSugestao(
   pessoaId: string,
   chave: string,
@@ -450,6 +474,10 @@ export async function aceitarSugestao(
   vencimento?: number,
 ): Promise<Divida> {
   const { dados } = await sugestaoAberta(pessoaId, chave);
+  // Saldo e juros sempre; a parcela, no que é parcelado. Parcelas que faltam podem ficar para depois.
+  const obrigatorios: CampoDaDivida[] = ["saldo", "taxaMensal", ...(dados.tipo === "emprestimo" || dados.tipo === "parcelamento" ? (["parcelaMinima"] as const) : [])];
+  const faltam = dados.confira.filter((c) => obrigatorios.includes(c) && correcoes[c] === undefined);
+  if (faltam.length) throw new CamposAConferir(`Confira antes de adicionar: ${faltam.map((c) => NOME_DO_CAMPO[c]).join(", ")}.`);
   const dia = dados.vencimento ?? vencimento ?? 10;
   const criada = await prisma().divida.create({
     data: { pessoaId, ...camposDaDivida(dados, dados.conexaoId), vencimento: dia, correcoes: Object.keys(correcoes).length ? json(correcoes) : undefined },

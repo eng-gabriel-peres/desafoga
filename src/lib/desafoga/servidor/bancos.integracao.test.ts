@@ -220,6 +220,27 @@ describe.runIf(url)("bancos conectados no Postgres", () => {
     expect(await repo.conexoes(pessoaId)).toHaveLength(0);
   });
 
+  it("desconectar não deixa sobras: correções viram os valores, fatura do banco e avisos somem", async () => {
+    const { conexao, conta } = await conexaoComConta();
+    const { novos } = await repo.salvarMovimentos(pessoaId, [movimento(conta.id)]);
+    await repo.avisarDoMovimento(pessoaId, novos[0].id, "compra-banco", "Compra no banco", new Date());
+    await repo.salvarFatura(pessoaId, { id: `aberta:${conta.id}:2026-11`, tipo: "fatura", origem: "Cartão", mes: "2026-11", lancamentos: [], fonte: "pluggy", contaId: conta.id });
+    await repo.receberSugestaoDeDivida(pessoaId, { ...daPluggy, pluggyLoanId: `loan-${crypto.randomUUID()}` }, { conexaoId: conexao.id });
+    const [s] = await repo.sugestoes(pessoaId);
+    const divida = await repo.aceitarSugestao(pessoaId, s.chave);
+    await repo.corrigirDivida(pessoaId, divida.id, "saldo", 1500000);
+
+    await repo.apagarConexao(pessoaId, conexao.id);
+    const [d] = await repo.dividas(pessoaId);
+    expect(d).toMatchObject({ origem: "manual", saldo: 1500000 });
+    expect(d.correcoes ?? {}).toEqual({});
+    // Editar à mão depois de desconectar vale de verdade.
+    await repo.salvarDivida(pessoaId, { ...d, saldo: 1400000 });
+    expect((await repo.dividas(pessoaId))[0].saldo).toBe(1400000);
+    expect((await repo.faturas(pessoaId)).filter((f) => f.fonte === "pluggy")).toHaveLength(0);
+    expect(await repo.avisos([pessoaId], { apenas: ["compra-banco"] })).toHaveLength(0);
+  });
+
   it("modo das compras e regras", async () => {
     expect(await repo.modoCompras(pessoaId)).toBe("revisar");
     await repo.salvarModoCompras(pessoaId, "automatico");

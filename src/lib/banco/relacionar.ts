@@ -94,7 +94,8 @@ export function novaParcelada(c: CandidataParcelada, categoria: Categoria, fonte
   };
 }
 
-const MANUAL = new Set<Compra["via"]>(["app", "whatsapp"]);
+/** Compras que podem ser a mesma do banco: registradas à mão, pela fatura em PDF ou pelo próprio banco (ainda sem movimento ligado). */
+const REGISTRAVEIS = new Set<Compra["via"]>(["app", "whatsapp", "fatura", "banco"]);
 
 export function compraManualCorrespondente(
   alvo: { valor: number; data: string; parcelada: { valorTotal: number; valorParcela: number; compradaEm: string } | null },
@@ -102,7 +103,7 @@ export function compraManualCorrespondente(
   jaLigadas: Set<string>,
   folgaEmDias: 1 | 3,
 ): Compra | null {
-  const livres = compras.filter((c) => MANUAL.has(c.via) && !jaLigadas.has(c.id));
+  const livres = compras.filter((c) => REGISTRAVEIS.has(c.via) && !jaLigadas.has(c.id));
   const p = alvo.parcelada;
   if (p) {
     return (

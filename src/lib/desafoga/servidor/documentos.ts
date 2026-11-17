@@ -96,6 +96,12 @@ export async function salvarDocumento(
   classificacoes: Record<string, Classificacao>,
   contaId: string | null,
 ): Promise<{ parceladas: number; sugestoes: number }> {
+  // Sem cartão escolhido (chat, WhatsApp, ou a pessoa pulou): se o banco da fatura tem um único cartão conectado, é dele.
+  if (!contaId && enviada.tipo === "fatura") {
+    const banco = chaveDaInstituicao(enviada.origem);
+    const cartoes = (await repo.conexoes(pessoaId)).filter((c) => chaveDaInstituicao(c.banco) === banco).flatMap((c) => c.contas.filter((x) => x.tipo === "cartao"));
+    if (cartoes.length === 1) contaId = cartoes[0].id;
+  }
   const fatura: Fatura = { ...enviada, fonte: "documento", contaId, foraDosCalculos: false, lancamentos: enviada.lancamentos.map((l) => ({ ...l })) };
   const restantes = { ...classificacoes };
   const origem = contaId ?? origemDoDocumento(fatura.origem);
@@ -154,8 +160,8 @@ export async function salvarDocumento(
     }
   }
 
-  // A mesma fatura de novo substitui a anterior em vez de duplicar.
-  for (const antiga of (await repo.faturas(pessoaId)).filter((f) => f.fonte !== "pluggy" && mesmaFatura(f, fatura))) await repo.apagarFatura(antiga.id);
+  // A mesma fatura de novo substitui a anterior em vez de duplicar (a antiga só sai depois que a nova foi gravada).
+  const antigas = (await repo.faturas(pessoaId)).filter((f) => f.fonte !== "pluggy" && mesmaFatura(f, fatura));
 
   if (contaId) {
     const doBanco = (await repo.faturasDoCartao(pessoaId, contaId, fatura.mes)).find((f) => f.fonte === "pluggy");
@@ -171,6 +177,7 @@ export async function salvarDocumento(
     }
   }
   const salva = await repo.salvarFatura(pessoaId, fatura, restantes);
+  for (const antiga of antigas) await repo.apagarFatura(antiga.id);
 
   let sugestoes = 0;
   const novas: SugestaoDeDivida[] = [];

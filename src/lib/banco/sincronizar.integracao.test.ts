@@ -186,6 +186,39 @@ describe.runIf(url)("sincronizar com a Pluggy", () => {
     expect(daPluggy).toMatchObject({ mes: "2026-11", pagamentoMinimo: 18450, total: 100620 });
   });
 
+  it("um produto opcional que falha (empréstimos) não derruba a sincronização", async () => {
+    const r = await sync(cliente({ falharEm: ["emprestimos"] }));
+    expect(r.erro).toBeNull();
+    const [c] = await repo.conexoes(pessoaId);
+    expect(c.status).toBe("ok");
+    expect(c.ultimaSincronizacao).not.toBeNull();
+    expect((await repo.faturas(pessoaId)).some((f) => f.fonte === "pluggy")).toBe(true);
+  });
+
+  it("ao conectar o cartão, a parcelada e a fatura do PDF do mesmo banco passam para ele", async () => {
+    await repo.salvarParcelada(pessoaId, {
+      chave: "pdf",
+      origem: "doc:pluggybank",
+      fonte: "documento",
+      nome: "LOJA X",
+      lojaOriginal: "LOJA X",
+      categoria: "Outro",
+      valorTotal: 60000,
+      valorParcela: 10000,
+      totalParcelas: 6,
+      mesDaPrimeira: "2026-10",
+      compradaEm: "2026-10-01",
+      compradaEmEstimada: true,
+      compraId: null,
+      parcelasVistas: [2],
+    });
+    await repo.salvarFatura(pessoaId, { id: "pdf", tipo: "fatura", origem: "Pluggy Bank", mes: "2026-10", lancamentos: [], fonte: "documento", total: 50000 });
+    await sync();
+    const cartao = (await repo.conexoes(pessoaId))[0].contas.find((x) => x.tipo === "cartao")!;
+    expect((await repo.parceladas(pessoaId)).find((x) => x.chave === "pdf")?.origem).toBe(cartao.id);
+    expect((await repo.faturas(pessoaId)).find((f) => f.fonte === "documento")?.contaId).toBe(cartao.id);
+  });
+
   it("parcela de empréstimo na conta não é compra nem aviso", async () => {
     const c = cliente();
     const conta = Object.keys(c.dados.transacoes).find((k) => k.startsWith(CONTA))!;
