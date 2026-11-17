@@ -115,6 +115,9 @@ async function doBanco<T>(f: () => Promise<T>): Promise<T> {
   }
 }
 
+/** Avisos do banco que são para a própria pessoa agir (registrar compra, conferir dívida): não vão para o painel. */
+const AVISOS_DA_PESSOA = ["compra-banco", "divida-encontrada"];
+
 const modoCompras = z.enum(["revisar", "automatico", "desligado"]);
 const campoDaDivida = z.enum(["saldo", "taxaMensal", "parcelaMinima", "parcelasRestantes"]);
 const chave = z.string().min(1).max(200);
@@ -636,14 +639,14 @@ const ACOES = {
   // ----- avisos -----
   "avisos.listar": acao(z.tuple([]), async (_, { sessao }) => {
     const s = exigirSessao(sessao);
-    // A pessoa vê as sugestões que recebeu; o profissional, os avisos de quem acompanha.
-    if (s.pessoa) return repo.avisos([s.pessoa.id], { apenas: ["sugestao"] });
-    if (s.profissional) return repo.avisos((await repo.acompanhados(s.profissional.id)).map((x) => x.id), { exceto: ["sugestao"] });
+    // A pessoa vê as sugestões que recebeu e os avisos do banco; o profissional, os avisos de quem acompanha.
+    if (s.pessoa) return repo.avisos([s.pessoa.id], { apenas: ["sugestao", ...AVISOS_DA_PESSOA] });
+    if (s.profissional) return repo.avisos((await repo.acompanhados(s.profissional.id)).map((x) => x.id), { exceto: ["sugestao", ...AVISOS_DA_PESSOA] });
     return [];
   }),
   "avisos.daPessoa": acao(z.tuple([id]), async ([p], { sessao }) => {
     await exigirProfissionalDe(sessao, p);
-    return repo.avisos([p], { exceto: ["sugestao"] });
+    return repo.avisos([p], { exceto: ["sugestao", ...AVISOS_DA_PESSOA] });
   }),
 };
 

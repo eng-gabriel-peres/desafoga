@@ -53,21 +53,48 @@ export async function dadosDoBanco(pessoaId: string, agora = new Date()): Promis
 
 export const BANCO_ESCONDIDO: DadosDoBanco = { compartilhadas: false, configurado: false, modo: "revisar", conexoes: [], movimentos: [], parceladas: [], sugestoes: [] };
 
-export async function tokenDeConexao(pessoaId: string, demo: boolean, itemId?: string): Promise<{ token: string; incluirSandbox: boolean }> {
-  if (!pluggyConfigurado()) throw new RecusaDoBanco("Conexão com bancos indisponível neste ambiente.");
+const SEM_RESPOSTA = "Não consegui falar com a Pluggy agora (sem resposta). Tente de novo em instantes.";
+
+/** A Pluggy às vezes não responde (rede bloqueada, fora do ar): desiste em 15 s com uma mensagem clara. */
+async function comPrazo<T>(promessa: Promise<T>, ms = 15_000): Promise<T> {
+  let relogio: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promessa,
+      new Promise<never>((_, rejeitar) => {
+        relogio = setTimeout(() => rejeitar(new RecusaDoBanco(SEM_RESPOSTA)), ms);
+      }),
+    ]);
+  } catch (e) {
+    if (e instanceof RecusaDoBanco) throw e;
+    console.error("Desafoga: Pluggy falhou,", e instanceof Error ? e.message.slice(0, 200) : "erro");
+    throw new RecusaDoBanco(SEM_RESPOSTA);
+  } finally {
+    clearTimeout(relogio);
+  }
+}
+
+export async function tokenDeConexao(
+  pessoaId: string,
+  demo: boolean,
+  itemId?: string,
+  cliente?: ClientePluggy,
+  configurado = pluggyConfigurado(),
+): Promise<{ token: string; incluirSandbox: boolean }> {
+  if (!configurado) throw new RecusaDoBanco("Conexão com bancos indisponível neste ambiente.");
   if (itemId) {
     const minha = (await repo.conexoes(pessoaId)).some((c) => c.pluggyItemId === itemId);
     if (!minha) throw new RecusaDoBanco("Banco não encontrado.");
   } else if (demo && (await repo.conexoes(pessoaId)).some((c) => c.pluggyItemId)) {
     throw new RecusaDoBanco("Na demonstração dá para conectar um banco só.");
   }
-  const token = await clientePluggy().tokenDeConexao({ itemId, clientUserId: pessoaId, webhookUrl: urlDoWebhook() ?? undefined });
+  const token = await comPrazo((cliente ?? clientePluggy()).tokenDeConexao({ itemId, clientUserId: pessoaId, webhookUrl: urlDoWebhook() ?? undefined }));
   return { token, incluirSandbox: demo || process.env.PLUGGY_SANDBOX === "1" };
 }
 
 /** A janela da Pluggy terminou: confere que o item é desta pessoa, cria a conexão e lê o banco. */
 export async function conectado(pessoaId: string, itemId: string, cliente: ClientePluggy = clientePluggy()): Promise<ResultadoDaSincronizacao> {
-  const item = await cliente.item(itemId);
+  const item = await comPrazo(cliente.item(itemId));
   // O token de conexão sempre leva o id da pessoa (clientUserId): item sem ele, ou de outra pessoa, é recusado.
   if (item.clientUserId !== pessoaId) throw new RecusaDoBanco("Esse banco não foi conectado por você.");
   const c = await repo.criarConexao(pessoaId, { pluggyItemId: itemId, banco: item.connector?.name ?? "Banco", logo: item.connector?.imageUrl ?? null });

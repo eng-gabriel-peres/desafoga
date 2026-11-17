@@ -97,6 +97,11 @@ export function BancosConectados({ pessoaId, dados, demo, agora, somenteLeitura 
       )}
 
       <div aria-live="polite">
+        {estado.etapa === "janela" && (
+          <p className="mb-3 flex items-center gap-2 text-muted">
+            <LoaderCircle aria-hidden="true" className="size-4 animate-spin" /> Abrindo a conexão com o banco…
+          </p>
+        )}
         {estado.etapa === "lendo" && (
           <p className="mb-3 flex items-center gap-2 text-muted">
             <LoaderCircle aria-hidden="true" className="size-4 animate-spin" /> Lendo seu banco…

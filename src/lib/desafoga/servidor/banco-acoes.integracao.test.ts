@@ -174,6 +174,15 @@ describe.runIf(url)("ações dos bancos conectados", () => {
     expect(await repo.conexoes(p)).toHaveLength(1);
   });
 
+  it("Pluggy fora do ar: abrir a conexão falha com mensagem clara", async () => {
+    const { tokenDeConexao, RecusaDoBanco } = await import("./banco-acoes");
+    const { clienteFalso } = await import("@/lib/banco/cliente-falso");
+    const ana = await entrar("ana");
+    const erro = await tokenDeConexao(ana.pessoa!.id, true, undefined, clienteFalso({ falhar: true }), true).catch((e: unknown) => e);
+    expect(erro).toBeInstanceOf(RecusaDoBanco);
+    expect((erro as Error).message).toMatch(/Pluggy/);
+  });
+
   it("simular compra do banco só na demonstração", async () => {
     const ana = await entrar("ana");
     const antes = (await repo.movimentos(ana.pessoa!.id, { situacao: ["revisar"] })).length;
@@ -185,6 +194,18 @@ describe.runIf(url)("ações dos bancos conectados", () => {
     await executar("sessao.criarConta" as never, [{ tipo: "pessoa", nome: "Real", apelido: "Real", idade: 30 }], { rede: null, sessao: null, definirSessao: (s) => (nova = s) });
     const real = await sessaoDe(nova!);
     await expect(chamar("banco.simularCompra", [real.pessoa!.id], real)).rejects.toThrow();
+  });
+
+  it("o aviso de compra do banco aparece no sino da pessoa e não no painel da profissional", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    await chamar("banco.simularCompra", [p], ana);
+    const meus = (await chamar("avisos.listar", [], ana)) as { tipo: string }[];
+    expect(meus.some((a) => a.tipo === "compra-banco")).toBe(true);
+    const paula = await entrar("paula", ana);
+    const dela = (await chamar("avisos.daPessoa", [p], paula)) as { tipo: string }[];
+    const doPainel = (await chamar("avisos.listar", [], paula)) as { tipo: string }[];
+    expect([...dela, ...doPainel].some((a) => a.tipo === "compra-banco" || a.tipo === "divida-encontrada")).toBe(false);
   });
 
   it("trocar para 'não usar compras' tira os avisos pendentes", async () => {
