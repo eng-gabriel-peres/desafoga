@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { consumir, redeConfiavel } from "@/lib/limite";
 import { exigirAPropriaPessoa, SemPermissao, SemSessao } from "@/lib/desafoga/servidor/acesso";
-import { ArquivoRecusado, lerFatura, receberArquivoNoChat, receberAudioNoChat } from "@/lib/desafoga/servidor/acoes";
+import { ArquivoRecusado, lerDocumentoDaPessoa, lerFatura, receberArquivoNoChat, receberAudioNoChat } from "@/lib/desafoga/servidor/acoes";
 import { NaoEncontrado } from "@/lib/desafoga/servidor/repositorio";
 import { acaoExiste, ErroDeEntrada, executar, recursoDa, type Contexto } from "@/lib/desafoga/servidor/rotas";
 import { COOKIE_DA_SESSAO, lerSessao, type NovaSessao, type SessaoAtual } from "@/lib/desafoga/servidor/sessao";
@@ -10,7 +10,7 @@ import { COOKIE_DA_SESSAO, lerSessao, type NovaSessao, type SessaoAtual } from "
 export const maxDuration = 180;
 
 /** Ações que recebem arquivo (multipart): fatura e mensagem de voz. */
-const COM_ARQUIVO = { "faturas.ler": "arquivo", "assistente.enviarArquivo": "arquivo", "assistente.enviarAudio": "audio" } as const;
+const COM_ARQUIVO = { "faturas.ler": "arquivo", "documentos.ler": "arquivo", "assistente.enviarArquivo": "arquivo", "assistente.enviarAudio": "audio" } as const;
 type ComArquivo = keyof typeof COM_ARQUIVO;
 
 const erro = (mensagem: string, status: number) => NextResponse.json({ erro: mensagem }, { status });
@@ -89,6 +89,13 @@ async function comArquivo(acao: ComArquivo, sessao: SessaoAtual | null, request:
   const lido = arquivo instanceof File ? { bytes: new Uint8Array(await arquivo.arrayBuffer()), mime: arquivo.type, nome: arquivo.name } : null;
 
   if (acao === "faturas.ler") return lerFatura(pessoaId, lido);
+  if (acao === "documentos.ler") {
+    // Documento de exemplo só na demonstração.
+    const exemplo = formulario.get("exemplo");
+    const pedido = exemplo === "fatura" || exemplo === "registrato" || exemplo === "contrato" ? exemplo : undefined;
+    if (pedido && !sessao?.demo) throw new ErroDeEntrada("Exemplo só na demonstração.");
+    return lerDocumentoDaPessoa(pessoaId, lido, pedido);
+  }
   if (!lido) throw new ErroDeEntrada('Envie o campo "arquivo".');
   if (acao === "assistente.enviarArquivo") return receberArquivoNoChat(pessoaId, "app", lido);
   return receberAudioNoChat(pessoaId, "app", lido);

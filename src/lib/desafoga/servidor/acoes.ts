@@ -2,17 +2,16 @@
  * A Luana no servidor: texto, arquivo e áudio, no app e no WhatsApp, com os
  * dados no banco. Quem chama já conferiu a permissão (acesso.ts).
  */
-import { FATURA_DE_EXEMPLO, materializarFatura } from "@/fixtures/desafoga";
 import { gerarTexto } from "@/lib/ia/gemini";
 import { ESTADO_INICIAL } from "@/lib/assistente/conversa";
-import { lerAudio, lerDocumento, lerMensagem } from "@/lib/luana/ler";
+import { lerAudio, lerMensagem } from "@/lib/luana/ler";
 import { TIPOS_DE_AUDIO, TAMANHO_MAXIMO } from "@/lib/luana/luana";
 import type { Fatura, Mensagem } from "@/services/tipos";
 import { conversar, type Canal, type DadosDaConversa, type IaDaConversa } from "../conversar";
-import { paraFatura, respostaDaFatura } from "../fatura-lida";
+import { respostaDaFatura, respostaDasDividas } from "../fatura-lida";
+import { ArquivoRecusado, lerDocumentoEnviado, salvarDocumento, type ExemploDeDocumento, type LeituraDeDocumento } from "./documentos";
 import * as repo from "./repositorio";
 
-const TIPOS_DE_DOCUMENTO = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 const hoje = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
 
 /** Gemini, quando há chave; sem chave, a Luana responde só por regras. */
@@ -62,24 +61,21 @@ export async function testarResposta(pessoaId: string, texto: string): Promise<s
   return respostas.join("\n\n");
 }
 
-export class ArquivoRecusado extends Error {}
+export { ArquivoRecusado };
 
-/** Lê uma fatura, extrato ou print. Com IA, lê o arquivo de verdade; sem IA (ou sem arquivo), usa o exemplo. */
+/** Lê qualquer documento (fatura, extrato, print, Registrato, contrato). Sem IA (ou sem arquivo), usa o exemplo. */
+export async function lerDocumentoDaPessoa(pessoaId: string, arquivo: { bytes: Uint8Array; mime: string } | null, exemplo?: ExemploDeDocumento): Promise<LeituraDeDocumento> {
+  return lerDocumentoEnviado(pessoaId, arquivo, { exemplo, comIa: Boolean(iaDisponivel()) });
+}
+
+/**
+ * Leitura pela tela de fatura (formato antigo). Registrato e contrato vão
+ * direto para Dívidas: a pessoa recebe o aviso em vez da tela de fatura.
+ */
 export async function lerFatura(pessoaId: string, arquivo: { bytes: Uint8Array; mime: string } | null): Promise<{ fatura: Fatura; deExemplo: boolean }> {
-  const agora = new Date();
-  if (arquivo) {
-    if (!TIPOS_DE_DOCUMENTO.includes(arquivo.mime)) throw new ArquivoRecusado("Só leio PDF ou foto (JPG, PNG, WebP).");
-    if (arquivo.bytes.byteLength > TAMANHO_MAXIMO) throw new ArquivoRecusado("O arquivo passa de 4 MB.");
-  }
-  if (arquivo && iaDisponivel()) {
-    const doc = await lerDocumento(arquivo.bytes, arquivo.mime, hoje());
-    if (!doc.legivel || doc.lancamentos.length === 0) {
-      throw new ArquivoRecusado("Não achei lançamentos nesse arquivo. Mande a fatura em PDF ou um print nítido.");
-    }
-    return { fatura: paraFatura(doc, await repo.compras(pessoaId), agora, crypto.randomUUID()), deExemplo: false };
-  }
-  // Exemplo só faz sentido nos dados de demonstração; em conta real, sem IA, avisamos.
-  return { fatura: { ...materializarFatura(FATURA_DE_EXEMPLO, agora), id: crypto.randomUUID() }, deExemplo: true };
+  const lida = await lerDocumentoDaPessoa(pessoaId, arquivo);
+  if (lida.tipo === "dividas") throw new ArquivoRecusado(respostaDasDividas(lida, "app"));
+  return { fatura: lida.fatura, deExemplo: lida.deExemplo };
 }
 
 /** Arquivo mandado no chat (app ou WhatsApp): lê, guarda e responde com o resumo. */
@@ -91,10 +87,16 @@ export async function receberArquivoNoChat(
   if (canal === "app") await repo.guardarMensagens(pessoaId, canal, [{ de: "pessoa", texto: `Arquivo: ${arquivo.nome}` }]);
   let resposta: string;
   try {
-    const lida = await lerFatura(pessoaId, arquivo);
-    await repo.salvarFatura(pessoaId, lida.fatura);
-    resposta =
-      respostaDaFatura(lida.fatura, canal) + (lida.deExemplo ? "\n(Demonstração sem IA: li um extrato de exemplo no lugar do arquivo.)" : "");
+    const lida = await lerDocumentoDaPessoa(pessoaId, arquivo);
+    if (lida.tipo === "dividas") {
+      resposta = respostaDasDividas(lida, canal);
+    } else {
+      const { parceladas } = await salvarDocumento(pessoaId, lida.fatura, {}, null);
+      resposta =
+        respostaDaFatura(lida.fatura, canal) +
+        (parceladas ? `\n${parceladas} ${parceladas === 1 ? "compra parcelada entrou" : "compras parceladas entraram"} nos próximos meses.` : "") +
+        (lida.deExemplo ? "\n(Demonstração sem IA: li um extrato de exemplo no lugar do arquivo.)" : "");
+    }
   } catch (erro) {
     resposta = erro instanceof ArquivoRecusado ? erro.message : "Não consegui ler o arquivo agora. Tente de novo em instantes.";
   }

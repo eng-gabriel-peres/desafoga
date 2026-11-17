@@ -10,6 +10,7 @@ import { situacaoDaMeta } from "@/lib/finance";
 import type { Fatura } from "@/services/tipos";
 import { exigirAPropriaPessoa, exigirProfissionalDe, exigirSessao, exigirVer, SemPermissao } from "./acesso";
 import { responderTexto, testarResposta } from "./acoes";
+import { salvarDocumento } from "./documentos";
 import { enviarPeloWhatsapp, whatsappConfigurado } from "./enviar";
 import { registros } from "./registros";
 import * as repo from "./repositorio";
@@ -64,6 +65,8 @@ const lancamento = z.object({
   tipo: z.enum(["compra", "juros", "iof", "tarifa", "assinatura", "pagamento", "parcela_emprestimo"]),
   categoria: categoria.optional(),
   compraId: z.string().max(80).nullable().optional(),
+  parcela: z.number().int().min(1).max(999).optional(),
+  totalParcelas: z.number().int().min(2).max(999).optional(),
 });
 const fatura = z.object({
   id: z.string().max(80),
@@ -71,6 +74,10 @@ const fatura = z.object({
   origem: z.string().max(120),
   mes: z.string().regex(/^\d{4}-\d{2}$/),
   lancamentos: z.array(lancamento).max(500),
+  vencimento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  total: centavos.nullable().optional(),
+  pagamentoMinimo: centavos.nullable().optional(),
+  taxaRotativoMensal: z.number().min(0).max(1).nullable().optional(),
 });
 
 export class ErroDeEntrada extends Error {}
@@ -453,10 +460,13 @@ const ACOES = {
     return repo.faturas(p);
   }),
   "faturas.salvar": acao(
-    z.tuple([id, fatura, z.record(z.string(), z.object({ emocao: emocao.optional(), necessidade: necessidade.optional() }))]),
-    async ([p, f, c], { sessao }) => {
+    z.tuple([id, fatura, z.record(z.string(), z.object({ emocao: emocao.optional(), necessidade: necessidade.optional() })), id.nullable().optional()]),
+    async ([p, f, c, contaId], { sessao }) => {
       exigirAPropriaPessoa(sessao, p);
-      await repo.salvarFatura(p, f as Fatura, c);
+      // O cartão escolhido tem que ser desta pessoa.
+      const conta = contaId ? (await repo.conexoes(p)).flatMap((x) => x.contas).find((x) => x.id === contaId && x.tipo === "cartao") : null;
+      if (contaId && !conta) throw new ErroDeEntrada("Cartão não encontrado.");
+      return salvarDocumento(p, f as Fatura, c, conta?.id ?? null);
     },
   ),
 

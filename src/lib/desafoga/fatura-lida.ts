@@ -99,3 +99,27 @@ export function respostaDaFatura(fatura: Fatura, canal: "app" | "whatsapp"): str
   linhas.push("Seu raio-x das dívidas já foi atualizado.");
   return linhas.join("\n");
 }
+
+/** Resposta para Registrato ou contrato lido: as dívidas foram para a tela de Dívidas, para confirmar. */
+export function respostaDasDividas(
+  lida: { fonte: "registrato" | "contrato"; sugestoes: { instituicao: string; saldo: number; vencido: number | null; parcelaMinima: number; parcelasRestantes: number | null }[] },
+  canal: "app" | "whatsapp",
+): string {
+  const negrito = (t: string) => (canal === "whatsapp" ? `*${t}*` : t);
+  if (lida.fonte === "contrato") {
+    const s = lida.sugestoes[0];
+    const parcela = s.parcelaMinima ? `parcela de ${negrito(reais(s.parcelaMinima))}` : "parcela a conferir";
+    const faltam = s.parcelasRestantes ? `, faltam ${s.parcelasRestantes}` : "";
+    return `Li o contrato do ${s.instituicao}: ${parcela}${faltam}. Confirme em Dívidas.`;
+  }
+  const instituicoes = new Set(lida.sugestoes.map((s) => s.instituicao)).size;
+  const aVencer = lida.sugestoes.reduce((t, s) => t + s.saldo - (s.vencido ?? 0), 0);
+  const vencido = lida.sugestoes.reduce((t, s) => t + (s.vencido ?? 0), 0);
+  const n = lida.sugestoes.length;
+  return (
+    `Li seu Registrato: ${n} ${n === 1 ? "contrato" : "contratos"} em ${instituicoes} ${instituicoes === 1 ? "instituição" : "instituições"}, ` +
+    `${negrito(reais(aVencer))} a vencer` +
+    (vencido ? ` e ${negrito(reais(vencido))} vencidos` : "") +
+    ". Confirme em Dívidas."
+  );
+}
