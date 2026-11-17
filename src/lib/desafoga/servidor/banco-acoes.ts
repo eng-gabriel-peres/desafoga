@@ -4,7 +4,7 @@
  * Quem pode chamar é conferido antes, em `rotas.ts`.
  */
 import { categoriaDe, chaveDaDescricao } from "@/lib/banco/classificar";
-import { clientePluggy, pluggyConfigurado } from "@/lib/banco/pluggy";
+import { clientePluggy, pluggyConfigurado, type ClientePluggy } from "@/lib/banco/pluggy";
 import { sincronizar, tratarCompraNova, type ResultadoDaSincronizacao } from "@/lib/banco/sincronizar";
 import type { CompraParcelada, ConexaoBancaria, ModoCompras, Movimento } from "@/lib/banco/tipos";
 import { urlDoWebhook } from "@/lib/banco/webhook";
@@ -66,11 +66,12 @@ export async function tokenDeConexao(pessoaId: string, demo: boolean, itemId?: s
 }
 
 /** A janela da Pluggy terminou: confere que o item é desta pessoa, cria a conexão e lê o banco. */
-export async function conectado(pessoaId: string, itemId: string): Promise<ResultadoDaSincronizacao> {
-  const item = await clientePluggy().item(itemId);
-  if (item.clientUserId && item.clientUserId !== pessoaId) throw new RecusaDoBanco("Esse banco foi conectado por outra pessoa.");
+export async function conectado(pessoaId: string, itemId: string, cliente: ClientePluggy = clientePluggy()): Promise<ResultadoDaSincronizacao> {
+  const item = await cliente.item(itemId);
+  // O token de conexão sempre leva o id da pessoa (clientUserId): item sem ele, ou de outra pessoa, é recusado.
+  if (item.clientUserId !== pessoaId) throw new RecusaDoBanco("Esse banco não foi conectado por você.");
   const c = await repo.criarConexao(pessoaId, { pluggyItemId: itemId, banco: item.connector?.name ?? "Banco", logo: item.connector?.imageUrl ?? null });
-  return sincronizar(c.id);
+  return sincronizar(c.id, { cliente });
 }
 
 export async function atualizar(pessoaId: string, conexaoId: string): Promise<ResultadoDaSincronizacao | null> {

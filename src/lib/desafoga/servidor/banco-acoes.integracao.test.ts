@@ -156,6 +156,24 @@ describe.runIf(url)("ações dos bancos conectados", () => {
     expect(d).toMatchObject({ origem: "documento", saldo: 1500000, taxaMensal: 0.03, parcelasRestantes: 36, temSeguro: true });
   });
 
+  it("conectar só aceita item da Pluggy criado para esta pessoa", async () => {
+    const { conectado } = await import("./banco-acoes");
+    const { clienteFalso } = await import("@/lib/banco/cliente-falso");
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    const sem = clienteFalso();
+    sem.dados.item = { ...sem.dados.item, clientUserId: null } as never;
+    await expect(conectado(p, "item-x", sem)).rejects.toThrow();
+    const deOutra = clienteFalso();
+    deOutra.dados.item = { ...deOutra.dados.item, clientUserId: "outra-pessoa" };
+    await expect(conectado(p, "item-y", deOutra)).rejects.toThrow();
+    expect(await repo.conexoes(p)).toHaveLength(0);
+    const minha = clienteFalso({ contas: [], transacoes: {}, emprestimos: [] });
+    minha.dados.item = { ...minha.dados.item, clientUserId: p };
+    expect((await conectado(p, `item-${p}`, minha)).erro).toBeNull();
+    expect(await repo.conexoes(p)).toHaveLength(1);
+  });
+
   it("simular compra do banco só na demonstração", async () => {
     const ana = await entrar("ana");
     const antes = (await repo.movimentos(ana.pessoa!.id, { situacao: ["revisar"] })).length;
