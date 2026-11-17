@@ -3,7 +3,8 @@
  * fatura aberta de cada cartão. Idempotente: rodar duas vezes não duplica
  * nada. Chamada pelo webhook, ao abrir o app e pelo botão "Atualizar".
  */
-import { avisoDeCompraDoBanco, avisoDeDividaEncontrada, mensagemDeCompraDoBanco } from "@/lib/assistente/textos";
+import { avisoDeCompraDoBanco, avisoDeConsentimento, avisoDeDividaEncontrada, avisoDeLimiteDoCartao, avisoDeSeguro, mensagemDeCompraDoBanco } from "@/lib/assistente/textos";
+import { rendaDetectada, usoDoLimite } from "./extras";
 import { fundirFaturas, type Compra, type Fatura, type Lancamento } from "@/lib/finance";
 import * as repo from "@/lib/desafoga/servidor/repositorio";
 import { categoriaDe, chaveDaDescricao, naturezaDe } from "./classificar";
@@ -142,7 +143,27 @@ export async function sincronizar(
         resultado.sugestoes++;
         await repo.avisar(pessoaId, "divida-encontrada", avisoDeDividaEncontrada(s.nome, s.saldo), agora);
       }
+      if (s.temSeguro) await repo.avisarUmaVez(pessoaId, `seguro:${s.pluggyLoanId ?? s.chave}`, "seguro", avisoDeSeguro(s.nome), agora);
     }
+
+    // Extras: limite do cartão, autorização vencendo e renda percebida.
+    await semDerrubar("extras", async () => {
+      const mes = diaEmBrasilia(agora).slice(0, 7);
+      for (const c of contas) {
+        const uso = usoDoLimite(c);
+        if (uso && uso.fracao >= 0.8) {
+          await repo.avisarUmaVez(pessoaId, `limite:${c.id}:${mes}`, "limite-cartao", avisoDeLimiteDoCartao(c.nome, uso.fracao, uso.limite - uso.usado), agora);
+        }
+      }
+      const consentimento = (item as { consentExpiresAt?: Date | string | null }).consentExpiresAt;
+      if (consentimento) {
+        const dias = Math.ceil((new Date(consentimento).getTime() - agora.getTime()) / DIA);
+        if (dias <= 15) await repo.avisarUmaVez(pessoaId, `consentimento:${conexaoId}:${diaEmBrasilia(new Date(consentimento))}`, "consentimento", avisoDeConsentimento(banco, dias), agora);
+      }
+      const recentes = await repo.movimentos(pessoaId, { desde: diaEmBrasilia(new Date(agora.getTime() - 120 * DIA)) });
+      const renda = rendaDetectada(recentes);
+      if (renda) await repo.sugerirRenda(pessoaId, renda.valor, renda.dia);
+    });
 
     // Investimentos (poupança, CDB, fundos): podem ser ligados a metas.
     await semDerrubar("investimentos", async () => {

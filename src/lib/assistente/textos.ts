@@ -207,3 +207,17 @@ export function avisoDeCompraDoBanco(item: string, valor: number): string {
 export function avisoDeDividaEncontrada(nome: string, saldo: number): string {
   return `Achei uma dívida: ${nome}, saldo de ${reais(saldo)}. Confira em Dívidas.`;
 }
+
+export function avisoDeLimiteDoCartao(cartao: string, fracao: number, disponivel: number): string {
+  return `Você já usou ${Math.round(fracao * 100)}% do limite do ${cartao}. Restam ${reais(disponivel)} até a fatura fechar.`;
+}
+
+export function avisoDeConsentimento(banco: string, dias: number): string {
+  return dias <= 0
+    ? `A autorização do ${banco} venceu. Reconecte em Contas para continuar vendo as compras.`
+    : `A autorização do ${banco} vence em ${dias} ${dias === 1 ? "dia" : "dias"}. Renove em Contas para não perder as atualizações.`;
+}
+
+export function avisoDeSeguro(nome: string): string {
+  return `${nome} tem seguro contratado junto. Vale perguntar ao banco se ele é obrigatório: muitas vezes dá para cancelar e baixar a parcela.`;
+}

@@ -116,7 +116,7 @@ async function doBanco<T>(f: () => Promise<T>): Promise<T> {
 }
 
 /** Avisos do banco que são para a própria pessoa agir (registrar compra, conferir dívida): não vão para o painel. */
-const AVISOS_DA_PESSOA = ["compra-banco", "divida-encontrada"];
+const AVISOS_DA_PESSOA = ["compra-banco", "divida-encontrada", "limite-cartao", "consentimento", "seguro"];
 
 const modoCompras = z.enum(["revisar", "automatico", "desligado"]);
 const campoDaDivida = z.enum(["saldo", "taxaMensal", "parcelaMinima", "parcelasRestantes"]);

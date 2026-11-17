@@ -667,3 +667,43 @@ export async function ligarInvestimentos(pessoaId: string, metaId: string, ids: 
   const r = await prisma().meta.updateMany({ where: { id: metaId, pessoaId }, data: { investimentos: [...new Set(ids)] } });
   if (!r.count) throw new NaoEncontrado("Meta não encontrada.");
 }
+
+// ---------- avisos únicos e renda ----------
+
+/** Aviso que não se repete: a chave vai em `referencia`. Devolve false se já existia. */
+export async function avisarUmaVez(pessoaId: string, chave: string, tipo: string, texto: string, quando = new Date()): Promise<boolean> {
+  if (await prisma().aviso.count({ where: { pessoaId, referencia: chave } })) return false;
+  await prisma().aviso.create({ data: { pessoaId, tipo, texto, quando, referencia: chave } });
+  return true;
+}
+
+/**
+ * Renda percebida no banco: vira sugestão se for diferente da cadastrada (mais de 10% ou outro dia).
+ * Dispensada com o mesmo valor não volta.
+ */
+export async function sugerirRenda(pessoaId: string, valor: number, dia: number): Promise<void> {
+  const atual = await prisma().pessoa.findUniqueOrThrow({ where: { id: pessoaId }, select: { rendaMensal: true, diaDaRenda: true } });
+  const igual = atual.rendaMensal !== null && Math.abs(atual.rendaMensal - valor) <= atual.rendaMensal * 0.1 && atual.diaDaRenda !== null && Math.abs(atual.diaDaRenda - dia) <= 2;
+  const existente = await prisma().sugestao.findUnique({ where: { pessoaId_chave: { pessoaId, chave: "renda" } } });
+  if (igual) {
+    if (existente?.situacao === "aberta") await prisma().sugestao.delete({ where: { id: existente.id } });
+    return;
+  }
+  const dados = json({ valor, dia });
+  if (!existente) {
+    await prisma().sugestao.create({ data: { pessoaId, chave: "renda", tipo: "renda", dados } });
+    return;
+  }
+  const antes = existente.dados as { valor: number; dia: number };
+  const mudou = Math.abs(antes.valor - valor) > antes.valor * 0.1 || antes.dia !== dia;
+  if (existente.situacao === "aberta" || mudou) await prisma().sugestao.update({ where: { id: existente.id }, data: { dados, situacao: "aberta" } });
+}
+
+/** A pessoa confirma a renda sugerida. */
+export async function aceitarRenda(pessoaId: string): Promise<void> {
+  const s = await prisma().sugestao.findUnique({ where: { pessoaId_chave: { pessoaId, chave: "renda" } } });
+  if (!s || s.situacao !== "aberta") throw new NaoEncontrado("Sugestão não encontrada.");
+  const { valor, dia } = s.dados as { valor: number; dia: number };
+  await prisma().pessoa.update({ where: { id: pessoaId }, data: { rendaMensal: valor, diaDaRenda: dia } });
+  await prisma().sugestao.update({ where: { id: s.id }, data: { situacao: "aceita" } });
+}

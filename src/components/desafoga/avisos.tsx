@@ -1,4 +1,4 @@
-import { CreditCard, FileSearch, Frown, HeartHandshake, Lightbulb, Target, TriangleAlert, Wallet, type LucideIcon } from "lucide-react";
+import { CreditCard, FileSearch, Frown, Gauge, KeyRound, ShieldAlert, HeartHandshake, Lightbulb, Target, TriangleAlert, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { quando } from "@/lib/formatar";
 import type { Aviso, TipoAviso } from "@/services";
@@ -12,6 +12,9 @@ const ICONE: Record<TipoAviso, [LucideIcon, string]> = {
   checkin: [Frown, "text-maybe"],
   "compra-banco": [CreditCard, "text-primary"],
   "divida-encontrada": [FileSearch, "text-maybe"],
+  "limite-cartao": [Gauge, "text-maybe"],
+  consentimento: [KeyRound, "text-maybe"],
+  seguro: [ShieldAlert, "text-maybe"],
 };
 
 export function ListaDeAvisos({ avisos, agora, vazio = "Nenhum aviso ainda." }: { avisos: Aviso[]; agora: Date; vazio?: string }) {
@@ -32,7 +35,12 @@ export function ListaDeAvisos({ avisos, agora, vazio = "Nenhum aviso ainda." }: 
                   Registrar em Hoje
                 </Link>
               )}
-              {a.tipo === "divida-encontrada" && (
+              {(a.tipo === "limite-cartao" || a.tipo === "consentimento") && (
+                <Link href="/app/contas" className="text-[0.88rem] font-bold text-primary">
+                  Ver em Contas
+                </Link>
+              )}
+              {(a.tipo === "divida-encontrada" || a.tipo === "seguro") && (
                 <Link href="/app/dividas" className="text-[0.88rem] font-bold text-primary">
                   Conferir em Dívidas
                 </Link>

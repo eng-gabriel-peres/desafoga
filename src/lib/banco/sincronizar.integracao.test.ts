@@ -258,6 +258,33 @@ describe.runIf(url)("sincronizar com a Pluggy", () => {
     await expect(repo.ligarInvestimentos(pessoaId, meta.id, ["nao-existe"])).rejects.toThrow();
   });
 
+  it("avisa uma vez: limite do cartão acima de 80%, autorização vencendo e seguro no empréstimo", async () => {
+    const c = cliente();
+    const cartao = c.dados.contas.find((x) => x.type === "CREDIT")!;
+    cartao.creditData = { ...cartao.creditData!, creditLimit: 3000, availableCreditLimit: 400 };
+    c.dados.item = { ...c.dados.item, consentExpiresAt: new Date(AGORA.getTime() + 10 * 86_400_000) } as typeof c.dados.item;
+    await sync(c);
+    await sync(c);
+    const avisos = await repo.avisos([pessoaId]);
+    expect(avisos.filter((a) => a.tipo === "limite-cartao")).toHaveLength(1);
+    expect(avisos.filter((a) => a.tipo === "consentimento")).toHaveLength(1);
+    expect(avisos.filter((a) => a.tipo === "seguro")).toHaveLength(1);
+    expect(avisos.find((a) => a.tipo === "limite-cartao")!.texto).toMatch(/87%/);
+  });
+
+  it("salário recorrente vira sugestão de renda; igual à cadastrada, não", async () => {
+    // O banco de teste tem "SALARIO EMPRESA XYZ LTDA" de R$ 8.500 todo dia 5.
+    const c = cliente();
+    await sync(c);
+    const renda = (await repo.sugestoes(pessoaId)).find((x) => x.tipo === "renda");
+    expect(renda?.dados).toMatchObject({ valor: 850000, dia: 5 });
+    // Aceitar grava a renda e a sugestão some.
+    await repo.aceitarRenda(pessoaId);
+    expect(await repo.renda(pessoaId)).toEqual({ valor: 850000, dia: 5 });
+    await sync(c);
+    expect((await repo.sugestoes(pessoaId)).filter((x) => x.tipo === "renda")).toHaveLength(0);
+  });
+
   it("parcela de empréstimo na conta não é compra nem aviso", async () => {
     const c = cliente();
     const conta = Object.keys(c.dados.transacoes).find((k) => k.startsWith(CONTA))!;
