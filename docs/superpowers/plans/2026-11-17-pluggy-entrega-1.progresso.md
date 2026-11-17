@@ -35,3 +35,42 @@ Task 12: Ruling: a profissional que não vê as contas recebe BANCO_ESCONDIDO (l
 Task 12: complete (commits 09dafa3..09d580a, tests: pnpm test →    Duration  2.68s (tests 83%, import 11%, transform 5%, worker 1%))
 Task 12 (fix): Ruling: revisão de segurança automática — banco.conectado era fail-open (item sem clientUserId passava). Agora exige clientUserId === pessoa; teste RED→GREEN em banco-acoes.integracao.
 Task 13: EM ANDAMENTO (pausa do usuário). Feito: bancos-conectados.tsx, conectar.tsx (portal no body), atualizar-ao-abrir.tsx, use-pessoa com banco, Contas mostra o bloco, menu do perfil. Falta: verificar no navegador conectar o Pluggy Bank (user-ok/password-ok), trocar modo, desconectar, celular 390px; depois commit final da T13.
+Task 13: Ruling: conectar o Pluggy Bank no navegador NÃO verificado — a rede atual não alcança api.pluggy.ai nem connect.pluggy.ai (timeout; Google/Gemini respondem). Verificado: janela abre por cima (portal no body; antes ficava presa no painel), erro claro em 15 s quando a Pluggy não responde (teste RED→GREEN), simular compra → aviso no sino, troca de modo tira o aviso, celular 390px sem rolagem lateral. Custo se errado: algum detalhe da janela real da Pluggy só aparece com a rede liberada.
+Task 13: Ruling: avisos compra-banco/divida-encontrada vão para o sino da pessoa e ficam fora do painel da profissional (são para a pessoa agir) — teste RED→GREEN.
+Task 13: complete (commits 09d580a..e3bbf81, tests: pnpm test →    Duration  9.31s (tests 86%, import 11%, transform 3%, worker 1%))
+Task 14: Ruling: PreviaDoRegistro ganhou `tipo` ("banco" | "completar") — o "completar emoção" das compras automáticas reaproveita a mesma janela começando no passo 2. Chamadas antigas onClick={abrirRegistro} viraram () => abrirRegistro() (senão o evento de clique virava prévia).
+Task 14: Ruling: compras do banco não mostram hora (o banco só informa o dia); nota do dia conta só compras com emoção; avisos compra-banco/divida-encontrada têm link para Hoje/Dívidas; texto da Luana aponta "Compras para revisar" em vez de "toque para registrar" (no chat não há botão).
+Task 14: Verificado no navegador: revisar → registrar trocando categoria (Mercado→Casa), ignorar, modo automático + completar emoção, orçamento contando compra não revisada, celular 390px. NÃO verificado visualmente: tela da fatura em PDF com parcelas/números e a pergunta do cartão (precisa de PDF real + cartão conectado; coberto por tipos e pelos testes do servidor) e a lista de parceladas (fica para a demo da T16).
+Task 14: complete (commits e3bbf81..a168c02, tests: pnpm test →    Duration  4.43s (tests 79%, import 11%, transform 9%, worker 1%))
+Task 15: Ruling: componentes em banco/proximos-meses.tsx e dividas/enviar-documento.tsx (o plano dizia contas/proximos-meses.tsx, mas "../contas" já é um arquivo e o diretório confundiria a importação).
+Task 15: Ruling: nomes de banco legíveis (nomeDaInstituicao: "ITAU UNIBANCO S.A." → "Itaú"); no Registrato, cartão e cheque especial só pedem a taxa (parcela e parcelas restantes só para empréstimo/financiamento) — teste RED→GREEN.
+Task 15: Ruling: bug achado no navegador — banco.aceitarSugestao recusava correções parciais (zod 4 z.record com enum exige todas as chaves) → z.partialRecord; teste RED→GREEN.
+Task 15: Ruling: Próximos meses não soma a dívida tipo "cartao" no mês em que já há fatura de cartão (a fatura inclui o pagamento) — teste RED→GREEN. Custo se errado: com dois cartões, a dívida de um some no mês em que só o outro tem fatura.
+Task 15: Verificado no navegador: Registrato de exemplo → 3 sugestões (vencido em vermelho), adicionar completando taxa/parcela/dia, selo "do Registrato", Conferir (parcelas) e Desvincular visíveis, Próximos meses com 12 meses, "previsto" e "Termina", painel da Paula só leitura sem sugestões.
+Task 15: complete (commits a168c02..fa394fc, tests: pnpm test →    Duration  4.27s (tests 81%, import 10%, transform 8%, worker 1%))
+Task 16: Ruling: a conexão fictícia da Ana chama "Itaú · demonstração" (não "Banco Demonstração") para o consignado das parcelas do extrato e o do Registrato de exemplo serem o mesmo banco e se juntarem na demo. "Investimento ligado à meta" ficou para a entrega 2 (o plano o listava na demo, mas é extra da entrega 2).
+Task 16: Ruling: teste antigo de "conectar" passou a contar só conexões da Pluggy (a demo agora tem a conexão fictícia).
+Task 16: Ruling: parcelada mostra "Cobradas N" (inclui a parcela do mês e a maior já vista) em vez de "Pagas"; Próximos meses e Compras parceladas foram para a coluna da esquerda em Contas (equilíbrio do desktop); sugestão de cheque/cartão sem "Parcela".
+Task 16: Verificado no navegador (demo nova): Hoje com 3 compras para revisar e 3 avisos; Contas com parcelada (renomear → "iPhone pessoal" em todas as parcelas e no "Termina"); Dívidas com 2 sugestões e, após "Enviar Registrato › Usar exemplo", 4 sugestões com o consignado fundido ("do Registrato", saldo R$ 18.400, parcela R$ 610 · faltam 17).
+Task 16: complete (commits fa394fc..4dbfe44, tests: pnpm test →    Duration  4.54s (tests 80%, import 10%, transform 9%, worker 1%))
+Final review: recebida (Opus). Critical: 0. Important: 8 (re-graduados como Important — todos afetam dinheiro mostrado, privacidade ou 'nada some'). Minor: 10.
+Final: fixed 1 compra da fatura/banco não casava de novo (contagem dupla) — relacionar "compra registrada pela fatura em PDF ou pelo banco… também casa" RED→GREEN, suite 409/409
+Final: fixed 2 PDF sem cartão não juntava com o cartão conectado — documentos "PDF sem cartão escolhido vai para o único cartão…" e sincronizar "ao conectar o cartão, a parcelada e a fatura do PDF…" RED→GREEN, suite 409/409
+Final: fixed 3 campos "confira" entravam nos cálculos (taxa 0%) — banco-acoes "não aceita dívida com juros ou saldo ainda a conferir" RED→GREEN, suite 409/409
+Final: fixed 4 produto opcional da Pluggy derrubava a sincronização — sincronizar "um produto opcional que falha…" RED→GREEN, suite 409/409
+Final: fixed 5 profissional via a fatura do banco sem compartilhamento — banco-acoes "a profissional não vê a fatura do banco…" RED→GREEN, suite 409/409
+Final: fixed 6 desconectar deixava correções, faturas do banco e avisos — bancos "desconectar não deixa sobras…" RED→GREEN, suite 409/409
+Final: fixed 7 chamadas à Pluggy sem prazo — pluggy "comPrazoDe desiste quando a Pluggy não responde" RED→GREEN (toda chamada do cliente real tem prazo; limpeza da demo/conta espera no máximo 5 s), suite 409/409
+Final: fixed 8 salvar documento apagava a fatura antiga antes de gravar a nova — documentos "se gravar a fatura de novo falhar no meio, a anterior não some" RED→GREEN, suite 409/409
+Final: Ruling: no achado 1b (PENDING apagado e recriado), mantido apagarMovimentos apagando também os registrados — com o achado 1 corrigido, a transação recriada casa com a compra (via "banco") que ficou sem movimento, sem aviso novo — custo se errado: se a recriada vier com valor/data diferente além da folga, pede emoção de novo.
+Final: Ruling: no achado 4, movimentos cuja tratarCompraNova falhou no meio não são reprocessados (o revisor sugeriu marcar como tratados) — raro e fica em "histórico" sem perda de dado — custo se errado: uma compra pode ficar sem aviso.
+Final: minor (deferred): transactions/updated não atualiza transações antigas (filtro createdAtFrom).
+Final: minor (deferred): comentário de apagarMovimentos diz que só apaga as não registradas.
+Final: minor (deferred): dividas.corrigir/aceitarSugestao não validam no servidor taxa ≤ 30% e parcelas inteiras ≤ 480.
+Final: minor (deferred): parcelas do cartão da Pluggy sem trava (totalInstallments enorme/parcela > total).
+Final: minor (deferred): OUTDATED tratado como "reconectar".
+Final: minor (deferred): correção não some quando o banco manda valor coerente; "Conferir" só aparece com campos em confira; falta unique de Divida.chave por pessoa.
+Final: minor (deferred): casamento de dívida frouxo quando uma parcela é 0 (dois empréstimos do mesmo banco podem virar um; dispensar silencia futuros).
+Final: minor (deferred): duplo clique em aceitar/registrar pode duplicar.
+Final: minor (deferred): ConferirDivida não volta "salvando" em erro e salva campo a campo.
+Final: minor (deferred): texto bruto de erro da Pluggy chega ao navegador em ResultadoDaSincronizacao.erro.
