@@ -74,3 +74,5 @@ Final: minor (deferred): casamento de dívida frouxo quando uma parcela é 0 (do
 Final: minor (deferred): duplo clique em aceitar/registrar pode duplicar.
 Final: minor (deferred): ConferirDivida não volta "salvando" em erro e salva campo a campo.
 Final: minor (deferred): texto bruto de erro da Pluggy chega ao navegador em ResultadoDaSincronizacao.erro.
+Pós-entrega: Verificado com a Pluggy de verdade (rede liberada): janela abre centralizada, Sandbox › user-ok/password-ok conecta, "Achei 2 contas, 2 compras desta semana para revisar, 1 dívida encontrada", "Pluggy Bank" aparece na lista, um único banco.conectado no servidor.
+Pós-entrega: Ruling: janela da Pluggy passou a usar pluggy-connect-sdk direto (init/destroy no efeito) no lugar de react-pluggy-connect — no modo de desenvolvimento do React o componente deles abria duas janelas sobrepostas; agora abre uma e fechar no X volta ao normal.
