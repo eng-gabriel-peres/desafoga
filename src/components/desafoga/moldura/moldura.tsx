@@ -14,6 +14,7 @@ import { itensDoMenu, temPaciente, tituloDaRota, type Area } from "./navegacao";
 import { MenuDoPerfil } from "./menu-do-perfil";
 import { Marca, MenuInferior, MenuLateral, SeletorDePaciente } from "./partes";
 import { Sino } from "./sino";
+import { AtualizarBancosAoAbrir } from "../banco/atualizar-ao-abrir";
 import { ComRegistro } from "../registro";
 import { BotaoIcone } from "../ui/botao";
 
@@ -47,6 +48,7 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
 
   return (
     <ComRegistro>
+    {area === "pessoa" && eu.pessoa && <AtualizarBancosAoAbrir pessoaId={eu.pessoa.id} />}
     <div className={`desk:grid desk:min-h-dvh desk:transition-[grid-template-columns] desk:duration-300 desk:ease-out ${recolhida ? "desk:grid-cols-[76px_minmax(0,1fr)]" : "desk:grid-cols-[264px_minmax(0,1fr)]"}`}>
       <a
         href="#conteudo"

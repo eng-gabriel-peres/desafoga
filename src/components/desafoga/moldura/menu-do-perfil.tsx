@@ -1,6 +1,6 @@
 "use client";
 
-import { AlarmClock, ChevronDown, ChevronsUpDown, LogOut, RotateCcw, UserRound, Users, type LucideIcon } from "lucide-react";
+import { AlarmClock, ChevronDown, ChevronsUpDown, Landmark, LogOut, RotateCcw, UserRound, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useId, useRef, useState, type ReactNode } from "react";
@@ -113,6 +113,9 @@ export function MenuDoPerfil({
                 </ItemLink>
                 <ItemLink href="/app/rotina" Icone={AlarmClock} aoEscolher={() => setAberto(false)}>
                   Rotina e privacidade
+                </ItemLink>
+                <ItemLink href="/app/contas" Icone={Landmark} aoEscolher={() => setAberto(false)}>
+                  Bancos conectados
                 </ItemLink>
               </>
             ) : (

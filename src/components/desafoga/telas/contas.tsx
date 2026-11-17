@@ -13,7 +13,8 @@ import {
   ResumoDasContas,
 } from "../contas";
 import type { Area } from "../moldura/navegacao";
-import { usePessoaDaSessao } from "../sessao";
+import { BancosConectados } from "../banco/bancos-conectados";
+import { useEu, usePessoaDaSessao } from "../sessao";
 import { Carregando, Painel, Sub, TituloCelular } from "../ui/blocos";
 import { Botao } from "../ui/botao";
 import { Janela } from "../ui/janela";
@@ -21,6 +22,7 @@ import { Janela } from "../ui/janela";
 /** Contas do mês: o que a pessoa paga todo mês e quando vence. O profissional vê só leitura, se a pessoa deixou. */
 export function TelaContas({ area = "pessoa", pessoaId: doPainel }: { area?: Area; pessoaId?: string }) {
   const minha = usePessoaDaSessao();
+  const eu = useEu();
   const pessoaId = doPainel ?? minha ?? "";
   const dados = usePessoa(pessoaId);
   const agora = useAgora();
@@ -108,6 +110,9 @@ export function TelaContas({ area = "pessoa", pessoaId: doPainel }: { area?: Are
           </Painel>
         </div>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+          {(!somenteLeitura || dados.banco.conexoes.length > 0) && (
+            <BancosConectados pessoaId={pessoaId} dados={dados.banco} demo={eu.demo} agora={agora} somenteLeitura={somenteLeitura} />
+          )}
           <CalendarioDoMes compromissos={compromissos} agora={agora} dia={dia} escolher={setDia} />
           <ContasPorCategoria grupos={contasPorCategoria(contas.contas)} />
         </div>
