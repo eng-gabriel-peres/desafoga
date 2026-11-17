@@ -166,6 +166,16 @@ describe.runIf(url)("bancos conectados no Postgres", () => {
     expect(lida.saldo).toBe(1500000);
   });
 
+  it("dívida do banco sem chave (sobra de duplicada) não trava a atualização", async () => {
+    const loan = `loan-${crypto.randomUUID()}`;
+    await repo.receberSugestaoDeDivida(pessoaId, { ...daPluggy, pluggyLoanId: loan });
+    const [s] = await repo.sugestoes(pessoaId);
+    const d = await repo.aceitarSugestao(pessoaId, s.chave);
+    // Uma cópia antiga sem chave, como a migração deixou.
+    await prisma().divida.create({ data: { pessoaId, tipo: "emprestimo", nome: "cópia", saldo: d.saldo, taxaMensal: 0.019, parcelaMinima: 61000, vencimento: 7, origem: "banco", fonte: "pluggy", instituicao: "Itaú" } });
+    await expect(repo.receberSugestaoDeDivida(pessoaId, { ...daPluggy, pluggyLoanId: `outro-${loan}`, saldo: d.saldo })).resolves.toBeDefined();
+  });
+
   it("sugestão dispensada não volta", async () => {
     await repo.receberSugestaoDeDivida(pessoaId, doRegistrato);
     await repo.dispensarSugestao(pessoaId, doRegistrato.chave);

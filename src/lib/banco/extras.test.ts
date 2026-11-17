@@ -79,6 +79,22 @@ describe("renda detectada", () => {
     expect(rendaDetectada(movs)).toEqual({ valor: 150000, dia: 10 });
   });
 
+  it("salário pago em duas partes no mês: a renda é a soma, no dia da parte maior", () => {
+    const partes = ["2026-09", "2026-10", "2026-11"].flatMap((mes) => [
+      mov(`${mes}-05`, "SALARIO PARTE 1", 150000, { direcao: "entrada", natureza: "renda" }),
+      mov(`${mes}-20`, "SALARIO ADIANTAMENTO", 100000, { direcao: "entrada", natureza: "renda" }),
+    ]);
+    expect(rendaDetectada(partes)).toEqual({ valor: 250000, dia: 5 });
+  });
+
+  it("entrada ignorada pela pessoa não conta", () => {
+    const movs = [
+      mov("2026-10-10", "PIX RECEBIDO EMPRESA X", 150000, { direcao: "entrada", natureza: "outra-entrada", documentoContraparte: "1", situacao: "ignorada" }),
+      mov("2026-11-10", "PIX RECEBIDO EMPRESA X", 150000, { direcao: "entrada", natureza: "outra-entrada", documentoContraparte: "1", situacao: "ignorada" }),
+    ];
+    expect(rendaDetectada(movs)).toBeNull();
+  });
+
   it("uma vez só, ou valores muito diferentes, não é renda", () => {
     expect(rendaDetectada([mov("2026-11-05", "SALARIO", 280000, { direcao: "entrada", natureza: "renda" })])).toBeNull();
     expect(
@@ -93,13 +109,23 @@ describe("renda detectada", () => {
 describe("assinaturas", () => {
   it("mesma loja, valor parecido, meses seguidos", () => {
     const movs = [mov("2026-09-01", "NETFLIX.COM", 5590), mov("2026-10-01", "NETFLIX.COM", 5590), mov("2026-11-01", "NETFLIX.COM", 5590), mov("2026-11-03", "IFOOD", 4500)];
-    expect(assinaturasDetectadas(movs)).toEqual([{ nome: "Netflix.com", valor: 5590, meses: 3, ultimaData: "2026-11-01" }]);
+    expect(assinaturasDetectadas(movs, "2026-11-17")).toEqual([{ nome: "Netflix.com", valor: 5590, meses: 3, ultimaData: "2026-11-01", contaId: "c" }]);
+  });
+
+  it("assinatura cancelada (sem cobrança há mais de 35 dias) some", () => {
+    const movs = [mov("2026-07-01", "SPOTIFY AB", 2190), mov("2026-08-01", "SPOTIFY AB", 2190)];
+    expect(assinaturasDetectadas(movs, "2026-11-17")).toEqual([]);
+  });
+
+  it("abastecer todo mês no mesmo posto não é assinatura (o valor muda)", () => {
+    const movs = [mov("2026-09-12", "POSTO SHELL", 20000), mov("2026-10-12", "POSTO SHELL", 21000), mov("2026-11-12", "POSTO SHELL", 19500)];
+    expect(assinaturasDetectadas(movs, "2026-11-17")).toEqual([]);
   });
 
   it("parcela não é assinatura; compra que muda muito de valor também não", () => {
     const parcela = [mov("2026-10-02", "MERCADOLIVRE*CELULAR", 48000, { parcela: 1, totalParcelas: 10 }), mov("2026-11-02", "MERCADOLIVRE*CELULAR", 48000, { parcela: 2, totalParcelas: 10 })];
     const mercado = [mov("2026-10-02", "CARREFOUR", 20000), mov("2026-11-02", "CARREFOUR", 45000)];
-    expect(assinaturasDetectadas([...parcela, ...mercado])).toEqual([]);
+    expect(assinaturasDetectadas([...parcela, ...mercado], "2026-11-17")).toEqual([]);
   });
 });
 

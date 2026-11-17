@@ -149,7 +149,9 @@ export function encontrarDivida<T extends Pick<SugestaoDeDivida, "instituicao" |
     if (d.parcelaMinima > 0 && nova.parcelaMinima > 0) return Math.abs(d.parcelaMinima - nova.parcelaMinima) <= Math.max(d.parcelaMinima, nova.parcelaMinima) * 0.02;
     // Sem parcela para comparar: se os dois saldos são confiáveis, precisam ser parecidos (até 35%).
     const saldoConfiavel = (s: Pick<SugestaoDeDivida, "saldo"> & { confira?: CampoDaDivida[] }) => s.saldo > 0 && !(s.confira ?? []).includes("saldo");
-    if (saldoConfiavel(d) && saldoConfiavel(nova)) return Math.abs(d.saldo - nova.saldo) <= Math.max(d.saldo, nova.saldo) * 0.35;
+    // Cheque especial e rotativo mudam muito de saldo de um mês para o outro: só instituição e tipo.
+    const parcelado = nova.tipo === "emprestimo" || nova.tipo === "parcelamento";
+    if (parcelado && saldoConfiavel(d) && saldoConfiavel(nova)) return Math.abs(d.saldo - nova.saldo) <= Math.max(d.saldo, nova.saldo) * 0.35;
     return true;
   });
   if (!candidatas.length) return null;

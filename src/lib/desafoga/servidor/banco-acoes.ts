@@ -162,11 +162,12 @@ export async function registrarDoBanco(pessoaId: string, movimentoId: string, r:
   const m = await repo.movimentoDaPessoa(pessoaId, movimentoId);
   // Reserva antes de criar a compra: dois cliques seguidos não criam duas.
   if (m.compraId || !(await repo.reservarMovimento(pessoaId, movimentoId))) throw new RecusaDoBanco("Essa compra já foi registrada.");
+  const antes = (await repo.compras(pessoaId)).length;
   try {
     await registrarReservado(pessoaId, m, r);
   } catch (e) {
-    // Deu errado no meio: a compra volta para a revisão.
-    await repo.mudarMovimento(pessoaId, movimentoId, { situacao: "revisar" });
+    // Deu errado antes de criar a compra: volta para a revisão. Se a compra já existe, fica registrada.
+    if ((await repo.compras(pessoaId)).length === antes) await repo.mudarMovimento(pessoaId, movimentoId, { situacao: "revisar" });
     throw e;
   }
 }

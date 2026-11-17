@@ -254,8 +254,9 @@ describe.runIf(url)("sincronizar com a Pluggy", () => {
     await repo.ligarInvestimentos(pessoaId, meta.id, [previdencia.id]);
     const [lida] = (await repo.metas(pessoaId)).filter((m) => m.id === meta.id);
     expect(lida).toMatchObject({ investimentos: [previdencia.id], guardadoPeloBanco: 1172042 });
-    // Investimento de outra pessoa não pode ser ligado.
-    await expect(repo.ligarInvestimentos(pessoaId, meta.id, ["nao-existe"])).rejects.toThrow();
+    // Investimento que não é da pessoa (ou sumiu) é deixado de lado.
+    await repo.ligarInvestimentos(pessoaId, meta.id, ["nao-existe", previdencia.id]);
+    expect((await repo.metas(pessoaId)).find((m) => m.id === meta.id)!.investimentos).toEqual([previdencia.id]);
   });
 
   it("avisa uma vez: limite do cartão acima de 80%, autorização vencendo e seguro no empréstimo", async () => {

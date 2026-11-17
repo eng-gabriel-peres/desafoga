@@ -143,6 +143,8 @@ export async function apagarConexao(pessoaId: string, conexaoId: string): Promis
   const movimentosDoBanco = (await prisma().movimento.findMany({ where: { pessoaId, contaId: { in: contas } }, select: { id: true } })).map((m) => m.id);
   await prisma().$transaction([
     prisma().aviso.deleteMany({ where: { pessoaId, referencia: { in: movimentosDoBanco } } }),
+    // Avisos de limite e de autorização deste banco perdem o sentido.
+    prisma().aviso.deleteMany({ where: { pessoaId, OR: [...contas.map((id) => ({ referencia: { startsWith: `limite:${id}` } })), { referencia: { startsWith: `consentimento:${conexaoId}` } }] } }),
     prisma().compraParcelada.deleteMany({ where: { pessoaId, origem: { in: contas }, compraId: null } }),
     prisma().fatura.deleteMany({ where: { pessoaId, contaId: { in: contas }, fonte: "pluggy" } }),
     // O PDF ligado a este cartão volta a valer sozinho.
@@ -443,7 +445,8 @@ export async function receberSugestaoDeDivida(
     });
     await prisma().divida.update({
       where: { id: aceita.d.id },
-      data: { ...campos, nome: aceita.d.nome, chave: aceita.d.chave ?? campos.chave, correcoes: json(correcoes), conferidos },
+      // A chave nunca é preenchida depois: a dívida sem chave é uma cópia antiga e não pode tomar a chave da outra.
+      data: { ...campos, nome: aceita.d.nome, chave: aceita.d.chave, correcoes: json(correcoes), conferidos },
     });
     return "divida-atualizada";
   }
@@ -498,7 +501,9 @@ export async function aceitarSugestao(
   correcoes: Partial<Record<CampoDaDivida, number>> = {},
   vencimento?: number,
 ): Promise<Divida> {
-  const { dados } = await sugestaoAberta(pessoaId, chave);
+  const guardada = await sugestaoAberta(pessoaId, chave);
+  if (guardada.tipo !== "divida") throw new NaoEncontrado("Sugestão não encontrada.");
+  const { dados } = guardada;
   // Saldo e juros sempre; a parcela, no que é parcelado. Parcelas que faltam podem ficar para depois.
   const obrigatorios: CampoDaDivida[] = ["saldo", "taxaMensal", ...(dados.tipo === "emprestimo" || dados.tipo === "parcelamento" ? (["parcelaMinima"] as const) : [])];
   const faltam = dados.confira.filter((c) => obrigatorios.includes(c) && correcoes[c] === undefined);
@@ -651,6 +656,8 @@ export async function investimentos(pessoaId: string): Promise<InvestimentoDoBan
 }
 
 export async function salvarInvestimentos(pessoaId: string, conexaoId: string, lista: { pluggyId: string; nome: string; tipo: string; saldo: number }[]): Promise<void> {
+  // O que o banco não devolve mais (resgatado) sai: a meta ligada não fica com saldo velho.
+  await prisma().investimentoBancario.deleteMany({ where: { pessoaId, conexaoId, pluggyId: { notIn: lista.map((i) => i.pluggyId) } } });
   for (const i of lista) {
     await prisma().investimentoBancario.upsert({
       where: { pluggyId: i.pluggyId },
@@ -662,9 +669,9 @@ export async function salvarInvestimentos(pessoaId: string, conexaoId: string, l
 
 /** Liga a meta a investimentos da própria pessoa (lista vazia desliga e a meta volta aos depósitos). */
 export async function ligarInvestimentos(pessoaId: string, metaId: string, ids: string[]): Promise<void> {
-  const meus = await prisma().investimentoBancario.count({ where: { pessoaId, id: { in: ids } } });
-  if (meus !== new Set(ids).size) throw new NaoEncontrado("Investimento não encontrado.");
-  const r = await prisma().meta.updateMany({ where: { id: metaId, pessoaId }, data: { investimentos: [...new Set(ids)] } });
+  // Só os investimentos que existem e são desta pessoa (um id antigo, de antes de reconectar o banco, sai).
+  const meus = (await prisma().investimentoBancario.findMany({ where: { pessoaId, id: { in: ids } }, select: { id: true } })).map((i) => i.id);
+  const r = await prisma().meta.updateMany({ where: { id: metaId, pessoaId }, data: { investimentos: ids.filter((id, i) => meus.includes(id) && ids.indexOf(id) === i) } });
   if (!r.count) throw new NaoEncontrado("Meta não encontrada.");
 }
 
@@ -683,7 +690,9 @@ export async function avisarUmaVez(pessoaId: string, chave: string, tipo: string
  */
 export async function sugerirRenda(pessoaId: string, valor: number, dia: number): Promise<void> {
   const atual = await prisma().pessoa.findUniqueOrThrow({ where: { id: pessoaId }, select: { rendaMensal: true, diaDaRenda: true } });
-  const igual = atual.rendaMensal !== null && Math.abs(atual.rendaMensal - valor) <= atual.rendaMensal * 0.1 && atual.diaDaRenda !== null && Math.abs(atual.diaDaRenda - dia) <= 2;
+  // Dias perto no calendário, inclusive na virada do mês (30 e 1).
+  const pertoNoMes = (a: number, b: number) => Math.min(Math.abs(a - b), 31 - Math.abs(a - b)) <= 2;
+  const igual = atual.rendaMensal !== null && Math.abs(atual.rendaMensal - valor) <= atual.rendaMensal * 0.1 && atual.diaDaRenda !== null && pertoNoMes(atual.diaDaRenda, dia);
   const existente = await prisma().sugestao.findUnique({ where: { pessoaId_chave: { pessoaId, chave: "renda" } } });
   if (igual) {
     if (existente?.situacao === "aberta") await prisma().sugestao.delete({ where: { id: existente.id } });
@@ -695,7 +704,7 @@ export async function sugerirRenda(pessoaId: string, valor: number, dia: number)
     return;
   }
   const antes = existente.dados as { valor: number; dia: number };
-  const mudou = Math.abs(antes.valor - valor) > antes.valor * 0.1 || antes.dia !== dia;
+  const mudou = Math.abs(antes.valor - valor) > antes.valor * 0.1 || !pertoNoMes(antes.dia, dia);
   if (existente.situacao === "aberta" || mudou) await prisma().sugestao.update({ where: { id: existente.id }, data: { dados, situacao: "aberta" } });
 }
 

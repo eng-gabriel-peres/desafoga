@@ -418,8 +418,11 @@ const ACOES = {
     return repo.salvarOrcamento(p, c, limite);
   }),
   "metas.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
-    await exigirVer(sessao, p);
-    return repo.metas(p);
+    const s = await exigirVer(sessao, p);
+    const metas = await repo.metas(p);
+    // Saldo de investimento é dado de banco: só com as contas compartilhadas (sem ele, a meta mostra os depósitos).
+    if (s.pessoa?.id !== p && !(await repo.rotina(p)).compartilharContas) return metas.map((m) => ({ ...m, investimentos: undefined, guardadoPeloBanco: null }));
+    return metas;
   }),
   "metas.salvar": acao(
     z.tuple([

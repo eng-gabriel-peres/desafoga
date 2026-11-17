@@ -74,7 +74,15 @@ export function SugestaoDeRenda({ pessoaId, banco }: { pessoaId: string; banco: 
         >
           Usar essa renda
         </Botao>
-        <Botao tamanho="pequeno" variante="secundario" disabled={ocupado} onClick={() => servicos.banco.dispensarSugestao(pessoaId, s.chave)}>
+        <Botao
+          tamanho="pequeno"
+          variante="secundario"
+          disabled={ocupado}
+          onClick={async () => {
+            setOcupado(true);
+            await servicos.banco.dispensarSugestao(pessoaId, s.chave).finally(() => setOcupado(false));
+          }}
+        >
           Agora não
         </Botao>
       </div>
@@ -85,7 +93,9 @@ export function SugestaoDeRenda({ pessoaId, banco }: { pessoaId: string; banco: 
 /** Assinaturas percebidas (a mesma loja todo mês): total e "virar conta fixa". */
 export function Assinaturas({ pessoaId, banco, contas, somenteLeitura }: { pessoaId: string; banco: DadosDoBanco; contas: ContaFixa[]; somenteLeitura?: boolean }) {
   const jaFixas = new Set(contas.map((c) => chaveDaDescricao(c.nome)));
-  const lista = assinaturasDetectadas(banco.movimentos);
+  const cartoes = new Set(banco.conexoes.flatMap((c) => c.contas).filter((c) => c.tipo === "cartao").map((c) => c.id));
+  const [salvando, setSalvando] = useState<string | null>(null);
+  const lista = assinaturasDetectadas(banco.movimentos, new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }));
   if (!lista.length) return null;
   const total = lista.reduce((s, a) => s + a.valor, 0);
   return (
@@ -107,21 +117,28 @@ export function Assinaturas({ pessoaId, banco, contas, somenteLeitura }: { pesso
               {!somenteLeitura &&
                 (fixa ? (
                   <span className="text-[0.82rem] text-muted">já é conta fixa</span>
+                ) : cartoes.has(a.contaId) ? (
+                  // No cartão ela já entra na fatura: virar conta fixa contaria duas vezes.
+                  <span className="text-[0.82rem] text-muted">no cartão, já na fatura</span>
                 ) : (
                   <Botao
                     tamanho="pequeno"
                     variante="secundario"
-                    onClick={() =>
-                      servicos.contas.salvar(pessoaId, {
+                    disabled={salvando === a.nome}
+                    onClick={() => {
+                      setSalvando(a.nome);
+                      servicos.contas
+                        .salvar(pessoaId, {
                         nome: a.nome,
                         categoria: "assinatura",
                         valor: a.valor,
                         vencimento: Number(a.ultimaData.slice(8, 10)),
                         variavel: false,
                         debitoAutomatico: true,
-                        lembrete: false,
-                      })
-                    }
+                          lembrete: false,
+                        })
+                        .finally(() => setSalvando(null));
+                    }}
                   >
                     Virar conta fixa
                   </Botao>

@@ -238,11 +238,25 @@ describe.runIf(url)("ações dos bancos conectados", () => {
     expect((await repo.dividas(p)).length).toBe(antes + 1);
   });
 
-  it("ligar meta a investimento: só da própria pessoa, e a profissional não pode", async () => {
+  it("a profissional não vê o saldo do banco nas metas se a pessoa não compartilha as contas", async () => {
     const ana = await entrar("ana");
     const p = ana.pessoa!.id;
+    await chamar("rotina.salvar", [p, { compartilharContas: false }], ana);
+    const paula = await entrar("paula", ana);
+    const metas = (await chamar("metas.listar", [p], paula)) as { nome: string; guardadoPeloBanco?: number | null; investimentos?: string[] }[];
+    const viagem = metas.find((m) => m.nome === "Viagem para a praia")!;
+    expect(viagem.guardadoPeloBanco ?? null).toBeNull();
+    expect(viagem.investimentos ?? []).toEqual([]);
+  });
+
+  it("ligar meta a investimento: ids que não são da pessoa (ou sumiram) são deixados de lado", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    const [cdb] = await repo.investimentos(p);
+    const viagem = (await repo.metas(p)).find((m) => m.nome === "Viagem para a praia")!;
+    await chamar("metas.ligarInvestimentos", [p, viagem.id, [crypto.randomUUID(), cdb.id]], ana);
+    expect((await repo.metas(p)).find((m) => m.id === viagem.id)!.investimentos).toEqual([cdb.id]);
     const [meta] = await repo.metas(p);
-    await expect(chamar("metas.ligarInvestimentos", [p, meta.id, [crypto.randomUUID()]], ana)).rejects.toThrow();
     const paula = await entrar("paula", ana);
     await expect(chamar("metas.ligarInvestimentos", [p, meta.id, []], paula)).rejects.toThrow();
     await expect(chamar("banco.aceitarRenda", [p], paula)).rejects.toThrow();

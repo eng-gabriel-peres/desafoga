@@ -139,11 +139,12 @@ export async function sincronizar(
       });
     }
     for (const s of sugestoes) {
-      if ((await repo.receberSugestaoDeDivida(pessoaId, s, { conexaoId })) === "nova") {
+      const recebida = await repo.receberSugestaoDeDivida(pessoaId, s, { conexaoId });
+      if (recebida === "nova") {
         resultado.sugestoes++;
         await repo.avisar(pessoaId, "divida-encontrada", avisoDeDividaEncontrada(s.nome, s.saldo), agora);
       }
-      if (s.temSeguro) await repo.avisarUmaVez(pessoaId, `seguro:${s.pluggyLoanId ?? s.chave}`, "seguro", avisoDeSeguro(s.nome), agora);
+      if (s.temSeguro && recebida !== "ignorada") await repo.avisarUmaVez(pessoaId, `seguro:${s.pluggyLoanId ?? s.chave}`, "seguro", avisoDeSeguro(s.nome), agora);
     }
 
     // Extras: limite do cartão, autorização vencendo e renda percebida.
@@ -152,13 +153,15 @@ export async function sincronizar(
       for (const c of contas) {
         const uso = usoDoLimite(c);
         if (uso && uso.fracao >= 0.8) {
-          await repo.avisarUmaVez(pessoaId, `limite:${c.id}:${mes}`, "limite-cartao", avisoDeLimiteDoCartao(c.nome, uso.fracao, uso.limite - uso.usado), agora);
+          // Uma vez por fatura (fechamento), não por mês do calendário.
+          await repo.avisarUmaVez(pessoaId, `limite:${c.id}:${c.fechamento ?? mes}`, "limite-cartao", avisoDeLimiteDoCartao(c.nome, uso.fracao, uso.limite - uso.usado), agora);
         }
       }
       const consentimento = (item as { consentExpiresAt?: Date | string | null }).consentExpiresAt;
       if (consentimento) {
         const dias = Math.ceil((new Date(consentimento).getTime() - agora.getTime()) / DIA);
-        if (dias <= 15) await repo.avisarUmaVez(pessoaId, `consentimento:${conexaoId}:${diaEmBrasilia(new Date(consentimento))}`, "consentimento", avisoDeConsentimento(banco, dias), agora);
+        const situacao = dias <= 0 ? "venceu" : "vence";
+        if (dias <= 15) await repo.avisarUmaVez(pessoaId, `consentimento:${conexaoId}:${diaEmBrasilia(new Date(consentimento))}:${situacao}`, "consentimento", avisoDeConsentimento(banco, dias), agora);
       }
       const recentes = await repo.movimentos(pessoaId, { desde: diaEmBrasilia(new Date(agora.getTime() - 120 * DIA)) });
       const renda = rendaDetectada(recentes);

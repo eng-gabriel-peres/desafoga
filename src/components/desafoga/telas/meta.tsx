@@ -204,7 +204,9 @@ export function TelaDaMeta({ metaId, area = "pessoa", pessoaId: doPainel }: { me
 }
 
 /** Meta ligada a investimentos do banco: o guardado passa a ser o saldo deles. */
-function LigarAoBanco({ pessoaId, metaId, ligados, investimentos }: { pessoaId: string; metaId: string; ligados: string[]; investimentos: InvestimentoDoBanco[] }) {
+function LigarAoBanco({ pessoaId, metaId, ligados: todos, investimentos }: { pessoaId: string; metaId: string; ligados: string[]; investimentos: InvestimentoDoBanco[] }) {
+  // Só os que ainda existem (depois de reconectar o banco, os ids antigos somem).
+  const ligados = todos.filter((id) => investimentos.some((i) => i.id === id));
   const marcar = (id: string) => {
     const novos = ligados.includes(id) ? ligados.filter((x) => x !== id) : [...ligados, id];
     servicos.banco.ligarInvestimentos(pessoaId, metaId, novos);

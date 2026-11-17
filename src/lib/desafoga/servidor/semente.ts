@@ -279,9 +279,9 @@ async function criarBancoDaDemo(db: Transacao, pessoaId: string, b: SementeBanco
   const cartao = b.contas.find((c) => c.id === "cartao");
   if (cartao?.limite && cartao.limiteDisponivel !== undefined) {
     const fracao = (cartao.limite - cartao.limiteDisponivel) / cartao.limite;
-    await db.aviso.create({ data: { pessoaId, tipo: "limite-cartao", texto: avisoDeLimiteDoCartao(cartao.nome, fracao, cartao.limiteDisponivel), quando: agora, referencia: `limite:${contas.cartao}` } });
+    await db.aviso.create({ data: { pessoaId, tipo: "limite-cartao", texto: avisoDeLimiteDoCartao(cartao.nome, fracao, cartao.limiteDisponivel), quando: agora, referencia: `limite:${contas.cartao}:${cartao.fechamentoDia ? proximoDia(cartao.fechamentoDia, agora) : ""}` } });
   }
-  await db.aviso.create({ data: { pessoaId, tipo: "consentimento", texto: avisoDeConsentimento(b.banco, b.consentimentoEmDias), quando: agora, referencia: `consentimento:${conexao.id}` } });
+  await db.aviso.create({ data: { pessoaId, tipo: "consentimento", texto: avisoDeConsentimento(b.banco, b.consentimentoEmDias), quando: agora, referencia: `consentimento:${conexao.id}:${diaEmBrasilia(conexao.consentimentoAte!)}:vence` } });
 }
 
 /** Próxima data (YYYY-MM-DD) com esse dia do mês, a partir de hoje. */

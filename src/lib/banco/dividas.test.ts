@@ -161,6 +161,13 @@ describe("fusão de fontes", () => {
     expect(encontrarDivida([semSaldo], { ...daPluggy, saldo: 1700000 })).toBe(semSaldo);
   });
 
+  it("cheque especial e rotativo: o saldo muda muito de um mês para o outro e continua sendo a mesma dívida", () => {
+    const cheque = sugestao({ chave: "itau|cheque", tipo: "cheque", fonte: "pluggy", saldo: 20000, confira: [] });
+    expect(encontrarDivida([cheque], { ...cheque, saldo: 80000 })).toBe(cheque);
+    const rotativo = sugestao({ chave: "itau|cartao", tipo: "cartao", fonte: "pluggy", saldo: 50000, confira: [] });
+    expect(encontrarDivida([rotativo], { ...rotativo, saldo: 300000 })).toBe(rotativo);
+  });
+
   it("com duas candidatas, fica a de saldo mais próximo", () => {
     const a = sugestao({ chave: "a", saldo: 500000 });
     const b = sugestao({ chave: "b", saldo: 1800000 });
