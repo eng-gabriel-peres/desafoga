@@ -59,7 +59,11 @@ export function clienteFalso(
     contas: (id) => responder(`contas:${id}`, () => dados.contas),
     transacoes: (conta, desde) =>
       responder(`transacoes:${conta}`, () =>
-        (dados.transacoes[conta] ?? []).filter((t) => !desde?.criadasDesde || new Date(t.createdAt) >= new Date(desde.criadasDesde)),
+        (dados.transacoes[conta] ?? []).filter(
+          (t) =>
+            (!desde?.criadasDesde || new Date(t.createdAt) >= new Date(desde.criadasDesde)) &&
+            (!desde?.dataDe || new Date(t.date).toISOString().slice(0, 10) >= desde.dataDe),
+        ),
       ),
     emprestimos: (id) => responder(`emprestimos:${id}`, () => dados.emprestimos),
     faturas: (conta) => responder(`faturas:${conta}`, () => dados.faturas[conta] ?? []),

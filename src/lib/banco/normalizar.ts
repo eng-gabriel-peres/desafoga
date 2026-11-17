@@ -57,6 +57,10 @@ export function normalizarTransacao(t: PluggyTransacao, tipo: TipoDeContaBancari
   const boleto = pagamento?.boletoMetadata;
   const juros = boleto ? (boleto.interestAmount ?? 0) + (boleto.penaltyAmount ?? 0) : 0;
   const compradaEm = cartao?.purchaseDate ?? (cartao as { transactionDateTime?: string } | null)?.transactionDateTime ?? null;
+  // Parcela só com números que fazem sentido (o sandbox manda 9 de 6, 130.632 parcelas…).
+  const total = cartao?.totalInstallments ?? null;
+  const numero = cartao?.installmentNumber ?? null;
+  const parceladaValida = total !== null && numero !== null && total >= 2 && total <= 480 && numero >= 1 && numero <= total;
   return {
     pluggyId: t.id,
     contaId: t.accountId,
@@ -66,9 +70,9 @@ export function normalizarTransacao(t: PluggyTransacao, tipo: TipoDeContaBancari
     valor: centavos(t.amount) ?? 0,
     direcao,
     categoriaPluggy: t.category ?? null,
-    parcela: cartao?.installmentNumber ?? null,
-    totalParcelas: cartao?.totalInstallments ?? null,
-    valorTotalDaCompra: cartao?.totalInstallments ? centavos(cartao.totalAmount) : null,
+    parcela: parceladaValida ? numero : null,
+    totalParcelas: parceladaValida ? total : null,
+    valorTotalDaCompra: parceladaValida ? centavos(cartao!.totalAmount) : null,
     compradaEm: compradaEm ? diaDeData(compradaEm) : null,
     faturaPrevista: (cartao as { billForecastDate?: string } | null)?.billForecastDate?.slice(0, 7) ?? null,
     cnpj: documento(t.merchant?.cnpj ? { value: t.merchant.cnpj } : null),

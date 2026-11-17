@@ -64,6 +64,16 @@ describe("normalizarTransacao", () => {
   });
 });
 
+describe("parcelas absurdas", () => {
+  it("parcela maior que o total ou total acima de 480 não vira compra parcelada", () => {
+    const netflix = doCartao.find((t) => t.description === "NETFLIX.COM" && t.creditCardMetadata?.totalInstallments)!;
+    const absurda = { ...netflix, creditCardMetadata: { ...netflix.creditCardMetadata!, installmentNumber: 9, totalInstallments: 6 } };
+    expect(normalizarTransacao(absurda, "cartao")).toMatchObject({ parcela: null, totalParcelas: null });
+    const enorme = { ...netflix, creditCardMetadata: { ...netflix.creditCardMetadata!, installmentNumber: 2, totalInstallments: 130632 } };
+    expect(normalizarTransacao(enorme, "cartao")).toMatchObject({ parcela: null, totalParcelas: null, valorTotalDaCompra: null });
+  });
+});
+
 describe("normalizarConta", () => {
   it("cartão com limite, fechamento e vencimento", () => {
     expect(tipoDaConta(cartao)).toBe("cartao");

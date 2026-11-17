@@ -55,5 +55,7 @@ export async function processarWebhook(e: EventoPluggy): Promise<void> {
     await repo.apagarConexao(conexao.pessoaId, conexao.id);
     return;
   }
-  if (e.event.startsWith("item/") || e.event.startsWith("transactions/")) await sincronizar(conexao.id);
+  // Transação atualizada pode ser antiga: relê os últimos 30 dias por data, não só as recém-criadas.
+  if (e.event === "transactions/updated") await sincronizar(conexao.id, { releituraDias: 30 });
+  else if (e.event.startsWith("item/") || e.event.startsWith("transactions/")) await sincronizar(conexao.id);
 }

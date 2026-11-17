@@ -178,7 +178,10 @@ model Divida {
   confira            String[]  @default([])
   /// Valores corrigidos pela pessoa: { campo: valor }. Valem sobre o que a fonte diz.
   correcoes          Json?
+  /// Campos que a pessoa completou porque a fonte não trazia: a correção sai quando a fonte passar a mandar.
+  conferidos         String[]  @default([])
 
+  @@unique([pessoaId, chave])
   @@index([pessoaId])
   @@map("dividas")
 }

@@ -191,7 +191,8 @@ export function TelaMinhasDividas() {
 
 /** A pessoa completa ou corrige o que a fonte não trouxe: vale sobre o que ela disser depois. */
 function ConferirDivida({ pessoaId, divida, fechar }: { pessoaId: string; divida: Divida; fechar: () => void }) {
-  const campos = (divida.confira ?? []) as CampoDaDivida[];
+  // Os campos que faltam; se não falta nada, a pessoa pode corrigir qualquer um.
+  const campos: CampoDaDivida[] = divida.confira?.length ? (divida.confira as CampoDaDivida[]) : ["saldo", "taxaMensal", "parcelaMinima", "parcelasRestantes"];
   const [valores, setValores] = useState<Partial<Record<CampoDaDivida, string>>>({});
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -209,14 +210,24 @@ function ConferirDivida({ pessoaId, divida, fechar }: { pessoaId: string; divida
         }
         if (!prontos.length) return setErro("Preencha pelo menos um campo.");
         setSalvando(true);
-        for (const [c, v] of prontos) await servicos.banco.corrigirDivida(pessoaId, divida.id, c, v);
-        setSalvando(false);
-        fechar();
+        try {
+          for (const [c, v] of prontos) await servicos.banco.corrigirDivida(pessoaId, divida.id, c, v);
+          fechar();
+        } catch (e) {
+          setErro(e instanceof Error ? e.message : "Não consegui salvar agora.");
+        } finally {
+          setSalvando(false);
+        }
       }}
     >
       <h2 className="text-[1.3rem] font-bold">Conferir {divida.nome}</h2>
-      <Sub>O que você preencher aqui vale mesmo quando o banco ou outro documento atualizar a dívida.</Sub>
-      <CamposParaConferir campos={campos} valores={valores} mudar={(c, v) => setValores((x) => ({ ...x, [c]: v }))} />
+      <Sub>O que você preencher aqui vale mesmo quando o banco ou outro documento atualizar a dívida. Deixe em branco o que estiver certo.</Sub>
+      <CamposParaConferir
+        campos={campos}
+        valores={valores}
+        mudar={(c, v) => setValores((x) => ({ ...x, [c]: v }))}
+        titulo={divida.confira?.length ? undefined : "Corrija o que estiver diferente do seu contrato"}
+      />
       {erro && (
         <p role="alert" className="font-bold text-bad">
           {erro}

@@ -40,11 +40,21 @@ export function lerCampo(campo: CampoDaDivida, texto: string): number | null {
 }
 
 /** Campos para conferir ou completar (os que a fonte não trouxe ou trouxe estranhos). */
-export function CamposParaConferir({ campos, valores, mudar }: { campos: CampoDaDivida[]; valores: Partial<Record<CampoDaDivida, string>>; mudar: (c: CampoDaDivida, v: string) => void }) {
+export function CamposParaConferir({
+  campos,
+  valores,
+  mudar,
+  titulo = "Confira: o documento não trouxe ou trouxe estranho",
+}: {
+  campos: CampoDaDivida[];
+  valores: Partial<Record<CampoDaDivida, string>>;
+  mudar: (c: CampoDaDivida, v: string) => void;
+  titulo?: string;
+}) {
   if (!campos.length) return null;
   return (
     <div className="mt-2 grid gap-2 rounded-[12px] border-2 border-dashed border-maybe/60 p-2.5">
-      <p className="text-[0.85rem] font-bold text-maybe">Confira: o documento não trouxe ou trouxe estranho</p>
+      <p className="text-[0.85rem] font-bold text-maybe">{titulo}</p>
       <div className="grid grid-cols-2 gap-2">
         {campos.map((c) => (
           <label key={c} className="grid gap-1 text-[0.85rem]">

@@ -151,6 +151,16 @@ describe("fusão de fontes", () => {
     expect(encontrarDivida([comParcela], { ...daPluggy, parcelaMinima: 61500 })).toBe(comParcela);
   });
 
+  it("sem parcela para comparar, o saldo precisa ser parecido (dois empréstimos do mesmo banco não viram um)", () => {
+    const pequeno = sugestao({ chave: "p", saldo: 300000, confira: ["taxaMensal"] });
+    expect(encontrarDivida([pequeno], { ...daPluggy, saldo: 1700000 })).toBeNull();
+    const parecido = sugestao({ chave: "q", saldo: 1500000, confira: ["taxaMensal"] });
+    expect(encontrarDivida([parecido], { ...daPluggy, saldo: 1700000 })).toBe(parecido);
+    // Saldo "a conferir" não serve para comparar: casa pela instituição e pelo tipo.
+    const semSaldo = sugestao({ chave: "r", saldo: 300000, confira: ["saldo"] });
+    expect(encontrarDivida([semSaldo], { ...daPluggy, saldo: 1700000 })).toBe(semSaldo);
+  });
+
   it("com duas candidatas, fica a de saldo mais próximo", () => {
     const a = sugestao({ chave: "a", saldo: 500000 });
     const b = sugestao({ chave: "b", saldo: 1800000 });

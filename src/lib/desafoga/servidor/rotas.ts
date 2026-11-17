@@ -120,6 +120,14 @@ const AVISOS_DA_PESSOA = ["compra-banco", "divida-encontrada"];
 
 const modoCompras = z.enum(["revisar", "automatico", "desligado"]);
 const campoDaDivida = z.enum(["saldo", "taxaMensal", "parcelaMinima", "parcelasRestantes"]);
+/** Limites de cada campo corrigido: os mesmos das travas (taxa até 30% ao mês, até 480 parcelas inteiras). */
+const LIMITE_DO_CAMPO = {
+  saldo: centavos,
+  parcelaMinima: centavos,
+  taxaMensal: z.number().min(0).max(0.3),
+  parcelasRestantes: z.number().int().min(1).max(480),
+} as const;
+const correcoesDaDivida = z.object(LIMITE_DO_CAMPO).partial().strict();
 const chave = z.string().min(1).max(200);
 
 /** Converte a recusa do vínculo do WhatsApp em erro de entrada (mensagem para a pessoa). */
@@ -553,7 +561,7 @@ const ACOES = {
     return repo.renomearParcelada(p, parcelada, nome, cat);
   }),
   "banco.aceitarSugestao": acao(
-    z.tuple([id, chave, z.partialRecord(campoDaDivida, z.number().min(0).max(1e10)).optional(), z.number().int().min(1).max(31).optional()]),
+    z.tuple([id, chave, correcoesDaDivida.optional(), z.number().int().min(1).max(31).optional()]),
     async ([p, c, correcoes, vencimento], { sessao }) => {
       exigirAPropriaPessoa(sessao, p);
       try {
@@ -581,8 +589,9 @@ const ACOES = {
     exigirAPropriaPessoa(sessao, p);
     return repo.desvincularDivida(p, d);
   }),
-  "dividas.corrigir": acao(z.tuple([id, id, campoDaDivida, z.number().min(0).max(1e10)]), async ([p, d, campo, valor], { sessao }) => {
+  "dividas.corrigir": acao(z.tuple([id, id, campoDaDivida, z.number()]), async ([p, d, campo, valor], { sessao }) => {
     exigirAPropriaPessoa(sessao, p);
+    if (!LIMITE_DO_CAMPO[campo].safeParse(valor).success) throw new ErroDeEntrada("Esse valor não parece certo. Confira e tente de novo.");
     return repo.corrigirDivida(p, d, campo, valor);
   }),
 

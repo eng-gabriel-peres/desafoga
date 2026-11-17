@@ -151,6 +151,21 @@ describe.runIf(url)("bancos conectados no Postgres", () => {
     expect(await repo.sugestoes(pessoaId)).toHaveLength(0);
   });
 
+  it("o que a pessoa completou por faltar sai quando o banco passa a mandar; o que ela corrigiu fica", async () => {
+    const loan = `loan-${crypto.randomUUID()}`;
+    await repo.receberSugestaoDeDivida(pessoaId, { ...daPluggy, pluggyLoanId: loan, taxaMensal: null, confira: ["taxaMensal"] });
+    const [s] = await repo.sugestoes(pessoaId);
+    const d = await repo.aceitarSugestao(pessoaId, s.chave, { taxaMensal: 0.02 });
+    expect(d.taxaMensal).toBe(0.02);
+    // A pessoa também discorda do saldo do banco.
+    await repo.corrigirDivida(pessoaId, d.id, "saldo", 1500000);
+    // O banco passa a mandar a taxa (e um saldo novo).
+    await repo.receberSugestaoDeDivida(pessoaId, { ...daPluggy, pluggyLoanId: loan, taxaMensal: 0.025, saldo: 1790000, confira: [] });
+    const [lida] = await repo.dividas(pessoaId);
+    expect(lida.taxaMensal).toBe(0.025);
+    expect(lida.saldo).toBe(1500000);
+  });
+
   it("sugestão dispensada não volta", async () => {
     await repo.receberSugestaoDeDivida(pessoaId, doRegistrato);
     await repo.dispensarSugestao(pessoaId, doRegistrato.chave);

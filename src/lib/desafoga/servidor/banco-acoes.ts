@@ -157,7 +157,19 @@ export interface RegistroDoBanco {
 /** Registra a compra do banco com o que a pessoa disse. Parcelada: uma compra só, do valor total. */
 export async function registrarDoBanco(pessoaId: string, movimentoId: string, r: RegistroDoBanco): Promise<void> {
   const m = await repo.movimentoDaPessoa(pessoaId, movimentoId);
-  if (m.compraId) throw new RecusaDoBanco("Essa compra já foi registrada.");
+  // Reserva antes de criar a compra: dois cliques seguidos não criam duas.
+  if (m.compraId || !(await repo.reservarMovimento(pessoaId, movimentoId))) throw new RecusaDoBanco("Essa compra já foi registrada.");
+  try {
+    await registrarReservado(pessoaId, m, r);
+  } catch (e) {
+    // Deu errado no meio: a compra volta para a revisão.
+    await repo.mudarMovimento(pessoaId, movimentoId, { situacao: "revisar" });
+    throw e;
+  }
+}
+
+async function registrarReservado(pessoaId: string, m: Movimento, r: RegistroDoBanco): Promise<void> {
+  const movimentoId = m.id;
   const item = r.item.trim();
   if (m.categoria && r.categoria !== m.categoria) await repo.salvarRegra(pessoaId, { padrao: chaveDaDescricao(m.descricao), efeito: { categoria: r.categoria } });
 

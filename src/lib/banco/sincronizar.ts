@@ -28,7 +28,9 @@ const DIA = 86_400_000;
 const UMA_HORA = 60 * 60 * 1000;
 /** Só compras desta janela (antes da conexão) viram aviso; o resto é histórico. */
 const JANELA_DE_AVISO_DIAS = 7;
-const PRECISA_DA_PESSOA = new Set(["LOGIN_ERROR", "WAITING_USER_ACTION", "WAITING_USER_INPUT", "OUTDATED"]);
+/** Só estes pedem a pessoa de volta. OUTDATED costuma ser passageiro: lê o que já existe. */
+const PRECISA_DA_PESSOA = new Set(["LOGIN_ERROR", "WAITING_USER_ACTION", "WAITING_USER_INPUT"]);
+const ERRO_PARA_A_PESSOA = "Não consegui ler o banco agora. Tente atualizar daqui a pouco.";
 
 function somarMeses(dia: string, n: number): string {
   const d = new Date(`${dia}T12:00:00Z`);
@@ -38,7 +40,8 @@ function somarMeses(dia: string, n: number): string {
 
 export async function sincronizar(
   conexaoId: string,
-  o: { cliente?: ClientePluggy; agora?: Date; pedirAtualizacao?: boolean } = {},
+  /** releituraDias: relê as transações dos últimos N dias (transações antigas que o banco atualizou). */
+  o: { cliente?: ClientePluggy; agora?: Date; pedirAtualizacao?: boolean; releituraDias?: number } = {},
 ): Promise<ResultadoDaSincronizacao> {
   const agora = o.agora ?? new Date();
   const conexao = await repo.conexao(conexaoId);
@@ -82,7 +85,8 @@ export async function sincronizar(
     // 1. Transações → movimentos classificados.
     const lidos: Omit<Movimento, "id">[] = [];
     for (const conta of contas) {
-      for (const t of await cliente.transacoes(conta.pluggyAccountId, { criadasDesde: desde })) {
+      const filtro = o.releituraDias ? { dataDe: diaEmBrasilia(new Date(agora.getTime() - o.releituraDias * DIA)) } : { criadasDesde: desde };
+      for (const t of await cliente.transacoes(conta.pluggyAccountId, filtro)) {
         const m = { ...normalizarTransacao(t, conta.tipo), contaId: conta.id };
         const natureza = naturezaDe(m, { cpfDoTitular: cpf, regras, tipoDaConta: conta.tipo });
         const ignorar = regras.some((r) => "ignorar" in r.efeito && r.padrao === chaveDaDescricao(m.descricao));
@@ -146,10 +150,11 @@ export async function sincronizar(
     await repo.atualizarConexao(conexaoId, { status: "ok", erro: null, ultimaSincronizacao: agora });
     return resultado;
   } catch (e) {
-    const erro = e instanceof Error ? e.message.slice(0, 200) : "erro";
-    console.error("Desafoga: sincronização com a Pluggy falhou,", erro);
-    await repo.atualizarConexao(conexaoId, { status: "erro", erro });
-    return { ...resultado, erro };
+    const tecnico = e instanceof Error ? e.message.slice(0, 200) : "erro";
+    console.error("Desafoga: sincronização com a Pluggy falhou,", tecnico);
+    await repo.atualizarConexao(conexaoId, { status: "erro", erro: tecnico });
+    // O texto técnico fica no log e na conexão; para a pessoa, uma frase clara.
+    return { ...resultado, erro: ERRO_PARA_A_PESSOA };
   } finally {
     await repo.soltarSincronizacao(conexaoId);
   }

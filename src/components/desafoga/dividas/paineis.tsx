@@ -147,13 +147,13 @@ export function ListaDeDividas({
                   {selo && <Etiqueta tom="primaria">{selo}</Etiqueta>}
                   {d.temSeguro && <Etiqueta tom="talvez">tem seguro</Etiqueta>}
                   <span className="text-[0.88rem] text-muted">Juros: {reais(jurosDoMes(d))} por mês</span>
-                  {externa && aoConferir && conferir.length > 0 && (
-                    <Botao variante="link" tamanho="pequeno" className="ml-auto" onClick={() => aoConferir(d)}>
-                      Conferir
+                  {externa && aoConferir && (
+                    <Botao variante="link" tamanho="pequeno" className="ml-auto" onClick={() => aoConferir(d)} aria-label={`${conferir.length ? "Conferir" : "Corrigir"} ${d.nome}`}>
+                      {conferir.length ? "Conferir" : "Corrigir"}
                     </Botao>
                   )}
                   {externa && aoDesvincular && (
-                    <Botao variante="link" tamanho="pequeno" className={conferir.length ? "" : "ml-auto"} onClick={() => aoDesvincular(d)} aria-label={`Desvincular ${d.nome}`}>
+                    <Botao variante="link" tamanho="pequeno" onClick={() => aoDesvincular(d)} aria-label={`Desvincular ${d.nome}`}>
                       <Unlink aria-hidden="true" />
                       Desvincular
                     </Botao>

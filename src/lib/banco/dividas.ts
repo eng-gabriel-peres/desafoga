@@ -142,11 +142,14 @@ export function chaveDaDivida(s: Pick<SugestaoDeDivida, "instituicao" | "tipo" |
   return s.parcelaMinima > 0 ? `${base}|${s.parcelaMinima}` : base;
 }
 
-export function encontrarDivida<T extends Pick<SugestaoDeDivida, "instituicao" | "tipo" | "parcelaMinima" | "saldo">>(existentes: T[], nova: SugestaoDeDivida): T | null {
+export function encontrarDivida<T extends Pick<SugestaoDeDivida, "instituicao" | "tipo" | "parcelaMinima" | "saldo"> & { confira?: CampoDaDivida[] }>(existentes: T[], nova: SugestaoDeDivida): T | null {
   const inst = chaveDaInstituicao(nova.instituicao);
   const candidatas = existentes.filter((d) => {
     if (chaveDaInstituicao(d.instituicao) !== inst || d.tipo !== nova.tipo) return false;
     if (d.parcelaMinima > 0 && nova.parcelaMinima > 0) return Math.abs(d.parcelaMinima - nova.parcelaMinima) <= Math.max(d.parcelaMinima, nova.parcelaMinima) * 0.02;
+    // Sem parcela para comparar: se os dois saldos são confiáveis, precisam ser parecidos (até 35%).
+    const saldoConfiavel = (s: Pick<SugestaoDeDivida, "saldo"> & { confira?: CampoDaDivida[] }) => s.saldo > 0 && !(s.confira ?? []).includes("saldo");
+    if (saldoConfiavel(d) && saldoConfiavel(nova)) return Math.abs(d.saldo - nova.saldo) <= Math.max(d.saldo, nova.saldo) * 0.35;
     return true;
   });
   if (!candidatas.length) return null;

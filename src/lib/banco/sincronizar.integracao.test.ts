@@ -111,7 +111,8 @@ describe.runIf(url)("sincronizar com a Pluggy", () => {
   it("Pluggy fora do ar: conexão com erro e nada apagado", async () => {
     await sync();
     const r = await sync(cliente({ falhar: true }));
-    expect(r.erro).toBeTruthy();
+    // Mensagem para a pessoa, sem o texto técnico da Pluggy.
+    expect(r.erro).toBe("Não consegui ler o banco agora. Tente atualizar daqui a pouco.");
     expect((await repo.conexoes(pessoaId))[0].status).toBe("erro");
     expect(await repo.movimentos(pessoaId)).toHaveLength(50);
     // a trava foi solta: dá para sincronizar de novo
@@ -184,6 +185,29 @@ describe.runIf(url)("sincronizar com a Pluggy", () => {
     const daPluggy = faturas.find((f) => f.fonte === "pluggy" && f.contaId === cartao.id)!;
     expect(doPdf.foraDosCalculos).toBe(true);
     expect(daPluggy).toMatchObject({ mes: "2026-11", pagamentoMinimo: 18450, total: 100620 });
+  });
+
+  it("item OUTDATED (desatualizado no banco) não pede reconexão: lê o que tem", async () => {
+    const c = cliente();
+    c.dados.item = { ...c.dados.item, status: "OUTDATED" };
+    const r = await sync(c);
+    expect(r.erro).toBeNull();
+    expect((await repo.conexoes(pessoaId))[0].status).toBe("ok");
+    expect(await repo.movimentos(pessoaId)).toHaveLength(50);
+  });
+
+  it("releitura (transactions/updated) atualiza transações antigas, não só as recém-criadas", async () => {
+    const c1 = cliente();
+    await sync(c1);
+    const c2 = cliente();
+    const conta = Object.keys(c2.dados.transacoes).find((k) => k.startsWith(CONTA))!;
+    const condominio = c2.dados.transacoes[conta].find((t) => t.description === "CONDOMINIO EDIFICIO SOLAR")!;
+    condominio.amount = -850;
+    // createdAt antigo: a leitura incremental não pegaria.
+    condominio.createdAt = new Date("2026-11-01T00:00:00Z");
+    await sincronizar(conexaoId, { cliente: c2, agora: AGORA, releituraDias: 30 });
+    const m = (await repo.movimentos(pessoaId)).find((x) => x.pluggyId === condominio.id)!;
+    expect(m.valor).toBe(85000);
   });
 
   it("um produto opcional que falha (empréstimos) não derruba a sincronização", async () => {

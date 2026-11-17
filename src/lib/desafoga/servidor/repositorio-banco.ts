@@ -242,7 +242,7 @@ export async function salvarMovimentos(pessoaId: string, movs: Omit<Movimento, "
   return { novos, atualizados };
 }
 
-/** Apaga movimentos que o banco removeu (e os avisos deles). Só os que não viraram compra registrada. */
+/** Apaga movimentos que o banco removeu (e os avisos deles). A compra registrada fica; se o banco recriar a transação, ela se liga de novo à compra. */
 export async function apagarMovimentos(pluggyIds: string[]): Promise<number> {
   const alvo = await prisma().movimento.findMany({ where: { pluggyId: { in: pluggyIds } }, select: { id: true } });
   const ids = alvo.map((m) => m.id);
@@ -433,7 +433,18 @@ export async function receberSugestaoDeDivida(
   if (aceita) {
     const junta = fundirDivida(aceita.s, s);
     const campos = camposDaDivida(junta, extra.conexaoId);
-    await prisma().divida.update({ where: { id: aceita.d.id }, data: { ...campos, nome: aceita.d.nome, chave: aceita.d.chave ?? campos.chave } });
+    // O que a pessoa completou porque faltava sai quando a fonte passa a mandar um valor que serve.
+    const correcoes = { ...((aceita.d.correcoes ?? {}) as Record<string, number>) };
+    const conferidos = aceita.d.conferidos.filter((c) => {
+      const valor = s[c as CampoDaDivida];
+      const serve = valor !== null && valor !== undefined && valor !== 0 && !s.confira.includes(c as CampoDaDivida);
+      if (serve) delete correcoes[c];
+      return !serve;
+    });
+    await prisma().divida.update({
+      where: { id: aceita.d.id },
+      data: { ...campos, nome: aceita.d.nome, chave: aceita.d.chave ?? campos.chave, correcoes: json(correcoes), conferidos },
+    });
     return "divida-atualizada";
   }
 
@@ -462,6 +473,20 @@ async function sugestaoAberta(pessoaId: string, chave: string): Promise<Sugestao
   return paraSugestao(s);
 }
 
+/** Reserva a sugestão (aberta → aceita) de uma vez: um segundo clique não acha mais nada para aceitar. */
+async function reservarSugestao(pessoaId: string, chave: string): Promise<void> {
+  const r = await prisma().sugestao.updateMany({ where: { pessoaId, chave, situacao: "aberta" }, data: { situacao: "aceita" } });
+  if (!r.count) throw new NaoEncontrado("Sugestão não encontrada.");
+}
+
+const devolverSugestao = (pessoaId: string, chave: string) => prisma().sugestao.updateMany({ where: { pessoaId, chave }, data: { situacao: "aberta" } });
+
+/** Reserva o movimento para registrar (um segundo clique é recusado). Devolve false se já foi. */
+export async function reservarMovimento(pessoaId: string, movimentoId: string): Promise<boolean> {
+  const r = await prisma().movimento.updateMany({ where: { id: movimentoId, pessoaId, compraId: null, situacao: { notIn: ["registrada", "automatica"] } }, data: { situacao: "registrada" } });
+  return r.count === 1;
+}
+
 /** A dívida não pode entrar nos cálculos com saldo, juros ou parcela desconhecidos. */
 export class CamposAConferir extends Error {}
 
@@ -479,11 +504,22 @@ export async function aceitarSugestao(
   const faltam = dados.confira.filter((c) => obrigatorios.includes(c) && correcoes[c] === undefined);
   if (faltam.length) throw new CamposAConferir(`Confira antes de adicionar: ${faltam.map((c) => NOME_DO_CAMPO[c]).join(", ")}.`);
   const dia = dados.vencimento ?? vencimento ?? 10;
-  const criada = await prisma().divida.create({
-    data: { pessoaId, ...camposDaDivida(dados, dados.conexaoId), vencimento: dia, correcoes: Object.keys(correcoes).length ? json(correcoes) : undefined },
-  });
-  await prisma().sugestao.update({ where: { pessoaId_chave: { pessoaId, chave } }, data: { situacao: "aceita" } });
-  return paraDivida(criada);
+  await reservarSugestao(pessoaId, chave);
+  try {
+    const criada = await prisma().divida.create({
+      data: {
+        pessoaId,
+        ...camposDaDivida(dados, dados.conexaoId),
+        vencimento: dia,
+        correcoes: Object.keys(correcoes).length ? json(correcoes) : undefined,
+        conferidos: dados.confira.filter((c) => correcoes[c] !== undefined),
+      },
+    });
+    return paraDivida(criada);
+  } catch (e) {
+    await devolverSugestao(pessoaId, chave);
+    throw e;
+  }
 }
 
 /** Liga a sugestão a uma dívida que a pessoa já tinha: a fonte passa a atualizá-la, e o que a pessoa escreveu vira correção. */
@@ -526,6 +562,7 @@ export async function desvincularDivida(pessoaId: string, dividaId: string): Pro
       parcelaMinima: lida.parcelaMinima,
       parcelasRestantes: lida.parcelasRestantes ?? null,
       confira: [],
+      conferidos: [],
       correcoes: Prisma.DbNull,
     },
   });
@@ -537,7 +574,9 @@ export async function corrigirDivida(pessoaId: string, dividaId: string, campo: 
   const d = await prisma().divida.findFirst({ where: { id: dividaId, pessoaId } });
   if (!d) throw new NaoEncontrado("Dívida não encontrada.");
   const correcoes = { ...((d.correcoes ?? {}) as Record<string, number>), [campo]: valor };
-  const r = await prisma().divida.update({ where: { id: dividaId }, data: { correcoes: json(correcoes), confira: d.confira.filter((c) => c !== campo) } });
+  // Completou um campo que faltava (vs. discordar de um valor que a fonte mandou).
+  const conferidos = d.confira.includes(campo) ? [...new Set([...d.conferidos, campo])] : d.conferidos;
+  const r = await prisma().divida.update({ where: { id: dividaId }, data: { correcoes: json(correcoes), confira: d.confira.filter((c) => c !== campo), conferidos } });
   return paraDivida(r);
 }
 

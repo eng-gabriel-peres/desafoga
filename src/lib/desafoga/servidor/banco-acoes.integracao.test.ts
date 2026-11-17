@@ -198,6 +198,35 @@ describe.runIf(url)("ações dos bancos conectados", () => {
     expect(faturas.length).toBeGreaterThan(0);
   });
 
+  it("o servidor recusa correção absurda (taxa acima de 30% ao mês, parcelas quebradas)", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    await expect(chamar("banco.aceitarSugestao", [p, "itau|emprestimo|61000", { taxaMensal: 5, saldo: 1840000 }], ana)).rejects.toThrow();
+    const d = (await chamar("banco.aceitarSugestao", [p, "itau|emprestimo|61000", { taxaMensal: 0.019, saldo: 1840000 }], ana)) as { id: string };
+    await expect(chamar("dividas.corrigir", [p, d.id, "taxaMensal", 0.9], ana)).rejects.toThrow();
+    await expect(chamar("dividas.corrigir", [p, d.id, "parcelasRestantes", 2.5], ana)).rejects.toThrow();
+    await expect(chamar("dividas.corrigir", [p, d.id, "parcelasRestantes", 36], ana)).resolves.toBeTruthy();
+  });
+
+  it("duplo clique em registrar compra do banco cria uma compra só", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    const [m] = await repo.movimentos(p, { situacao: ["revisar"] });
+    const antes = (await repo.compras(p)).length;
+    const r = { item: "Ifood", categoria: "Comida pronta", emocao: 3, necessidade: "sim" };
+    await Promise.allSettled([chamar("banco.registrar", [p, m.id, r], ana), chamar("banco.registrar", [p, m.id, r], ana)]);
+    expect((await repo.compras(p)).length).toBe(antes + 1);
+  });
+
+  it("duplo clique em adicionar sugestão cria uma dívida só", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    const antes = (await repo.dividas(p)).length;
+    const args = [p, "itau|emprestimo|61000", { taxaMensal: 0.019, saldo: 1840000 }];
+    await Promise.allSettled([chamar("banco.aceitarSugestao", args, ana), chamar("banco.aceitarSugestao", args, ana)]);
+    expect((await repo.dividas(p)).length).toBe(antes + 1);
+  });
+
   it("vincular uma sugestão a uma dívida manual", async () => {
     const ana = await entrar("ana");
     const p = ana.pessoa!.id;

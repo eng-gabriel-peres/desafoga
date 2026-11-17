@@ -16,7 +16,8 @@ export interface ClientePluggy {
   item(itemId: string): Promise<PluggyItem>;
   contas(itemId: string): Promise<PluggyConta[]>;
   /** Todas as transações da conta (percorre o cursor do /v2/transactions). */
-  transacoes(contaId: string, desde?: { criadasDesde?: string }): Promise<PluggyTransacao[]>;
+  /** criadasDesde: só as criadas depois (leitura incremental); dataDe: todas com data a partir de (releitura). */
+  transacoes(contaId: string, desde?: { criadasDesde?: string; dataDe?: string }): Promise<PluggyTransacao[]>;
   emprestimos(itemId: string): Promise<PluggyEmprestimo[]>;
   faturas(contaId: string): Promise<PluggyFatura[]>;
   identidade(itemId: string): Promise<{ cpf: string | null; nome: string | null }>;
@@ -49,7 +50,8 @@ export function clientePluggy(): ClientePluggy {
   const base: ClientePluggy = {
     item: (id) => api.fetchItem(id),
     contas: async (id) => (await api.fetchAccounts(id)).results,
-    transacoes: (conta, desde) => api.fetchAllTransactions(conta, desde?.criadasDesde ? { createdAtFrom: desde.criadasDesde } : {}),
+    transacoes: (conta, desde) =>
+      api.fetchAllTransactions(conta, desde?.dataDe ? { dateFrom: desde.dataDe } : desde?.criadasDesde ? { createdAtFrom: desde.criadasDesde } : {}),
     emprestimos: async (id) => (await api.fetchLoans(id, { pageSize: 100 })).results,
     faturas: async (conta) => (await api.fetchCreditCardBills(conta, { pageSize: 100 })).results,
     identidade: async (id) => {
