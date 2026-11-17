@@ -1,5 +1,5 @@
 import { diaDe, horaDe, ultimosDias } from "./datas";
-import { notaMedia, somaDosValores } from "./emocao";
+import { comEmocao, notaMedia, somaDosValores } from "./emocao";
 import type { Compra, Necessidade } from "./tipos";
 
 interface Proporcao {
@@ -29,7 +29,8 @@ function proporcao(compras: Compra[]): Proporcao | null {
 const media = (l: number[]) => (l.length ? Math.round(l.reduce((a, b) => a + b, 0) / l.length) : null);
 
 /** Padrões entre emoção, horário e necessidade, para mostrar em linguagem simples. */
-export function padroesDeCompra(compras: Compra[], hoje: Date): Padroes {
+export function padroesDeCompra(todas: Compra[], hoje: Date): Padroes {
+  const compras = comEmocao(todas);
   const dias = ultimosDias(hoje, 30)
     .map((chave) => compras.filter((c) => diaDe(c.quando) === chave))
     .filter((l) => l.length);

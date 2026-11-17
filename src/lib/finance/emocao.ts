@@ -1,10 +1,14 @@
 import { chaveDoDia, diaDe, ultimosDias } from "./datas";
 import type { Compra, Emocao } from "./tipos";
 
-/** Média das emoções de uma lista de compras, ou null se estiver vazia. */
+/** Só as compras em que a pessoa disse como estava. */
+export const comEmocao = (compras: Compra[]) => compras.filter((c): c is Compra & { emocao: Emocao } => c.emocao !== null);
+
+/** Média das emoções de uma lista de compras (as sem emoção ficam de fora), ou null se não houver. */
 export function notaMedia(compras: Compra[]): number | null {
-  if (!compras.length) return null;
-  return compras.reduce((s, c) => s + c.emocao, 0) / compras.length;
+  const sentidas = comEmocao(compras);
+  if (!sentidas.length) return null;
+  return sentidas.reduce((s, c) => s + c.emocao, 0) / sentidas.length;
 }
 
 /** Carinha correspondente a uma nota: arredonda e limita de 1 a 5. */

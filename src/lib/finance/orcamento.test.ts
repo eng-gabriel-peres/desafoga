@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { explicarOrcamento } from "@/lib/assistente/textos";
-import { diasAteOFimDoMes, gastoDoMes, orcamentoDoMes, resumoDoOrcamento, situacaoDoOrcamento } from "./orcamento";
+import { diasAteOFimDoMes, gastoDoMes, orcamentoDoMes, resumoDoOrcamento, situacaoDoOrcamento, valorNoMes, type GastoAvulso } from "./orcamento";
 import type { Compra } from "./tipos";
 
 const compra = (valor: number, quando: string, categoria: Compra["categoria"] = "Mercado"): Compra => ({
@@ -74,5 +74,37 @@ describe("orçamento por categoria", () => {
       agora,
     );
     expect(r).toMatchObject({ limite: 80000, gasto: 73000, restante: 12000, diasRestantes: 15, porDia: 800 });
+  });
+});
+
+describe("compra parcelada e gastos do banco no orçamento", () => {
+  const iphone: Compra = { ...compra(480000, "2026-05-10T12:00:00-03:00", "Outro"), parcelas: 10, valorDaParcela: 48000 };
+
+  it("parcelada conta só a parcela de cada mês, da compra até a última", () => {
+    expect(valorNoMes(iphone, "2026-04")).toBe(0);
+    expect(valorNoMes(iphone, "2026-05")).toBe(48000);
+    expect(valorNoMes(iphone, "2026-07")).toBe(48000);
+    expect(valorNoMes(iphone, "2027-02")).toBe(48000);
+    expect(valorNoMes(iphone, "2027-03")).toBe(0);
+  });
+
+  it("compra à vista conta inteira no mês dela", () => {
+    const c = compra(5000, "2026-07-03T12:00:00-03:00");
+    expect(valorNoMes(c, "2026-07")).toBe(5000);
+    expect(valorNoMes(c, "2026-08")).toBe(0);
+  });
+
+  it("gastoDoMes usa a parcela", () => {
+    expect(gastoDoMes([iphone], "Outro", new Date(2026, 6, 15))).toBe(48000);
+  });
+
+  it("gastos do banco ainda não revisados entram no mês deles", () => {
+    const avulsos: GastoAvulso[] = [
+      { categoria: "Mercado", valor: 13200, data: "2026-07-14" },
+      { categoria: "Mercado", valor: 9900, data: "2026-06-30" },
+    ];
+    expect(gastoDoMes([], "Mercado", new Date(2026, 6, 15), avulsos)).toBe(13200);
+    const [s] = orcamentoDoMes([{ categoria: "Mercado", limite: 100000 }], [], new Date(2026, 6, 15), avulsos);
+    expect(s.gasto).toBe(13200);
   });
 });

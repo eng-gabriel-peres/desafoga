@@ -143,3 +143,18 @@ describe("padrões de compra", () => {
     expect(divisaoPorNecessidade(compras)).toEqual({ sim: 6000, nao: 46000, talvez: 0 });
   });
 });
+
+describe("compras sem emoção (registradas sozinhas pelo banco)", () => {
+  const sem = (c: Compra): Compra => ({ ...c, emocao: null, necessidade: null });
+
+  it("ficam fora da nota média", () => {
+    expect(notaMedia([compra(0, 10, 2, "sim"), sem(compra(0, 11, 5, "sim")), compra(0, 12, 4, "sim")])).toBe(3);
+    expect(notaMedia([sem(compra(0, 10, 2, "sim"))])).toBeNull();
+  });
+
+  it("ficam fora dos padrões e da divisão por necessidade", () => {
+    const lista = [compra(1, 22, 1, "nao", 1000), sem(compra(1, 23, 1, "nao", 5000))];
+    expect(padroesDeCompra(lista, HOJE).tristes).toEqual(padroesDeCompra([lista[0]], HOJE).tristes);
+    expect(divisaoPorNecessidade(lista).nao).toBe(1000);
+  });
+});

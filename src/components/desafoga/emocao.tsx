@@ -78,10 +78,19 @@ export function NotaDoDia({ nota, quantidade, sujeito }: { nota: number | null; 
 
 export function LinhaDeCompra({ compra, semNecessidade }: { compra: Compra; semNecessidade?: boolean }) {
   const Icone = ICONE_DA_CATEGORIA[compra.categoria];
-  const via = compra.via === "whatsapp" ? " · pelo WhatsApp" : compra.via === "fatura" ? " · pela fatura" : "";
+  const via = compra.via === "whatsapp" ? " · pelo WhatsApp" : compra.via === "fatura" ? " · pela fatura" : compra.via === "banco" ? " · do banco" : "";
+  const parcelas = compra.parcelas && compra.parcelas > 1 && compra.valorDaParcela ? ` em ${compra.parcelas}x de ${reais(compra.valorDaParcela)}` : "";
   return (
     <li className="grid grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-line py-3 last:border-0">
-      <Carinha emocao={compra.emocao} />
+      {compra.emocao !== null ? (
+        <Carinha emocao={compra.emocao} />
+      ) : (
+        <span role="img" aria-label="Sem emoção registrada" className="grid size-12 shrink-0 place-items-center rounded-full border-2 border-dashed border-line text-center text-[0.68rem] leading-tight text-muted" title="Sem emoção registrada">
+          sem
+          <br />
+          emoção
+        </span>
+      )}
       <div className="min-w-0">
         <p className="font-bold">{compra.item}</p>
         <p className="flex flex-wrap items-center gap-1 text-[0.85rem] text-muted">
@@ -91,7 +100,8 @@ export function LinhaDeCompra({ compra, semNecessidade }: { compra: Compra; semN
       </div>
       <div className="text-right">
         <b>{reais(compra.valor)}</b>
-        {!semNecessidade && (
+        {parcelas && <p className="text-[0.8rem] text-muted">{parcelas}</p>}
+        {!semNecessidade && compra.necessidade !== null && (
           <div className="mt-1">
             <EtiquetaNecessidade necessidade={compra.necessidade} />
           </div>

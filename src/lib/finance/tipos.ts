@@ -27,11 +27,16 @@ export interface Compra {
   categoria: Categoria;
   /** Centavos. */
   valor: number;
-  emocao: Emocao;
-  necessidade: Necessidade;
+  /** null: veio do banco no modo "registrar sozinho" e a pessoa ainda não disse como estava. */
+  emocao: Emocao | null;
+  necessidade: Necessidade | null;
   /** Data e hora em ISO 8601. */
   quando: string;
-  via: "app" | "whatsapp" | "fatura";
+  via: "app" | "whatsapp" | "fatura" | "banco";
+  /** Compra parcelada: em quantas vezes e o valor de cada uma (o `valor` é o total). */
+  parcelas?: number | null;
+  valorDaParcela?: number | null;
+  parceladaId?: string | null;
   /** Opinião do profissional sobre a necessidade; null enquanto não avaliou. */
   avaliacaoProfissional: Necessidade | null;
 }
