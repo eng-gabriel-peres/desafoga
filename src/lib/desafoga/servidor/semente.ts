@@ -5,6 +5,9 @@
  */
 import { randomBytes } from "node:crypto";
 import { materializar, PROFISSIONAIS, SEMENTES } from "@/fixtures/desafoga";
+import type { SementeBanco } from "@/fixtures/desafoga/banco-da-ana";
+import { avisoDeCompraDoBanco } from "@/lib/assistente/textos";
+import { diaEmBrasilia } from "@/lib/banco/normalizar";
 import type { Prisma, PrismaClient } from "@/generated/prisma/client";
 
 type Transacao = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$extends">;
@@ -177,7 +180,88 @@ export async function criarEspacoDemo(db: Transacao, agora = new Date()): Promis
         respostasRapidas: (m.respostasRapidas ?? undefined) as Prisma.InputJsonValue | undefined,
       })),
     });
+    if (semente.banco) await criarBancoDaDemo(db, pessoa.id, semente.banco, agora);
   }
 
   return { espacoId: espaco.id, pessoas, profissionais };
+}
+
+/** Dia (YYYY-MM-DD, Brasília) de N dias atrás. */
+const diaDeAtras = (dias: number, agora: Date) => diaEmBrasilia(new Date(agora.getTime() - dias * 86_400_000));
+
+function mesAtras(agora: Date, meses: number): string {
+  const [a, m] = diaEmBrasilia(agora).split("-").map(Number);
+  const t = a * 12 + (m - 1) - meses;
+  return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, "0")}`;
+}
+
+/** Banco de demonstração (sem Pluggy): conexão, contas, movimentos, compra parcelada, avisos e sugestões de dívida. */
+async function criarBancoDaDemo(db: Transacao, pessoaId: string, b: SementeBanco, agora: Date): Promise<void> {
+  const conexao = await db.conexaoBancaria.create({ data: { pessoaId, pluggyItemId: null, banco: b.banco, status: "ok", ultimaSincronizacao: agora } });
+  const contas: Record<string, string> = {};
+  for (const c of b.contas) {
+    const criada = await db.contaBancaria.create({
+      data: {
+        conexaoId: conexao.id,
+        pluggyAccountId: `demo-${conexao.id}-${c.id}`,
+        tipo: c.id,
+        nome: c.nome,
+        saldo: c.saldo,
+        limite: c.limite ?? null,
+        limiteDisponivel: c.limite ?? null,
+        chequeEspecialUsado: c.chequeEspecialUsado ?? null,
+        chequeEspecialLimite: c.chequeEspecialLimite ?? null,
+      },
+    });
+    contas[c.id] = criada.id;
+  }
+  const p = b.parcelada;
+  const mesDaPrimeira = mesAtras(agora, p.primeiraHaMeses);
+  const parcelada = await db.compraParcelada.create({
+    data: {
+      pessoaId,
+      chave: `${contas.cartao}|${p.lojaOriginal}|${p.totalParcelas}|${p.valorParcela}|${mesDaPrimeira}`,
+      origem: contas.cartao,
+      fonte: "pluggy",
+      nome: p.nome,
+      lojaOriginal: p.lojaOriginal,
+      categoria: p.categoria,
+      valorTotal: p.valorParcela * p.totalParcelas,
+      valorParcela: p.valorParcela,
+      totalParcelas: p.totalParcelas,
+      mesDaPrimeira,
+      compradaEm: `${mesDaPrimeira}-03`,
+      compradaEmEstimada: false,
+      parcelasVistas: p.parcelasVistas,
+    },
+  });
+  for (const m of b.movimentos) {
+    const criado = await db.movimento.create({
+      data: {
+        pessoaId,
+        contaId: contas[m.conta],
+        pluggyId: `demo-${conexao.id}-${m.id}`,
+        data: diaDeAtras(m.dias, agora),
+        descricao: m.descricao,
+        descricaoOriginal: m.descricao,
+        valor: m.valor,
+        direcao: m.direcao,
+        natureza: m.natureza,
+        categoria: m.categoria ?? null,
+        situacao: m.situacao,
+        parceladaId: m.parcela ? parcelada.id : null,
+        parcela: m.parcela ?? null,
+        totalParcelas: m.parcela ? p.totalParcelas : null,
+        valorTotalDaCompra: m.parcela ? p.valorParcela * p.totalParcelas : null,
+        jurosBoleto: m.jurosBoleto ?? null,
+      },
+    });
+    if (m.situacao === "revisar") {
+      const nome = m.descricao.charAt(0) + m.descricao.slice(1).toLowerCase();
+      await db.aviso.create({ data: { pessoaId, tipo: "compra-banco", texto: avisoDeCompraDoBanco(nome, m.valor), quando: new Date(`${diaDeAtras(m.dias, agora)}T12:00:00-03:00`), referencia: criado.id } });
+    }
+  }
+  for (const s of b.sugestoes) {
+    await db.sugestao.create({ data: { pessoaId, chave: s.chave, tipo: "divida", dados: { ...s, conexaoId: conexao.id } as unknown as Prisma.InputJsonValue } });
+  }
 }

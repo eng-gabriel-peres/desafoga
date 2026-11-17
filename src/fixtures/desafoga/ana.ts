@@ -1,4 +1,5 @@
 import type { SementePessoa } from "./sementes";
+import { BANCO_DA_ANA } from "./banco-da-ana";
 
 /**
  * Ana (fictícia): 29 anos, cartão no rotativo, compra à noite quando está
@@ -43,6 +44,7 @@ export const ana: SementePessoa = {
   // Metas do protótipo: uma em dia, uma no ritmo "por dia" e uma concluída.
   renda: { valor: 280000, dia: 5 },
   parcelasEmDia: true,
+  banco: BANCO_DA_ANA,
   contas: [
     { id: "ana-aluguel", nome: "Aluguel", categoria: "moradia", valor: 20000, vencimento: 10, variavel: false, debitoAutomatico: false, lembrete: true },
     { id: "ana-luz", nome: "Conta de luz", categoria: "luz", valor: 9500, vencimento: 12, variavel: true, debitoAutomatico: false, lembrete: true, emAberto: true },

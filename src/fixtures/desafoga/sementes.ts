@@ -23,6 +23,7 @@ import type {
   TipoAviso,
 } from "@/services/tipos";
 import { chaveDoDia, chaveDoMes, compromissosDoMes, type Lancamento } from "@/lib/finance";
+import type { SementeBanco } from "./banco-da-ana";
 
 interface Quando {
   dias: number;
@@ -69,6 +70,8 @@ export interface SementePessoa {
   checkinsDeHoje?: Partial<Record<Periodo, Emocao>>;
   /** As parcelas do plano que venceram antes de hoje entram como pagas neste mês. */
   parcelasEmDia?: boolean;
+  /** Banco conectado de demonstração (sem Pluggy). */
+  banco?: SementeBanco;
 }
 
 export interface DadosDaPessoa {

@@ -131,6 +131,7 @@ function CartaoDaSugestao({ pessoaId, s, parecida }: { pessoaId: string; s: Suge
           <dt className="text-muted">Juros</dt>
           <dd className="font-bold">{d.taxaMensal !== null ? `${percentual(d.taxaMensal)} ao mês` : "a conferir"}</dd>
         </div>
+        {(d.parcelaMinima > 0 || d.tipo === "emprestimo" || d.tipo === "parcelamento") && (
         <div>
           <dt className="text-muted">Parcela</dt>
           <dd className="font-bold">
@@ -138,6 +139,7 @@ function CartaoDaSugestao({ pessoaId, s, parecida }: { pessoaId: string; s: Suge
             {d.parcelasRestantes ? ` · faltam ${d.parcelasRestantes}` : ""}
           </dd>
         </div>
+        )}
       </dl>
       {d.temSeguro && (
         <p className="mt-2 flex items-center gap-1.5 text-[0.88rem] text-maybe">

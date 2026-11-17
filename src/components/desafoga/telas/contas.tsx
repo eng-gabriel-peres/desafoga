@@ -110,11 +110,6 @@ export function TelaContas({ area = "pessoa", pessoaId: doPainel }: { area?: Are
               </p>
             )}
           </Painel>
-        </div>
-        <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
-          {(!somenteLeitura || dados.banco.conexoes.length > 0) && (
-            <BancosConectados pessoaId={pessoaId} dados={dados.banco} demo={eu.demo} agora={agora} somenteLeitura={somenteLeitura} />
-          )}
           <ProximosMeses
             contas={contas.contas}
             dividas={dividas}
@@ -126,6 +121,11 @@ export function TelaContas({ area = "pessoa", pessoaId: doPainel }: { area?: Are
             agora={agora}
           />
           <ComprasParceladas pessoaId={pessoaId} parceladas={dados.banco.parceladas} agora={agora} somenteLeitura={somenteLeitura} />
+        </div>
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+          {(!somenteLeitura || dados.banco.conexoes.length > 0) && (
+            <BancosConectados pessoaId={pessoaId} dados={dados.banco} demo={eu.demo} agora={agora} somenteLeitura={somenteLeitura} />
+          )}
           <CalendarioDoMes compromissos={compromissos} agora={agora} dia={dia} escolher={setDia} />
           <ContasPorCategoria grupos={contasPorCategoria(contas.contas)} />
         </div>

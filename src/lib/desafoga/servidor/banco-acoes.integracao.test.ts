@@ -92,6 +92,30 @@ describe.runIf(url)("ações dos bancos conectados", () => {
     return novos[0];
   }
 
+  it("a demo da Ana já vem com banco, compras para revisar, parcelada e dívidas encontradas", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    const conexoes = await repo.conexoes(p);
+    expect(conexoes).toHaveLength(1);
+    expect(conexoes[0].pluggyItemId).toBeNull();
+    expect(await repo.movimentos(p, { situacao: ["revisar"] })).toHaveLength(3);
+    expect(await repo.avisos([p], { apenas: ["compra-banco"] })).toHaveLength(3);
+    const parceladas = await repo.parceladas(p);
+    expect(parceladas).toHaveLength(1);
+    expect(parceladas[0]).toMatchObject({ totalParcelas: 10, valorParcela: 48000 });
+    const sugestoes = await repo.sugestoes(p);
+    expect(sugestoes.map((s) => s.dados.tipo).sort()).toEqual(["cheque", "emprestimo"]);
+
+    // O Registrato de exemplo tem o mesmo consignado do extrato: junta, e soma Nubank e Caixa.
+    const { lerDocumentoEnviado } = await import("./documentos");
+    await lerDocumentoEnviado(p, null, { exemplo: "registrato" });
+    const depois = await repo.sugestoes(p);
+    expect(depois).toHaveLength(4);
+    const consignados = depois.filter((s) => s.dados.tipo === "emprestimo");
+    expect(consignados).toHaveLength(1);
+    expect(consignados[0].dados).toMatchObject({ fonte: "registrato", parcelaMinima: 61000, saldo: 1840000 });
+  });
+
   it("a profissional só vê o banco se a pessoa compartilha as contas, e não muda nada", async () => {
     const ana = await entrar("ana");
     const paula = await entrar("paula", ana);
@@ -194,11 +218,12 @@ describe.runIf(url)("ações dos bancos conectados", () => {
     const deOutra = clienteFalso();
     deOutra.dados.item = { ...deOutra.dados.item, clientUserId: "outra-pessoa" };
     await expect(conectado(p, "item-y", deOutra)).rejects.toThrow();
-    expect(await repo.conexoes(p)).toHaveLength(0);
+    const daPluggy = async () => (await repo.conexoes(p)).filter((c) => c.pluggyItemId);
+    expect(await daPluggy()).toHaveLength(0);
     const minha = clienteFalso({ contas: [], transacoes: {}, emprestimos: [] });
     minha.dados.item = { ...minha.dados.item, clientUserId: p };
     expect((await conectado(p, `item-${p}`, minha)).erro).toBeNull();
-    expect(await repo.conexoes(p)).toHaveLength(1);
+    expect(await daPluggy()).toHaveLength(1);
   });
 
   it("Pluggy fora do ar: abrir a conexão falha com mensagem clara", async () => {

@@ -35,7 +35,8 @@ export function ComprasParceladas({ pessoaId, parceladas, agora, somenteLeitura 
     <Painel titulo="Compras parceladas">
       <ul>
         {ativas.map((p) => {
-          const pagas = Math.min(p.totalParcelas, Math.max(0, mesesEntre(p.mesDaPrimeira, mesAtual)));
+          // Cobradas: até a parcela deste mês (ou a maior que o banco ou a fatura já mostrou).
+          const cobradas = Math.min(p.totalParcelas, Math.max(0, mesesEntre(p.mesDaPrimeira, mesAtual) + 1, ...p.parcelasVistas));
           const ultima = somarMeses(p.mesDaPrimeira, p.totalParcelas - 1);
           const nome = p.nome === p.lojaOriginal ? nomeDaLoja(p.nome) : p.nome;
           return (
@@ -48,7 +49,7 @@ export function ComprasParceladas({ pessoaId, parceladas, agora, somenteLeitura 
                     {nomeDoMes(p.compradaEm.slice(0, 7))} · {reais(p.valorTotal)} em {p.totalParcelas}x de {reais(p.valorParcela)}
                   </p>
                   <p className="mt-0.5 text-[0.85rem]">
-                    Pagas {pagas} · faltam {p.totalParcelas - pagas} · última na fatura de {nomeDoMes(ultima)}
+                    Cobradas {cobradas} · faltam {p.totalParcelas - cobradas} · última na fatura de {nomeDoMes(ultima)}
                   </p>
                 </div>
                 <Etiqueta tom="neutra">{p.fonte === "pluggy" ? "do banco" : "da fatura"}</Etiqueta>
@@ -61,12 +62,12 @@ export function ComprasParceladas({ pessoaId, parceladas, agora, somenteLeitura 
               <ol aria-label={`Parcelas de ${nome}`} className="mt-2 flex flex-wrap gap-1">
                 {Array.from({ length: p.totalParcelas }, (_, i) => {
                   const mes = somarMeses(p.mesDaPrimeira, i);
-                  const paga = i < pagas;
+                  const paga = i < cobradas;
                   return (
-                    <li key={i} title={`${i + 1}ª parcela, ${nomeDoMes(mes)}`} className={`flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[0.72rem] ${paga ? "bg-good-soft text-good" : "bg-surface2 text-muted"}`}>
+                    <li key={i} title={`${i + 1}ª parcela, ${nomeDoMes(mes)}${paga ? ", cobrada" : ""}`} className={`flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[0.72rem] ${paga ? "bg-good-soft text-good" : "bg-surface2 text-muted"}`}>
                       {paga ? <Check aria-hidden="true" className="size-3" /> : <Circle aria-hidden="true" className="size-2.5" />}
                       {nomeDoMes(mes).slice(0, 3)}
-                      <span className="sr-only">{paga ? " paga" : " a pagar"}</span>
+                      <span className="sr-only">{paga ? " cobrada" : " a cobrar"}</span>
                     </li>
                   );
                 })}
