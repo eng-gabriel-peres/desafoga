@@ -46,40 +46,47 @@ model Sessao {
 }
 
 model Pessoa {
-  id              String           @id @default(uuid())
-  espacoId        String
-  espaco          Espaco           @relation(fields: [espacoId], references: [id], onDelete: Cascade)
+  id                 String            @id @default(uuid())
+  espacoId           String
+  espaco             Espaco            @relation(fields: [espacoId], references: [id], onDelete: Cascade)
   /// Id curto dos dados fictícios ("ana"), para a demo achar a persona.
-  slug            String?
-  nome            String
-  apelido         String
-  idade           Int?
-  cor             String
-  perfil          String           @default("")
+  slug               String?
+  nome               String
+  apelido            String
+  idade              Int?
+  cor                String
+  perfil             String            @default("")
   /// WhatsApp confirmado (só dígitos, com 55).
-  telefone        String?          @unique
-  criadaEm        DateTime         @default(now())
-  compras         Compra[]
-  dividas         Divida[]
-  plano           Plano?
-  faturas         Fatura[]
-  memoria         Memoria?
-  anotacoes       Anotacao[]
-  avisos          Aviso[]
-  mensagens       Mensagem[]
-  estados         EstadoConversa[]
-  acompanhamentos Acompanhamento[]
-  sessoes         Sessao[]
-  orcamentos      Orcamento[]
-  metas           Meta[]
-  rotina          Rotina?
-  checkins        CheckIn[]
-  contasFixas     ContaFixa[]
-  pagamentos      Pagamento[]
+  telefone           String?           @unique
+  criadaEm           DateTime          @default(now())
+  compras            Compra[]
+  dividas            Divida[]
+  plano              Plano?
+  faturas            Fatura[]
+  memoria            Memoria?
+  anotacoes          Anotacao[]
+  avisos             Aviso[]
+  mensagens          Mensagem[]
+  estados            EstadoConversa[]
+  acompanhamentos    Acompanhamento[]
+  sessoes            Sessao[]
+  orcamentos         Orcamento[]
+  metas              Meta[]
+  rotina             Rotina?
+  checkins           CheckIn[]
+  contasFixas        ContaFixa[]
+  pagamentos         Pagamento[]
   /// Quanto entra por mês (centavos); null se não informou.
-  rendaMensal     Int?
+  rendaMensal        Int?
   /// Dia do mês em que recebe.
-  diaDaRenda      Int?
+  diaDaRenda         Int?
+  /// Compras do banco: revisar (padrão), automatico ou desligado.
+  modoComprasDoBanco String            @default("revisar")
+  conexoes           ConexaoBancaria[]
+  movimentos         Movimento[]
+  parceladas         CompraParcelada[]
+  sugestoes          Sugestao[]
+  regrasDoBanco      RegraDoBanco[]
 
   @@unique([espacoId, slug])
   @@map("pessoas")
@@ -123,13 +130,18 @@ model Compra {
   item                  String
   categoria             String
   valor                 Int
-  /// 1 muito triste … 5 muito feliz.
-  emocao                Int
-  necessidade           String
+  /// 1 muito triste … 5 muito feliz; nulo quando veio do banco e a pessoa ainda não disse.
+  emocao                Int?
+  necessidade           String?
   quando                DateTime
   via                   String
   avaliacaoProfissional String?
+  /// Compra parcelada: quantas vezes e o valor de cada (o valor é o total).
+  parcelas              Int?
+  valorDaParcela        Int?
+  parceladaId           String?
   lancamentos           Lancamento[]
+  movimentos            Movimento[]
 
   @@index([pessoaId, quando])
   @@map("compras")
@@ -148,6 +160,25 @@ model Divida {
   parcelaMinima Int
   vencimento    Int
 
+  /// manual, banco (Pluggy) ou documento.
+  origem             String    @default("manual")
+  /// pluggy, contrato, registrato, fatura ou extrato (a mais confiável que já atualizou).
+  fonte              String?
+  chave              String?
+  pluggyLoanId       String?   @unique
+  conexaoId          String?
+  instituicao        String?
+  cet                Float?
+  parcelasRestantes  Int?
+  temSeguro          Boolean?
+  vencido            Int?
+  faltaPagarComJuros Int?
+  atualizadaEm       DateTime?
+  /// Campos que a pessoa precisa conferir (saldo, taxaMensal, parcelaMinima, parcelasRestantes).
+  confira            String[]  @default([])
+  /// Valores corrigidos pela pessoa: { campo: valor }. Valem sobre o que a fonte diz.
+  correcoes          Json?
+
   @@index([pessoaId])
   @@map("dividas")
 }
@@ -163,33 +194,44 @@ model Plano {
 }
 
 model Fatura {
-  id          String       @id @default(uuid())
-  pessoaId    String
-  pessoa      Pessoa       @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
-  tipo        String
-  origem      String
+  id                 String       @id @default(uuid())
+  pessoaId           String
+  pessoa             Pessoa       @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  tipo               String
+  origem             String
   /// YYYY-MM
-  mes         String
-  criadaEm    DateTime     @default(now())
-  lancamentos Lancamento[]
+  mes                String
+  criadaEm           DateTime     @default(now())
+  lancamentos        Lancamento[]
+  /// documento ou pluggy.
+  fonte              String       @default("documento")
+  pluggyBillId       String?      @unique
+  contaId            String?
+  vencimento         String?
+  total              Int?
+  pagamentoMinimo    Int?
+  taxaRotativoMensal Float?
+  foraDosCalculos    Boolean      @default(false)
 
   @@index([pessoaId, mes])
   @@map("faturas")
 }
 
 model Lancamento {
-  id        String  @id @default(uuid())
-  faturaId  String
-  fatura    Fatura  @relation(fields: [faturaId], references: [id], onDelete: Cascade)
+  id            String  @id @default(uuid())
+  faturaId      String
+  fatura        Fatura  @relation(fields: [faturaId], references: [id], onDelete: Cascade)
   /// YYYY-MM-DD
-  data      String
-  descricao String
-  valor     Int
-  tipo      String
-  categoria String?
-  compraId  String?
-  compra    Compra? @relation(fields: [compraId], references: [id], onDelete: SetNull)
-  ordem     Int     @default(0)
+  data          String
+  descricao     String
+  valor         Int
+  tipo          String
+  categoria     String?
+  compraId      String?
+  compra        Compra? @relation(fields: [compraId], references: [id], onDelete: SetNull)
+  ordem         Int     @default(0)
+  parcela       Int?
+  totalParcelas Int?
 
   @@index([faturaId])
   @@map("lancamentos")
@@ -222,12 +264,14 @@ model Anotacao {
 }
 
 model Aviso {
-  id       String   @id @default(uuid())
-  pessoaId String
-  pessoa   Pessoa   @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
-  tipo     String
-  texto    String
-  quando   DateTime @default(now())
+  id         String   @id @default(uuid())
+  pessoaId   String
+  pessoa     Pessoa   @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  tipo       String
+  texto      String
+  quando     DateTime @default(now())
+  /// Movimento do banco a que o aviso se refere (some junto quando o banco apaga).
+  referencia String?
 
   @@index([pessoaId, quando])
   @@map("avisos")
@@ -303,6 +347,8 @@ model Meta {
   lembrete        Boolean           @default(true)
   prazo           DateTime?         @db.Date
   criadaEm        DateTime          @default(now())
+  /// Investimentos da Pluggy ligados à meta (entrega 2).
+  investimentos   String[]          @default([])
   movimentos      MovimentoDaMeta[]
 
   @@index([pessoaId])
@@ -407,4 +453,144 @@ model Pagamento {
   @@unique([tipo, alvoId, mes])
   @@index([pessoaId, mes])
   @@map("pagamentos")
+}
+
+/// Banco conectado pela Pluggy (um "item"). pluggyItemId nulo = Banco Demonstração.
+model ConexaoBancaria {
+  id                        String          @id @default(uuid())
+  pessoaId                  String
+  pessoa                    Pessoa          @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  pluggyItemId              String?         @unique
+  banco                     String
+  logo                      String?
+  /// ok, atualizando, reconectar ou erro.
+  status                    String          @default("ok")
+  erro                      String?
+  ultimaSincronizacao       DateTime?
+  ultimoPedidoDeAtualizacao DateTime?
+  sincronizandoDesde        DateTime?
+  consentimentoAte          DateTime?
+  cpfDoTitular              String?
+  conectadaEm               DateTime        @default(now())
+  contas                    ContaBancaria[]
+
+  @@index([pessoaId])
+  @@map("conexoes_bancarias")
+}
+
+model ContaBancaria {
+  id                   String          @id @default(uuid())
+  conexaoId            String
+  conexao              ConexaoBancaria @relation(fields: [conexaoId], references: [id], onDelete: Cascade)
+  pluggyAccountId      String          @unique
+  /// corrente, poupanca ou cartao.
+  tipo                 String
+  nome                 String
+  saldo                Int
+  limite               Int?
+  limiteDisponivel     Int?
+  fechamento           String?
+  vencimento           String?
+  chequeEspecialUsado  Int?
+  chequeEspecialLimite Int?
+  movimentos           Movimento[]
+
+  @@map("contas_bancarias")
+}
+
+/// Transação do banco já normalizada (valor em centavos, positivo).
+model Movimento {
+  id                   String           @id @default(uuid())
+  pessoaId             String
+  pessoa               Pessoa           @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  contaId              String
+  conta                ContaBancaria    @relation(fields: [contaId], references: [id], onDelete: Cascade)
+  pluggyId             String           @unique
+  /// YYYY-MM-DD em Brasília.
+  data                 String
+  descricao            String
+  descricaoOriginal    String
+  valor                Int
+  direcao              String
+  natureza             String
+  categoria            String?
+  categoriaPluggy      String?
+  /// revisar, registrada, ignorada, historico ou automatica.
+  situacao             String
+  compraId             String?
+  compra               Compra?          @relation(fields: [compraId], references: [id], onDelete: SetNull)
+  parceladaId          String?
+  parcelada            CompraParcelada? @relation(fields: [parceladaId], references: [id], onDelete: SetNull)
+  parcela              Int?
+  totalParcelas        Int?
+  valorTotalDaCompra   Int?
+  compradaEm           String?
+  faturaPrevista       String?
+  cnpj                 String?
+  mcc                  Int?
+  documentoContraparte String?
+  jurosBoleto          Int?
+  pendente             Boolean          @default(false)
+  criadoEm             DateTime         @default(now())
+
+  @@index([pessoaId, data])
+  @@map("movimentos")
+}
+
+model CompraParcelada {
+  id                 String      @id @default(uuid())
+  pessoaId           String
+  pessoa             Pessoa      @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  chave              String
+  origem             String
+  /// pluggy ou documento.
+  fonte              String
+  nome               String
+  lojaOriginal       String
+  categoria          String
+  valorTotal         Int
+  valorParcela       Int
+  totalParcelas      Int
+  mesDaPrimeira      String
+  compradaEm         String
+  compradaEmEstimada Boolean     @default(false)
+  compraId           String?
+  parcelasVistas     Int[]       @default([])
+  /// Já gerou aviso "para revisar" (pede emoção uma vez só).
+  avisada            Boolean     @default(false)
+  movimentos         Movimento[]
+
+  @@unique([pessoaId, chave])
+  @@map("compras_parceladas")
+}
+
+/// Sugestão vinda do banco ou de documento (dívida, renda): a pessoa aceita ou dispensa.
+model Sugestao {
+  id           String   @id @default(uuid())
+  pessoaId     String
+  pessoa       Pessoa   @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  chave        String
+  /// divida ou renda.
+  tipo         String
+  dados        Json
+  /// aberta, aceita ou dispensada.
+  situacao     String   @default("aberta")
+  criadaEm     DateTime @default(now())
+  atualizadaEm DateTime @updatedAt
+
+  @@unique([pessoaId, chave])
+  @@map("sugestoes")
+}
+
+/// O que a pessoa ensinou: "PIX JOAO é transferência minha", "CARREFOUR é Casa".
+model RegraDoBanco {
+  id       String   @id @default(uuid())
+  pessoaId String
+  pessoa   Pessoa   @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  padrao   String
+  efeito   Json
+  criadaEm DateTime @default(now())
+
+  @@unique([pessoaId, padrao])
+  @@map("regras_do_banco")
 }

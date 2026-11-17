@@ -47,34 +47,52 @@ function paraProfissional(p: { id: string; nome: string; papel: string; cor: str
   return { id: p.id, nome: p.nome, papel: p.papel, cor: p.cor };
 }
 
-function paraCompra(c: Prisma.CompraModel): Compra {
+export function paraCompra(c: Prisma.CompraModel): Compra {
   return {
     id: c.id,
     item: c.item,
     categoria: c.categoria as Categoria,
     valor: c.valor,
-    emocao: c.emocao as Emocao,
-    necessidade: c.necessidade as Necessidade,
+    emocao: c.emocao as Emocao | null,
+    necessidade: c.necessidade as Necessidade | null,
     quando: iso(c.quando),
     via: c.via as Compra["via"],
     avaliacaoProfissional: c.avaliacaoProfissional as Necessidade | null,
+    ...(c.parcelas ? { parcelas: c.parcelas, valorDaParcela: c.valorDaParcela, parceladaId: c.parceladaId } : {}),
   };
 }
 
-function paraDivida(d: Prisma.DividaModel): Divida {
-  return {
+/** Dívida como as telas veem: as correções da pessoa valem sobre o que a fonte disse. */
+export function paraDivida(d: Prisma.DividaModel): Divida {
+  const correcoes = (d.correcoes ?? {}) as NonNullable<Divida["correcoes"]>;
+  const base: Divida = {
     id: d.id,
     tipo: d.tipo as TipoDivida,
     nome: d.nome,
     detalhe: d.detalhe,
-    saldo: d.saldo,
-    taxaMensal: d.taxaMensal,
-    parcelaMinima: d.parcelaMinima,
+    saldo: correcoes.saldo ?? d.saldo,
+    taxaMensal: correcoes.taxaMensal ?? d.taxaMensal,
+    parcelaMinima: correcoes.parcelaMinima ?? d.parcelaMinima,
     vencimento: d.vencimento,
+  };
+  if (d.origem === "manual" && !d.instituicao) return base;
+  return {
+    ...base,
+    origem: d.origem as Divida["origem"],
+    fonte: d.fonte as Divida["fonte"],
+    instituicao: d.instituicao,
+    cet: d.cet,
+    parcelasRestantes: correcoes.parcelasRestantes ?? d.parcelasRestantes,
+    temSeguro: d.temSeguro,
+    vencido: d.vencido,
+    faltaPagarComJuros: d.faltaPagarComJuros,
+    confira: (d.confira as NonNullable<Divida["confira"]>).filter((c) => correcoes[c] === undefined),
+    correcoes,
+    atualizadaEm: d.atualizadaEm ? iso(d.atualizadaEm) : null,
   };
 }
 
-function paraFatura(f: Prisma.FaturaModel & { lancamentos: Prisma.LancamentoModel[] }): Fatura {
+export function paraFatura(f: Prisma.FaturaModel & { lancamentos: Prisma.LancamentoModel[] }): Fatura {
   return {
     id: f.id,
     tipo: f.tipo as Fatura["tipo"],
@@ -90,7 +108,15 @@ function paraFatura(f: Prisma.FaturaModel & { lancamentos: Prisma.LancamentoMode
         tipo: l.tipo as TipoLancamento,
         ...(l.categoria ? { categoria: l.categoria as Categoria } : {}),
         compraId: l.compraId,
+        ...(l.parcela && l.totalParcelas ? { parcela: l.parcela, totalParcelas: l.totalParcelas } : {}),
       })),
+    vencimento: f.vencimento,
+    total: f.total,
+    pagamentoMinimo: f.pagamentoMinimo,
+    taxaRotativoMensal: f.taxaRotativoMensal,
+    contaId: f.contaId,
+    fonte: f.fonte as Fatura["fonte"],
+    foraDosCalculos: f.foraDosCalculos,
   };
 }
 
@@ -284,6 +310,7 @@ export async function salvarDivida(pessoaId: string, d: Omit<Divida, "id"> & { i
     taxaMensal: d.taxaMensal,
     parcelaMinima: d.parcelaMinima,
     vencimento: d.vencimento,
+    ...(d.instituicao ? { instituicao: d.instituicao } : {}),
   };
   if (d.id) {
     // Só atualiza dívida desta pessoa (o id veio do navegador).
@@ -407,7 +434,7 @@ export async function sugerirValor(pessoaId: string, valor: number, profissional
 }
 
 /** Guarda a fatura lida e registra as compras novas que ganharam emoção e necessidade. */
-export async function salvarFatura(pessoaId: string, fatura: Fatura, classificacoes: Record<string, Classificacao> = {}): Promise<void> {
+export async function salvarFatura(pessoaId: string, fatura: Fatura, classificacoes: Record<string, Classificacao> = {}): Promise<Fatura> {
   const lancamentos = [];
   for (const [ordem, l] of fatura.lancamentos.entries()) {
     let compraId = l.compraId ?? null;
@@ -422,11 +449,36 @@ export async function salvarFatura(pessoaId: string, fatura: Fatura, classificac
     }
     // Só liga a compras desta pessoa (o id veio do navegador).
     if (compraId && !(await prisma().compra.count({ where: { id: compraId, pessoaId } }))) compraId = null;
-    lancamentos.push({ data: l.data, descricao: l.descricao, valor: l.valor, tipo: l.tipo, categoria: l.categoria ?? null, compraId, ordem });
+    lancamentos.push({
+      data: l.data,
+      descricao: l.descricao,
+      valor: l.valor,
+      tipo: l.tipo,
+      categoria: l.categoria ?? null,
+      compraId,
+      ordem,
+      parcela: l.parcela ?? null,
+      totalParcelas: l.totalParcelas ?? null,
+    });
   }
-  await prisma().fatura.create({
-    data: { pessoaId, tipo: fatura.tipo, origem: fatura.origem, mes: fatura.mes, lancamentos: { create: lancamentos } },
-  });
+  return prisma().fatura.create({
+    data: {
+      pessoaId,
+      tipo: fatura.tipo,
+      origem: fatura.origem,
+      mes: fatura.mes,
+      lancamentos: { create: lancamentos },
+      fonte: fatura.fonte ?? "documento",
+      pluggyBillId: fatura.fonte === "pluggy" ? fatura.id : null,
+      contaId: fatura.contaId ?? null,
+      vencimento: fatura.vencimento ?? null,
+      total: fatura.total ?? null,
+      pagamentoMinimo: fatura.pagamentoMinimo ?? null,
+      taxaRotativoMensal: fatura.taxaRotativoMensal ?? null,
+      foraDosCalculos: fatura.foraDosCalculos ?? false,
+    },
+    include: { lancamentos: true },
+  }).then(paraFatura);
 }
 
 export async function salvarMemoria(pessoaId: string, mudancas: Partial<Omit<Memoria, "anotacoes">>): Promise<void> {
@@ -640,3 +692,5 @@ export async function pagar(pessoaId: string, tipo: Pagamento["tipo"], alvoId: s
 export async function desfazerPagamento(pessoaId: string, tipo: Pagamento["tipo"], alvoId: string, agora = new Date()): Promise<void> {
   await prisma().pagamento.deleteMany({ where: { pessoaId, tipo, alvoId, mes: hojeEmBrasilia(agora).slice(0, 7) } });
 }
+
+export * from "./repositorio-banco";

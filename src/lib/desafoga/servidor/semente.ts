@@ -65,9 +65,8 @@ export async function criarEspacoDemo(db: Transacao, agora = new Date()): Promis
           item: c.item,
           categoria: c.categoria,
           valor: c.valor,
-          // Sementes sempre têm emoção; a coluna aceita nulo a partir da Tarefa 9.
-          emocao: c.emocao as number,
-          necessidade: c.necessidade as string,
+          emocao: c.emocao,
+          necessidade: c.necessidade,
           quando: new Date(c.quando),
           via: c.via,
           avaliacaoProfissional: c.avaliacaoProfissional,

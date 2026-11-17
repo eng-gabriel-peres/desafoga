@@ -65,6 +65,21 @@ export interface Divida {
   origem?: "manual" | "banco" | "documento";
   /** Parcelas que faltam, quando o contrato informa. */
   parcelasRestantes?: number | null;
+  /** Fonte mais confiável que já atualizou a dívida (pluggy, contrato, registrato, fatura, extrato). */
+  fonte?: "pluggy" | "contrato" | "registrato" | "fatura" | "extrato" | null;
+  instituicao?: string | null;
+  /** Custo efetivo total ao ano. */
+  cet?: number | null;
+  temSeguro?: boolean | null;
+  /** Parte vencida e não paga (Registrato). */
+  vencido?: number | null;
+  /** Soma das parcelas que faltam, com juros. */
+  faltaPagarComJuros?: number | null;
+  /** Campos que a pessoa ainda precisa conferir. */
+  confira?: ("saldo" | "taxaMensal" | "parcelaMinima" | "parcelasRestantes")[];
+  /** Valores corrigidos pela pessoa (já aplicados nos campos acima). */
+  correcoes?: Partial<Record<"saldo" | "taxaMensal" | "parcelaMinima" | "parcelasRestantes", number>>;
+  atualizadaEm?: string | null;
 }
 
 /** "mais-cara": maior taxa primeiro (avalanche). "menor": menor saldo primeiro (bola de neve). */

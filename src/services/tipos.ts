@@ -117,9 +117,13 @@ export interface NovaCompra {
   item: string;
   categoria: Categoria;
   valor: number;
-  emocao: Emocao;
-  necessidade: Necessidade;
+  /** null: veio do banco no modo "registrar sozinho". */
+  emocao: Emocao | null;
+  necessidade: Necessidade | null;
   via: Compra["via"];
+  parcelas?: number | null;
+  valorDaParcela?: number | null;
+  parceladaId?: string | null;
 }
 
 /** Emoção e necessidade informadas para uma compra nova encontrada na fatura. */
