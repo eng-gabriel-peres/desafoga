@@ -33,6 +33,7 @@ import { hojeEmBrasilia } from "@/lib/luana/lancamentos";
 import { avisarUmaVez } from "./repositorio-banco";
 import { conferirConquistas } from "./repositorio-conquistas";
 import { avisarCompraForaDaRegra } from "./repositorio-eventos";
+import { cartaoDaPessoa } from "./repositorio-dinheiro";
 import { prisma } from "./prisma";
 
 export type Canal = "app" | "whatsapp";
@@ -58,6 +59,8 @@ export function paraCompra(c: Prisma.CompraModel): Compra {
     valor: c.valor,
     emocao: c.emocao as Emocao | null,
     naoLembra: c.naoLembra,
+    meio: c.meio as Compra["meio"],
+    cartaoId: c.cartaoId,
     necessidade: c.necessidade as Necessidade | null,
     quando: iso(c.quando),
     via: c.via as Compra["via"],
@@ -323,6 +326,9 @@ export async function avisar(pessoaId: string, tipo: Aviso["tipo"], texto: strin
 }
 
 export async function registrarCompra(pessoaId: string, nova: NovaCompra, quando = new Date()): Promise<Compra> {
+  // O cartão tem que ser desta pessoa (à mão ou de um banco conectado).
+  if (nova.meio === "cartao" && !(nova.cartaoId && (await cartaoDaPessoa(pessoaId, nova.cartaoId)))) throw new NaoEncontrado("Cartão não encontrado.");
+  if (nova.meio !== "cartao") nova = { ...nova, cartaoId: null };
   const criada = await prisma().compra.create({ data: { pessoaId, ...nova, quando } });
   const p = await prisma().pessoa.findUniqueOrThrow({ where: { id: pessoaId }, select: { apelido: true } });
   const config = await configDosAvisos(pessoaId);
@@ -775,6 +781,7 @@ export * from "./repositorio-banco";
 export * from "./repositorio-conquistas";
 export * from "./repositorio-eventos";
 export * from "./repositorio-conteudos";
+export * from "./repositorio-dinheiro";
 
 // ---------- o mês tem que bater com a renda ----------
 

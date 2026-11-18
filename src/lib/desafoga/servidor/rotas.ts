@@ -320,11 +320,30 @@ const ACOES = {
     await repo.avaliarCompra(p, c, avaliacao);
   }),
   "compras.registrar": acao(
-    // emocao null: "não lembro como eu estava".
-    z.tuple([id, z.object({ item: texto(80), categoria, valor: centavos.min(1), emocao: emocao.nullable(), necessidade, via: z.enum(["app", "whatsapp", "fatura"]) })]),
+    // emocao null: "não lembro como eu estava". meio: como pagou (cartão com o id).
+    z.tuple([
+      id,
+      z.object({
+        item: texto(80),
+        categoria,
+        valor: centavos.min(1),
+        emocao: emocao.nullable(),
+        necessidade,
+        via: z.enum(["app", "whatsapp", "fatura"]),
+        meio: z.enum(["conta", "dinheiro", "cartao"]).nullable().optional(),
+        cartaoId: id.nullable().optional(),
+        parcelas: z.number().int().min(1).max(48).nullable().optional(),
+      }),
+    ]),
     async ([p, nova], { sessao }) => {
       exigirAPropriaPessoa(sessao, p);
-      return repo.registrarCompra(p, { ...nova, naoLembra: nova.emocao === null });
+      const parcelas = nova.meio === "cartao" && nova.parcelas && nova.parcelas > 1 ? nova.parcelas : null;
+      return repo.registrarCompra(p, {
+        ...nova,
+        naoLembra: nova.emocao === null,
+        parcelas,
+        valorDaParcela: parcelas ? Math.floor(nova.valor / parcelas) : null,
+      });
     },
   ),
   "dividas.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
@@ -751,6 +770,56 @@ const ACOES = {
     const ctx = await repo.contextoDoAssistente(p, "app");
     if (!(await escondido(sessao, p))) return montarContexto(ctx);
     return montarContexto({ ...ctx, metas: metasSemBanco(ctx.metas) }, { semContas: true });
+  }),
+
+  // ----- seu dinheiro: cartões, saldo, faturas e previsão -----
+  "dinheiro.ver": acao(z.tuple([id]), async ([p], { sessao }) => {
+    // Saldo e faturas são das contas: o profissional só vê se a pessoa compartilha.
+    if (await escondido(sessao, p)) return repo.DINHEIRO_ESCONDIDO;
+    return repo.dinheiroDaPessoa(p);
+  }),
+  "dinheiro.informarSaldo": acao(z.tuple([id, z.number().int().min(-1e9).max(1e10)]), async ([p, valor], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await repo.informarSaldo(p, valor);
+  }),
+  "dinheiro.lancar": acao(
+    z.tuple([id, z.object({ valor: z.number().int().min(-1e9).max(1e9).refine((v) => v !== 0), descricao: texto(80), dia: diaIso })]),
+    async ([p, l], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      return repo.lancarNaConta(p, l);
+    },
+  ),
+  "dinheiro.apagarLancamento": acao(z.tuple([id, id]), async ([p, l], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await repo.apagarLancamento(p, l);
+  }),
+  "dinheiro.pagarFatura": acao(z.tuple([id, id, diaIso, centavos.min(1)]), async ([p, c, vence, valor], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await repo.pagarFatura(p, c, vence, valor);
+  }),
+  "dinheiro.desfazerFatura": acao(z.tuple([id, id, diaIso]), async ([p, c, vence], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await repo.desfazerFatura(p, c, vence);
+  }),
+  "cartoes.salvar": acao(
+    z.tuple([
+      id,
+      z.object({
+        id: id.optional(),
+        nome: texto(40),
+        fechamento: z.number().int().min(1).max(31),
+        vencimento: z.number().int().min(1).max(31),
+        limite: centavos.nullable(),
+      }),
+    ]),
+    async ([p, c], { sessao }) => {
+      exigirAPropriaPessoa(sessao, p);
+      return repo.salvarCartao(p, c);
+    },
+  ),
+  "cartoes.remover": acao(z.tuple([id, id]), async ([p, c], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    await repo.removerCartao(p, c);
   }),
 
   // ----- avisos no WhatsApp (o profissional configura; a pessoa vê) -----

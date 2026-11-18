@@ -236,7 +236,7 @@ export async function tratarCompraNova(
     if (ctx.modo === "automatico") {
       const compra = await repo.registrarCompra(
         pessoaId,
-        { item: parcelada.nome, categoria: parcelada.categoria, valor: parcelada.valorTotal, emocao: null, necessidade: null, via: "banco", parcelas: parcelada.totalParcelas, valorDaParcela: parcelada.valorParcela, parceladaId: parcelada.id },
+        { item: parcelada.nome, categoria: parcelada.categoria, valor: parcelada.valorTotal, emocao: null, necessidade: null, via: "banco", parcelas: parcelada.totalParcelas, valorDaParcela: parcelada.valorParcela, parceladaId: parcelada.id, meio: ctx.cartao ? "cartao" : "conta", cartaoId: ctx.cartao ? m.contaId : null },
         new Date(`${parcelada.compradaEm}T12:00:00-03:00`),
       );
       await repo.ligarParceladaACompra(parcelada.id, compra.id);
@@ -258,7 +258,7 @@ export async function tratarCompraNova(
   if (ctx.modo === "automatico") {
     const compra = await repo.registrarCompra(
       pessoaId,
-      { item: nomeDaLoja(m.descricao), categoria, valor: m.valor, emocao: null, necessidade: null, via: "banco" },
+      { item: nomeDaLoja(m.descricao), categoria, valor: m.valor, emocao: null, necessidade: null, via: "banco", meio: ctx.cartao ? "cartao" : "conta", cartaoId: ctx.cartao ? m.contaId : null },
       new Date(`${m.data}T12:00:00-03:00`),
     );
     await repo.mudarMovimento(pessoaId, m.id, { situacao: "automatica", compraId: compra.id });

@@ -125,6 +125,8 @@ export interface NovaCompra {
   naoLembra?: boolean;
   necessidade: Necessidade | null;
   via: Compra["via"];
+  meio?: Compra["meio"];
+  cartaoId?: string | null;
   parcelas?: number | null;
   valorDaParcela?: number | null;
   parceladaId?: string | null;

@@ -10,6 +10,7 @@ import type { CompraParcelada, ConexaoBancaria, ModoCompras, Movimento } from "@
 import { urlDoWebhook } from "@/lib/banco/webhook";
 import { diaEmBrasilia } from "@/lib/banco/normalizar";
 import type { Categoria, Emocao, Necessidade } from "@/lib/finance";
+import { prisma } from "./prisma";
 import * as repo from "./repositorio";
 import type { InvestimentoDoBanco, SugestaoGuardada } from "./repositorio-banco";
 
@@ -178,12 +179,15 @@ async function registrarReservado(pessoaId: string, m: Movimento, r: RegistroDoB
   const item = r.item.trim();
   if (m.categoria && r.categoria !== m.categoria) await repo.salvarRegra(pessoaId, { padrao: chaveDaDescricao(m.descricao), efeito: { categoria: r.categoria } });
 
+  // Como pagou: no cartão (o da conta do movimento) ou na conta.
+  const daConta = await prisma().contaBancaria.findUnique({ where: { id: m.contaId }, select: { tipo: true } });
+  const meio = daConta?.tipo === "cartao" ? { meio: "cartao" as const, cartaoId: m.contaId } : { meio: "conta" as const, cartaoId: null };
   const parcelada = m.parceladaId ? (await repo.parceladas(pessoaId)).find((p) => p.id === m.parceladaId) : undefined;
   if (parcelada) {
     if (parcelada.compraId) throw new RecusaDoBanco("Essa compra parcelada já foi registrada.");
     const compra = await repo.registrarCompra(
       pessoaId,
-      { item, categoria: r.categoria, valor: parcelada.valorTotal, emocao: r.emocao, naoLembra: r.emocao === null, necessidade: r.necessidade, via: "banco", parcelas: parcelada.totalParcelas, valorDaParcela: parcelada.valorParcela, parceladaId: parcelada.id },
+      { item, categoria: r.categoria, valor: parcelada.valorTotal, emocao: r.emocao, naoLembra: r.emocao === null, necessidade: r.necessidade, via: "banco", parcelas: parcelada.totalParcelas, valorDaParcela: parcelada.valorParcela, parceladaId: parcelada.id, ...meio },
       new Date(`${parcelada.compradaEm}T12:00:00-03:00`),
     );
     await repo.ligarParceladaACompra(parcelada.id, compra.id);
@@ -195,7 +199,7 @@ async function registrarReservado(pessoaId: string, m: Movimento, r: RegistroDoB
   }
   const compra = await repo.registrarCompra(
     pessoaId,
-    { item, categoria: r.categoria, valor: m.valor, emocao: r.emocao, naoLembra: r.emocao === null, necessidade: r.necessidade, via: "banco" },
+    { item, categoria: r.categoria, valor: m.valor, emocao: r.emocao, naoLembra: r.emocao === null, necessidade: r.necessidade, via: "banco", ...meio },
     new Date(`${m.data}T12:00:00-03:00`),
   );
   await repo.mudarMovimento(pessoaId, movimentoId, { situacao: "registrada", compraId: compra.id, categoria: r.categoria });

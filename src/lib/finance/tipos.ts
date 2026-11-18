@@ -31,6 +31,9 @@ export interface Compra {
   emocao: Emocao | null;
   /** A pessoa disse que não lembra como estava: fica sem emoção (fora da nota do dia) e não é cobrada de novo. */
   naoLembra?: boolean;
+  /** Como pagou: "conta" (débito/Pix), "dinheiro" ou "cartao" (com `cartaoId`). Ausente nas compras antigas. */
+  meio?: MeioDePagamento | null;
+  cartaoId?: string | null;
   necessidade: Necessidade | null;
   /** Data e hora em ISO 8601. */
   quando: string;
@@ -42,6 +45,8 @@ export interface Compra {
   /** Opinião do profissional sobre a necessidade; null enquanto não avaliou. */
   avaliacaoProfissional: Necessidade | null;
 }
+
+export type MeioDePagamento = "conta" | "dinheiro" | "cartao";
 
 export type TipoDivida =
   | "cartao"

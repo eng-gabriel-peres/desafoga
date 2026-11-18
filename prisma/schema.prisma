@@ -69,6 +69,9 @@ model Pessoa {
   mensagens          Mensagem[]
   estados            EstadoConversa[]
   conquistas         Conquista[]
+  cartoes            Cartao[]
+  lancamentosNaConta LancamentoNaConta[]
+  saldoInformado     SaldoInformado?
   participacoes      ParticipanteDoEvento[]
   comentarios        ComentarioDoConteudo[]
   seguindo           Seguir[]
@@ -140,6 +143,10 @@ model Acompanhamento {
 model Compra {
   /// A pessoa disse que não lembra como estava (emocao fica null e a compra não é cobrada de novo).
   naoLembra             Boolean          @default(false)
+  /// Como pagou: conta (débito/Pix, sai da conta), dinheiro ou cartao. Null nas antigas.
+  meio                  String?
+  /// Cartão da compra: um Cartao à mão ou uma ContaBancaria tipo cartão (sem chave estrangeira).
+  cartaoId              String?
   id                    String       @id @default(uuid())
   pessoaId              String
   pessoa                Pessoa       @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
@@ -825,4 +832,48 @@ model Seguir {
 
   @@id([pessoaId, profissionalId])
   @@map("seguir")
+}
+
+/// Cartão cadastrado à mão (sem banco conectado): o dia em que a fatura fecha e o dia em que vence.
+model Cartao {
+  id         String   @id @default(uuid())
+  pessoaId   String
+  pessoa     Pessoa   @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  nome       String
+  fechamento Int
+  vencimento Int
+  /// Centavos.
+  limite     Int?
+  criadoEm   DateTime @default(now())
+
+  @@index([pessoaId])
+  @@map("cartoes")
+}
+
+/// Quanto a pessoa disse que tinha na conta, e quando (sem banco conectado).
+model SaldoInformado {
+  pessoaId String   @id
+  pessoa   Pessoa   @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  valor    Int
+  /// "YYYY-MM-DD": o que entra ou sai depois desse dia muda o saldo.
+  desde    String
+  quando   DateTime @default(now())
+
+  @@map("saldos_informados")
+}
+
+/// Entrada ou saída avulsa na conta (Pix recebido, saque, transferência), sem banco conectado.
+model LancamentoNaConta {
+  id        String   @id @default(uuid())
+  pessoaId  String
+  pessoa    Pessoa   @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  /// "YYYY-MM-DD".
+  dia       String
+  /// Centavos: positivo entra, negativo sai.
+  valor     Int
+  descricao String
+  criadoEm  DateTime @default(now())
+
+  @@index([pessoaId, dia])
+  @@map("lancamentos_na_conta")
 }
