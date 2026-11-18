@@ -183,6 +183,12 @@ export async function telefone(pessoaId: string): Promise<string | null> {
   return (await prisma().pessoa.findUnique({ where: { id: pessoaId }, select: { telefone: true } }))?.telefone ?? null;
 }
 
+/** Compras a partir de uma data (o agendador só precisa da última semana). */
+export async function comprasDesde(pessoaId: string, desde: Date): Promise<Compra[]> {
+  const lista = await prisma().compra.findMany({ where: { pessoaId, quando: { gte: desde } }, orderBy: { quando: "asc" } });
+  return lista.map(paraCompra);
+}
+
 export async function compras(pessoaId: string): Promise<Compra[]> {
   return (await prisma().compra.findMany({ where: { pessoaId }, orderBy: { quando: "asc" } })).map(paraCompra);
 }

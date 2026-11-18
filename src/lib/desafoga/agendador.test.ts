@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CheckIn, ContaFixa, Meta, Pagamento, Rotina } from "@/lib/finance";
+import { AVISOS_PADRAO, type CheckIn, type Compra, type ContaFixa, type Divida, type Meta, type Pagamento, type Rotina } from "@/lib/finance";
 import { autorizadoNoAgendador, enviosDoMomento, type DadosDoAgendador } from "./agendador";
 
 /** 18/11/2026 em Brasília, na hora pedida. */
@@ -41,8 +41,17 @@ const dados = (extra: Partial<DadosDoAgendador> = {}): DadosDoAgendador => ({
   contas: [],
   pagamentos: [],
   metas: [],
+  config: AVISOS_PADRAO,
+  compras: [],
+  dividas: [],
+  plano: { valorMensal: 0, estrategia: "mais-cara" },
   ...extra,
 });
+
+let n = 0;
+/** Compra em Brasília no dia e hora dados. */
+const compra = (diaHora: string, extra: Partial<Compra> = {}): Compra =>
+  ({ id: `c${n++}`, item: "x", categoria: "Mercado", valor: 1000, emocao: 4, necessidade: "sim", quando: new Date(`${diaHora}:00-03:00`).toISOString(), via: "app", avaliacaoProfissional: null, ...extra }) as Compra;
 
 const tipos = (agora: Date, d = dados()) => enviosDoMomento(d, agora).map((e) => e.chave);
 
@@ -114,5 +123,49 @@ describe("quem pode chamar o agendador", () => {
     expect(autorizadoNoAgendador(null, "abc123")).toBe(false);
     expect(autorizadoNoAgendador("Bearer ", "")).toBe(false);
     expect(autorizadoNoAgendador("Bearer undefined", undefined)).toBe(false);
+  });
+});
+
+describe("lembrete diário", () => {
+  const ligado = { ...AVISOS_PADRAO, lembreteDiario: true, horaDoLembrete: "21:00" };
+  it("no horário escolhido (até 1 hora depois), com as compras de hoje; desligado, nada", () => {
+    const d = dados({ config: ligado, compras: [compra("2026-11-18T10:00", { valor: 2500, emocao: 2 }), compra("2026-11-17T10:00")] });
+    expect(tipos(em("20:55"), d)).toEqual([]);
+    const [e] = enviosDoMomento(d, em("21:10"));
+    expect(e.chave).toBe("diario:p:2026-11-18");
+    expect(e.texto).toMatch(/Lembrete das 21:00\nHoje você registrou 1 compra, total de R\$ 25,00/);
+    expect(tipos(em("21:10"), dados({ compras: d.compras }))).toEqual([]);
+  });
+});
+
+describe("resumo da semana", () => {
+  // 22/11/2026 é domingo.
+  const domingo = (hora: string) => new Date(`2026-11-22T${hora}:00-03:00`);
+  const semana = [compra("2026-11-20T10:00", { valor: 5000, emocao: 2, necessidade: "nao" }), compra("2026-11-18T10:00", { valor: 3000, emocao: 4 }), compra("2026-11-10T10:00")];
+
+  it("domingo a partir das 19h: para a pessoa no chat e um aviso para quem acompanha", () => {
+    expect(enviosDoMomento(dados({ compras: semana }), domingo("18:30"))).toEqual([]);
+    const [e] = enviosDoMomento(dados({ compras: semana }), domingo("19:05"));
+    expect(e.chave).toBe("semana:p:2026-11-22");
+    expect(e.texto).toMatch(/Seu resumo da semana\n2 compras, total de R\$ 80,00\.\nNota média: 3,0/);
+    expect(e.texto).toMatch(/Não necessárias: 1/);
+    expect(e.paraQuemAcompanha).toBe("Resumo da semana de Ana: 2 compras, R$ 80,00, nota média 3,0, 1 não necessária.");
+  });
+
+  it("em outro dia, ou desligado, nada", () => {
+    expect(tipos(em("19:30"), dados({ compras: semana }))).toEqual([]);
+    expect(enviosDoMomento(dados({ compras: semana, config: { ...AVISOS_PADRAO, resumoDaSemana: false } }), domingo("19:05"))).toEqual([]);
+  });
+});
+
+describe("parcela da dívida pelo plano", () => {
+  const divida = { id: "d1", tipo: "cartao", nome: "Cartão Nubank", detalhe: "", saldo: 300000, taxaMensal: 0.1, parcelaMinima: 30000, vencimento: 19 } as Divida;
+  it("um dia antes do vencimento, com o valor do plano; já paga, nada", () => {
+    const d = dados({ dividas: [divida], plano: { valorMensal: 50000, estrategia: "mais-cara" } });
+    const e = enviosDoMomento(d, em("09:30")).find((x) => x.chave.startsWith("parcela"))!;
+    expect(e.chave).toBe("parcela:p:d1:2026-11");
+    expect(e.texto).toMatch(/Amanhã vence Cartão Nubank\.\nPelo seu plano, pague R\$ 500,00/);
+    const paga: Pagamento = { tipo: "divida", alvoId: "d1", mes: "2026-11", valor: 50000, quando: "2026-11-17T10:00:00-03:00" };
+    expect(tipos(em("09:30"), { ...d, pagamentos: [paga] })).toEqual([]);
   });
 });

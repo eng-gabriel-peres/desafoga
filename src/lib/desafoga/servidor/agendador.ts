@@ -68,15 +68,19 @@ export async function rodarAgendador({ agora = new Date(), pessoas, whatsapp, si
 
   for (const p of lista) {
     try {
-      const [rotina, checkins, contas, pagamentos, metas] = await Promise.all([
+      const [rotina, checkins, contas, pagamentos, metas, config, compras, dividas, plano] = await Promise.all([
         repo.rotina(p.id),
         repo.checkins(p.id, 1, agora),
         repo.contasFixas(p.id),
         repo.pagamentos(p.id, agora),
         repo.metas(p.id),
+        repo.configDosAvisos(p.id),
+        repo.comprasDesde(p.id, new Date(agora.getTime() - 8 * 86_400_000)),
+        repo.dividas(p.id),
+        repo.plano(p.id),
       ]);
       await repo.conferirConquistas(p.id, agora);
-      const envios = enviosDoMomento({ pessoaId: p.id, apelido: p.apelido, rotina, checkins, contas, pagamentos, metas }, agora);
+      const envios = enviosDoMomento({ pessoaId: p.id, apelido: p.apelido, rotina, checkins, contas, pagamentos, metas, config, compras, dividas, plano }, agora);
       for (const [i, e] of envios.entries()) {
         // Reserva a chave antes: duas chamadas ao mesmo tempo não mandam duas vezes.
         if (!(await registros().criarSeNaoExiste(chaveDoEnvio(e.chave), { quando: agora.toISOString() }))) continue;
@@ -87,6 +91,7 @@ export async function rodarAgendador({ agora = new Date(), pessoas, whatsapp, si
           throw erro;
         }
         r.enviados++;
+        if (e.paraQuemAcompanha) await repo.avisar(p.id, "resumo-semana", e.paraQuemAcompanha, agora);
         if (enviar && p.telefone) {
           await enviar(p.telefone, e.texto).then(
             () => r.whatsapp++,

@@ -122,6 +122,19 @@ describe.runIf(url)("agendador", () => {
     expect(chamadas).toEqual([ids[0], ids[1], ids[2]]);
   });
 
+  it("resumo da semana: a pessoa recebe no chat e quem acompanha, no sino; lembrete diário no horário", async () => {
+    const p = await pessoa("REAL");
+    await prisma().rotina.update({ where: { pessoaId: p }, data: { lembreteDiario: true, horaDoLembrete: "19:00", manhaLigado: false } });
+    await prisma().compra.create({ data: { pessoaId: p, item: "Pão", categoria: "Mercado", valor: 1200, emocao: 4, necessidade: "sim", via: "app", quando: new Date("2026-11-21T10:00:00-03:00") } });
+    // Domingo, 22/11/2026, 19:10.
+    const domingo = new Date("2026-11-22T19:10:00-03:00");
+    await rodarAgendador({ agora: domingo, pessoas: [p], whatsapp: null, sincronizarBanco: null });
+    const textos = (await mensagens(p)).map((m) => m.texto);
+    expect(textos).toEqual([expect.stringMatching(/Lembrete das 19:00\nHoje você não registrou compras/), expect.stringMatching(/Seu resumo da semana\n1 compra, total de R\$ 12,00/)]);
+    const { avisos } = await import("./repositorio");
+    expect((await avisos([p], { apenas: ["resumo-semana"] })).map((a) => a.texto)).toEqual(["Resumo da semana de Bia: 1 compra, R$ 12,00, nota média 4,0, 0 não necessárias."]);
+  });
+
   it("não manda nada para a demo", async () => {
     const p = await pessoa("DEMO");
     const r = await rodarAgendador({ agora, pessoas: [p], whatsapp: async () => {} });

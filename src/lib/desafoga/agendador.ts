@@ -4,8 +4,22 @@
  * quem envia (e garante que cada chave sai uma vez só) é o servidor.
  */
 import { timingSafeEqual } from "node:crypto";
-import { lembreteDeConta, mensagemDeLembrete, perguntaDoCheckIn } from "@/lib/assistente/textos";
-import { situacaoDaMeta, type CheckIn, type ContaFixa, type Meta, type Pagamento, type Periodo, type Rotina } from "@/lib/finance";
+import { lembreteDeConta, lembreteDeParcela, mensagemDeLembrete, mensagemDoLembreteDiario, perguntaDoCheckIn, reais, umaCasa } from "@/lib/assistente/textos";
+import {
+  compromissosDoMes,
+  notaMedia,
+  situacaoDaMeta,
+  type CheckIn,
+  type Compra,
+  type ConfigDosAvisos,
+  type ContaFixa,
+  type Divida,
+  type Estrategia,
+  type Meta,
+  type Pagamento,
+  type Periodo,
+  type Rotina,
+} from "@/lib/finance";
 
 export interface DadosDoAgendador {
   pessoaId: string;
@@ -15,19 +29,28 @@ export interface DadosDoAgendador {
   contas: ContaFixa[];
   pagamentos: Pagamento[];
   metas: Meta[];
+  config: ConfigDosAvisos;
+  /** Pelo menos as dos últimos 7 dias. */
+  compras: Compra[];
+  dividas: Divida[];
+  plano: { valorMensal: number; estrategia: Estrategia };
 }
 
 export interface Envio {
   /** Única por envio: o servidor manda cada chave uma vez só. */
   chave: string;
-  tipo: "checkin" | "conta" | "meta";
+  tipo: "checkin" | "conta" | "meta" | "diario" | "semana" | "parcela";
   texto: string;
+  /** Aviso para quem acompanha (no sino do painel), junto com a mensagem. */
+  paraQuemAcompanha?: string;
 }
 
 /** Até quanto tempo depois do horário o check-in ainda sai (o agendador do GitHub atrasa). */
 const JANELA_DO_CHECKIN_MIN = 60;
 /** Lembretes de conta e de meta só saem entre estas horas. */
 const HORA_DA_CONTA = 9;
+/** Resumo da semana: domingo, a partir desta hora. */
+const HORA_DO_RESUMO = 19;
 const HORA_DA_META = 10;
 const ULTIMA_HORA = 21;
 
@@ -87,9 +110,53 @@ function metas(d: DadosDoAgendador, b: Date, agora: Date): Envio[] {
     .map(({ m, s }) => ({ chave: `meta:${d.pessoaId}:${m.id}:${dia}`, tipo: "meta" as const, texto: mensagemDeLembrete(m, s) }));
 }
 
+const minutosDoDia = (b: Date) => b.getUTCHours() * 60 + b.getUTCMinutes();
+const diaDaCompra = (c: Compra) => chaveDoDia(emBrasilia(new Date(c.quando)));
+
+/** Lembrete diário no horário que quem acompanha escolheu, com as compras de hoje. */
+function diario(d: DadosDoAgendador, b: Date): Envio[] {
+  if (!d.config.lembreteDiario) return [];
+  const [h, m] = d.config.horaDoLembrete.split(":").map(Number);
+  const depois = minutosDoDia(b) - (h * 60 + m);
+  if (depois < 0 || depois >= JANELA_DO_CHECKIN_MIN) return [];
+  const dia = chaveDoDia(b);
+  const deHoje = d.compras.filter((c) => diaDaCompra(c) === dia);
+  return [{ chave: `diario:${d.pessoaId}:${dia}`, tipo: "diario", texto: mensagemDoLembreteDiario(d.config.horaDoLembrete, deHoje, notaMedia(deHoje)) }];
+}
+
+/** Resumo dos últimos 7 dias, no domingo: para a pessoa e para quem acompanha. */
+function semana(d: DadosDoAgendador, b: Date): Envio[] {
+  if (!d.config.resumoDaSemana || b.getUTCDay() !== 0 || b.getUTCHours() < HORA_DO_RESUMO || b.getUTCHours() >= ULTIMA_HORA + 1) return [];
+  const dia = chaveDoDia(b);
+  const desde = chaveDoDia(new Date(b.getTime() - 6 * 86_400_000));
+  const daSemana = d.compras.filter((c) => diaDaCompra(c) >= desde && diaDaCompra(c) <= dia);
+  const total = daSemana.reduce((s, c) => s + c.valor, 0);
+  const nota = notaMedia(daSemana);
+  const nao = daSemana.filter((c) => c.necessidade === "nao").length;
+  const n = daSemana.length;
+  const compras = `${n} ${n === 1 ? "compra" : "compras"}`;
+  const texto = n
+    ? `📊 Seu resumo da semana\n${compras}, total de ${reais(total)}.${nota !== null ? `\nNota média: ${umaCasa(nota)}` : ""}\nNão necessárias: ${nao}`
+    : "📊 Seu resumo da semana\nVocê não registrou compras nesta semana. Se comprou algo, é só me contar.";
+  const paraQuemAcompanha = `Resumo da semana de ${d.apelido}: ${compras}, ${reais(total)}${nota !== null ? `, nota média ${umaCasa(nota)}` : ""}, ${nao} ${nao === 1 ? "não necessária" : "não necessárias"}.`;
+  return [{ chave: `semana:${d.pessoaId}:${dia}`, tipo: "semana", texto, paraQuemAcompanha }];
+}
+
+/** Parcela das dívidas pelo plano, um dia antes do vencimento, se ainda não foi paga. */
+function parcelas(d: DadosDoAgendador, b: Date): Envio[] {
+  if (!d.dividas.length || b.getUTCHours() < HORA_DA_CONTA || b.getUTCHours() >= ULTIMA_HORA) return [];
+  const amanha = new Date(b.getTime() + 86_400_000);
+  // A conta do mês é em data local; montada com o dia de Brasília, vale em qualquer fuso.
+  const local = new Date(amanha.getUTCFullYear(), amanha.getUTCMonth(), amanha.getUTCDate(), 12);
+  const mes = chaveDoDia(amanha).slice(0, 7);
+  return compromissosDoMes([], d.dividas, d.plano, d.pagamentos, local)
+    .filter((c) => c.tipo === "divida" && !c.pago && c.dia === amanha.getUTCDate())
+    .map((c) => ({ chave: `parcela:${d.pessoaId}:${c.id}:${mes}`, tipo: "parcela" as const, texto: lembreteDeParcela(c.nome, c.valor) }));
+}
+
 export function enviosDoMomento(d: DadosDoAgendador, agora: Date): Envio[] {
   const b = emBrasilia(agora);
-  return [...checkins(d, b), ...contas(d, b), ...metas(d, b, agora)];
+  return [...checkins(d, b), ...contas(d, b), ...parcelas(d, b), ...metas(d, b, agora), ...diario(d, b), ...semana(d, b)];
 }
 
 /**

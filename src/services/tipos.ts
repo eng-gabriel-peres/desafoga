@@ -64,7 +64,7 @@ export interface Profissional {
   cor: string;
 }
 
-export type TipoAviso = "gasto-alto" | "nota-baixa" | "sofrimento" | "sugestao" | "meta" | "checkin" | "compra-banco" | "divida-encontrada" | "limite-cartao" | "consentimento" | "seguro" | "conquista";
+export type TipoAviso = "gasto-alto" | "nota-baixa" | "sofrimento" | "sugestao" | "meta" | "checkin" | "compra-banco" | "divida-encontrada" | "limite-cartao" | "consentimento" | "seguro" | "conquista" | "resumo-semana";
 
 export interface Aviso {
   id: string;

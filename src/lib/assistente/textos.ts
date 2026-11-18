@@ -146,6 +146,11 @@ export function lembreteDeConta(apelido: string, conta: ContaFixa): string {
 
 // ---------- lembretes do acompanhamento ----------
 
+/** Parcela da dívida pelo plano, um dia antes do vencimento. */
+export function lembreteDeParcela(nome: string, valor: number): string {
+  return `⏰ Amanhã vence ${nome}.\nPelo seu plano, pague ${reais(valor)}.\nQuando pagar, me responda: paguei`;
+}
+
 /** Lembrete diário (como no protótipo): o que a pessoa registrou hoje e a nota do dia. */
 export function mensagemDoLembreteDiario(hora: string, deHoje: { valor: number }[], nota: number | null): string {
   const inicio = `🔔 Lembrete das ${hora}\n`;
