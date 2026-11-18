@@ -5,7 +5,6 @@ import { useCallback, useId, useRef, useState } from "react";
 import { useAgora } from "@/hooks/use-agora";
 import { useConsulta } from "@/hooks/use-consulta";
 import { useFecharFora } from "@/hooks/use-fechar-fora";
-import { chaveDoDia, ultimosDias } from "@/lib/finance";
 import { servicos } from "@/services";
 import { ListaDeAvisos } from "../avisos";
 import { BotaoIcone } from "../ui/botao";
@@ -22,9 +21,8 @@ export function Sino({ area, paraCima = false }: { area: Area; /** Na barra late
   const agora = useAgora();
   // O servidor já filtra: sugestões para a pessoa, alertas dos acompanhados para o profissional.
   const avisos = useConsulta(`avisos:${area}`, () => servicos.avisos.listar()) ?? [];
-  const recentes = agora
-    ? avisos.filter((a) => ultimosDias(agora, 2).includes(chaveDoDia(new Date(a.quando)))).length
-    : 0;
+  const recentes = avisos.filter((a) => a.lido === false).length;
+  const ver = (ids: string[] | null) => void servicos.avisos.marcarVistos(ids).catch(() => {});
 
   const fechar = useCallback(() => setAberto(false), []);
   useFecharFora(aberto, fechar, caixa);
@@ -52,8 +50,15 @@ export function Sino({ area, paraCima = false }: { area: Area; /** Na barra late
           aria-label="Avisos recentes"
           className={`absolute z-40 ${paraCima ? "surgir-de-baixo bottom-13 left-0" : "surgir top-13 right-0"} max-h-[70dvh] w-[min(380px,calc(100vw-24px))] overflow-auto rounded-2xl border border-line bg-surface px-4 py-2 shadow-[0_12px_32px_rgb(0_0_0/0.18)]`}
         >
-          <b className="block pt-2 pb-1">Avisos recentes</b>
-          <ListaDeAvisos avisos={avisos.slice(0, 6)} agora={agora} vazio="Nada novo por aqui." />
+          <div className="flex items-center justify-between gap-2 pt-2 pb-1">
+            <b>Avisos recentes</b>
+            {recentes > 0 && (
+              <button type="button" onClick={() => ver(null)} className="text-[0.85rem] font-bold text-primary hover:underline">
+                Marcar todos como vistos
+              </button>
+            )}
+          </div>
+          <ListaDeAvisos avisos={avisos.slice(0, 8)} agora={agora} vazio="Nada novo por aqui." aoVer={(id) => ver([id])} />
         </div>
       )}
     </div>

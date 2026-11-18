@@ -199,6 +199,7 @@ export const servicosDaApi: Servicos = {
   avisos: {
     listar: () => chamar("avisos.listar"),
     daPessoa: (id) => chamar("avisos.daPessoa", [id]),
+    marcarVistos: (ids) => chamar("avisos.marcarVistos", [ids], true),
   },
   aoMudar(ouvinte) {
     ouvintes.add(ouvinte);

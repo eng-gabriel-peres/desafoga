@@ -130,6 +130,15 @@ function profissionalDaSessao(sessao: SessaoAtual | null): string {
 
 const diaIso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
+/** A pessoa vê as sugestões que recebeu e os avisos do banco; o profissional, os avisos de quem acompanha. */
+async function avisosDaSessao(s: SessaoAtual) {
+  if (s.pessoa) return repo.avisos([s.pessoa.id], { apenas: ["sugestao", ...AVISOS_DA_PESSOA] }, s.pessoa.id);
+  if (s.profissional) {
+    return repo.avisos((await repo.acompanhados(s.profissional.id)).map((x) => x.id), { exceto: ["sugestao", ...AVISOS_DA_PESSOA] }, s.profissional.id);
+  }
+  return [];
+}
+
 async function escondido(sessao: SessaoAtual | null, pessoaId: string): Promise<boolean> {
   const s = await exigirVer(sessao, pessoaId);
   return s.pessoa?.id !== pessoaId && !(await repo.rotina(pessoaId)).compartilharContas;
@@ -930,12 +939,12 @@ const ACOES = {
   }),
 
   // ----- avisos -----
-  "avisos.listar": acao(z.tuple([]), async (_, { sessao }) => {
+  "avisos.listar": acao(z.tuple([]), async (_, { sessao }) => avisosDaSessao(exigirSessao(sessao))),
+  /** Marca como vistos (null: todos). Só os avisos que quem está na sessão vê. */
+  "avisos.marcarVistos": acao(z.tuple([z.array(id).max(100).nullable()]), async ([ids], { sessao }) => {
     const s = exigirSessao(sessao);
-    // A pessoa vê as sugestões que recebeu e os avisos do banco; o profissional, os avisos de quem acompanha.
-    if (s.pessoa) return repo.avisos([s.pessoa.id], { apenas: ["sugestao", ...AVISOS_DA_PESSOA] });
-    if (s.profissional) return repo.avisos((await repo.acompanhados(s.profissional.id)).map((x) => x.id), { exceto: ["sugestao", ...AVISOS_DA_PESSOA] });
-    return [];
+    const meus = (await avisosDaSessao(s)).map((a) => a.id);
+    await repo.marcarAvisosVistos(s.pessoa?.id ?? s.profissional!.id, ids ? ids.filter((x) => meus.includes(x)) : meus);
   }),
   "avisos.daPessoa": acao(z.tuple([id]), async ([p], { sessao }) => {
     await exigirProfissionalDe(sessao, p);

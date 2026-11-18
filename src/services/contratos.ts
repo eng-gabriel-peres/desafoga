@@ -275,6 +275,8 @@ export interface AvisosService {
   listar(): Promise<Aviso[]>;
   /** Avisos de uma pessoa acompanhada (para o profissional). */
   daPessoa(pessoaId: string): Promise<Aviso[]>;
+  /** Marca como vistos para quem está na sessão (null: todos os que ele vê). */
+  marcarVistos(avisoIds: string[] | null): Promise<void>;
 }
 
 export interface Servicos {

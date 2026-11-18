@@ -1,4 +1,4 @@
-import { AlarmClock, BarChart3, Bell, Brain, Receipt, CalendarCheck, CalendarDays, ChartPie, Newspaper, ClipboardList, House, MessageCircle, Plus, Target, Trophy, Users, Wallet, type LucideIcon } from "lucide-react";
+import { AlarmClock, Bell, Brain, Receipt, CalendarCheck, CalendarDays, ChartPie, Newspaper, ClipboardList, House, MessageCircle, Plus, Target, Trophy, Users, Wallet, type LucideIcon } from "lucide-react";
 
 /**
  * O Desafoga tem duas áreas separadas:
@@ -34,7 +34,6 @@ export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
       { href: "/app/metas", rotulo: "Metas", Icone: Target, ativo: (c) => c.startsWith("/app/metas") },
       { href: "/app/contas", rotulo: "Contas", Icone: CalendarCheck, ativo: (c) => c === "/app/contas", soDesktop: true },
       { href: "/app/orcamento", rotulo: "Orçamento", Icone: ChartPie, ativo: (c) => c === "/app/orcamento", soDesktop: true },
-      { href: "/app/semana", rotulo: "Semana", Icone: BarChart3, ativo: (c) => c === "/app/semana", soDesktop: true },
       { href: "/app/conteudos", rotulo: "Conteúdos", Icone: Newspaper, ativo: (c) => c.startsWith("/app/conteudos"), soDesktop: true },
       { href: "/app/eventos", rotulo: "Eventos", Icone: CalendarDays, ativo: (c) => c.startsWith("/app/eventos"), soDesktop: true },
       { href: "/app/conquistas", rotulo: "Conquistas", Icone: Trophy, ativo: (c) => c === "/app/conquistas", soDesktop: true },
@@ -84,7 +83,6 @@ export function tituloDaRota(caminho: string): Titulo {
   if (/^\/painel\/[^/]+\/avisos$/.test(caminho)) return { titulo: "Avisos no WhatsApp", subtitulo: "O que a Luana manda para o paciente e para você" };
   if (/^\/painel\/[^/]+\/compras$/.test(caminho)) return { titulo: "Compras do paciente", subtitulo: "Na sua opinião, cada compra era necessária?" };
   if (/^\/painel\/[^/]+\/conquistas$/.test(caminho)) return { titulo: "Conquistas", subtitulo: "Metas com prêmio para o paciente" };
-  if (caminho === "/app/semana") return { titulo: "Sua semana", subtitulo: "Os últimos 7 dias" };
   if (caminho === "/app/orcamento") return { titulo: "Orçamento", subtitulo: "Quanto você quer gastar por categoria no mês" };
   if (caminho === "/app/metas") return { titulo: "Metas", subtitulo: "Junte dinheiro para o que importa" };
   if (caminho === "/app/metas/nova") return { titulo: "Nova meta", subtitulo: "Junte dinheiro para o que importa" };

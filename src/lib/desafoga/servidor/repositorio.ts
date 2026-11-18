@@ -235,17 +235,25 @@ export async function memoria(pessoaId: string, comPrivadas: boolean): Promise<M
   };
 }
 
-export async function avisos(pessoaIds: string[], tipos?: { apenas?: string[]; exceto?: string[] }): Promise<Aviso[]> {
+/** Com `quem`, cada aviso diz se essa pessoa (ou profissional) já marcou como visto. */
+export async function avisos(pessoaIds: string[], tipos?: { apenas?: string[]; exceto?: string[] }, quem?: string): Promise<Aviso[]> {
   const lista = await prisma().aviso.findMany({
     where: {
       pessoaId: { in: pessoaIds },
       ...(tipos?.apenas ? { tipo: { in: tipos.apenas } } : {}),
       ...(tipos?.exceto ? { tipo: { notIn: tipos.exceto } } : {}),
     },
+    include: quem ? { lidos: { where: { quem }, select: { quem: true } } } : undefined,
     orderBy: { quando: "desc" },
     take: 100,
   });
-  return lista.map(paraAviso);
+  return lista.map((a) => ({ ...paraAviso(a), ...(quem ? { lido: (a as typeof a & { lidos: unknown[] }).lidos.length > 0 } : {}) }));
+}
+
+/** Marca como vistos, para `quem`, os avisos dados (o chamador garante que ele os vê). */
+export async function marcarAvisosVistos(quem: string, avisoIds: string[]): Promise<void> {
+  if (!avisoIds.length) return;
+  await prisma().avisoLido.createMany({ data: avisoIds.map((avisoId) => ({ avisoId, quem })), skipDuplicates: true });
 }
 
 export async function conversa(pessoaId: string, canal: Canal = "app"): Promise<Mensagem[]> {

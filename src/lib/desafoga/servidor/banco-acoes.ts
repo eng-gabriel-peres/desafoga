@@ -220,7 +220,9 @@ export async function simularCompra(pessoaId: string, agora = new Date()): Promi
       { pluggyAccountId: `demo-${conexao.id}-cartao`, tipo: "cartao", nome: "Cartão Demonstração", saldo: 0, limite: 300000, limiteDisponivel: 300000, fechamento: null, vencimento: null, chequeEspecialUsado: null, chequeEspecialLimite: null },
     ]);
   }
-  const escolhida = SIMULADAS[Math.floor(Math.random() * SIMULADAS.length)];
+  // Gira pelas lojas (sorteando, a mesma podia sair várias vezes seguidas e parecer aviso repetido).
+  const jaSimuladas = (await repo.movimentos(pessoaId)).filter((m) => m.contaId === cartao.id).length;
+  const escolhida = SIMULADAS[jaSimuladas % SIMULADAS.length];
   const base = { descricao: escolhida.descricao, mcc: escolhida.mcc, categoriaPluggy: null };
   const { novos } = await repo.salvarMovimentos(pessoaId, [
     {

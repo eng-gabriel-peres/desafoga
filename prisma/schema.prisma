@@ -289,9 +289,20 @@ model Aviso {
   quando     DateTime @default(now())
   /// Movimento do banco a que o aviso se refere (some junto quando o banco apaga).
   referencia String?
+  lidos      AvisoLido[]
 
   @@index([pessoaId, quando])
   @@map("avisos")
+}
+
+/// Quem já viu o aviso (a pessoa ou cada profissional, separados).
+model AvisoLido {
+  avisoId String
+  aviso   Aviso  @relation(fields: [avisoId], references: [id], onDelete: Cascade)
+  quem    String
+
+  @@id([avisoId, quem])
+  @@map("avisos_lidos")
 }
 
 /// Mensagens da conversa com a Luana, separadas por canal (app e WhatsApp).

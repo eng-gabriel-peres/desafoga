@@ -14,13 +14,15 @@ import {
   encargosDasFaturas,
   jurosMensaisTotais,
   notaMedia,
+  comprasPorHorario,
+  divisaoPorNecessidade,
   orcamentoDoMes,
   padroesDeCompra,
   resumoDaSemana,
   somaDosValores,
 } from "@/lib/finance";
 import { dataPorExtenso, reais } from "@/lib/formatar";
-import { FaixaDaSemana, LinhaDeCompra, ListaDePadroes, NotaDoDia } from "../emocao";
+import { DivisaoDoDinheiro, FaixaDaSemana, HorariosDeCompra, LinhaDeCompra, ListaDePadroes, NotaDoDia } from "../emocao";
 import { MetasEmMiniatura } from "../metas/miniaturas";
 import { andamento, CartaoDaConquista } from "../conquistas/cartao";
 import { servicos } from "@/services";
@@ -158,6 +160,12 @@ export function TelaHoje() {
           <div className="hidden desk:block">{quaseLa}</div>
           <Painel titulo="O que dá para perceber">
             <ListaDePadroes padroes={padroesDeCompra(compras, agora)} sujeito="você estava" />
+          </Painel>
+          <Painel titulo="Em que horário você compra">
+            <HorariosDeCompra horarios={comprasPorHorario(compras)} />
+          </Painel>
+          <Painel titulo="Para onde foi o dinheiro da semana">
+            <DivisaoDoDinheiro {...divisaoPorNecessidade(semana.compras)} />
           </Painel>
         </div>
       </div>

@@ -72,6 +72,8 @@ export interface Aviso {
   tipo: TipoAviso;
   texto: string;
   quando: string;
+  /** Quem está vendo já marcou como visto. */
+  lido?: boolean;
 }
 
 export interface Plano {
