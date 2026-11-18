@@ -6,6 +6,7 @@
 import { z } from "zod";
 import { montarContexto } from "@/lib/assistente/contexto";
 import { avisoDeCheckInTriste, mensagemDeIncentivo, mensagemDeLembrete, NOME_DA_EMOCAO, perguntaDoCheckIn, respostaDoCheckIn } from "@/lib/assistente/textos";
+import { TEMAS } from "@/lib/desafoga/conteudos";
 import { situacaoDaMeta, type Meta } from "@/lib/finance";
 import type { Classificacao, Fatura } from "@/services/tipos";
 import { exigirAPropriaPessoa, exigirProfissionalDe, exigirSessao, exigirVer, SemPermissao } from "./acesso";
@@ -820,6 +821,66 @@ const ACOES = {
   }),
   "eventos.apagarPost": acao(z.tuple([id, id]), async ([e, post], { sessao }) => {
     await repo.apagarPost(e, quemNoEvento(sessao), post);
+  }),
+
+  // ----- conteúdos (feed dos profissionais do espaço) -----
+  "conteudos.feed": acao(z.tuple([]), async (_, { sessao }) => repo.feedDeConteudos(exigirSessao(sessao).espacoId, quemNoEvento(sessao))),
+  "conteudos.ver": acao(z.tuple([id]), async ([c], { sessao }) => repo.detalheDoConteudo(exigirSessao(sessao).espacoId, quemNoEvento(sessao), c)),
+  "conteudos.publicar": acao(
+    z.tuple([
+      z
+        .object({
+          tipo: z.enum(["dica", "artigo", "carrossel", "enquete"]),
+          tema: z.enum(TEMAS),
+          cor: z.enum(["azul", "ambar", "verde", "violeta", "rosa", "petroleo"]),
+          titulo: z.string().trim().min(1).max(120),
+          texto: z.string().trim().max(600),
+          corpo: z.array(z.string().trim().min(1).max(3000)).max(30),
+          cartoes: z.array(z.string().trim().min(1).max(300)).max(8),
+          opcoes: z.array(z.string().trim().min(1).max(80)).max(4),
+          avisar: z.boolean(),
+        })
+        .refine(
+          (c) =>
+            c.tipo === "dica" ? c.texto.length > 0 : c.tipo === "artigo" ? c.corpo.length > 0 : c.tipo === "carrossel" ? c.cartoes.length > 0 : c.opcoes.length >= 2,
+          "Falta o texto do conteúdo.",
+        ),
+    ]),
+    async ([{ avisar, ...c }], { sessao }) => {
+      const p = profissionalDaSessao(sessao);
+      // Guarda só os campos do tipo escolhido.
+      const limpo = {
+        ...c,
+        texto: c.tipo === "dica" || c.tipo === "carrossel" ? c.texto : "",
+        corpo: c.tipo === "artigo" ? c.corpo : [],
+        cartoes: c.tipo === "carrossel" ? c.cartoes : [],
+        opcoes: c.tipo === "enquete" ? c.opcoes : [],
+      };
+      return repo.publicarConteudo(p, limpo, avisar);
+    },
+    "envio",
+  ),
+  "conteudos.apagar": acao(z.tuple([id]), async ([c], { sessao }) => {
+    await repo.apagarConteudo(profissionalDaSessao(sessao), c);
+  }),
+  "conteudos.reagir": acao(z.tuple([id, z.enum(["curtir", "salvar"])]), async ([c, tipo], { sessao }) => {
+    await repo.reagirAoConteudo(exigirSessao(sessao).espacoId, quemNoEvento(sessao), c, tipo);
+  }),
+  "conteudos.votar": acao(z.tuple([id, z.number().int().min(0).max(3)]), async ([c, opcao], { sessao }) => {
+    await repo.votarNaEnquete(exigirSessao(sessao).espacoId, quemNoEvento(sessao), c, opcao);
+  }),
+  "conteudos.comentar": acao(
+    z.tuple([id, z.string().trim().min(1).max(600)]),
+    async ([c, texto], { sessao }) => repo.comentarConteudo(exigirSessao(sessao).espacoId, quemNoEvento(sessao), c, texto),
+    "envio",
+  ),
+  "conteudos.apagarComentario": acao(z.tuple([id]), async ([c], { sessao }) => {
+    await repo.apagarComentario(exigirSessao(sessao).espacoId, quemNoEvento(sessao), c);
+  }),
+  "conteudos.seguir": acao(z.tuple([id]), async ([p], { sessao }) => {
+    const s = exigirSessao(sessao);
+    if (!s.pessoa) throw new SemPermissao("Só quem usa o app segue profissionais.");
+    await repo.seguirProfissional(s.espacoId, s.pessoa.id, p);
   }),
 
   // ----- avisos -----

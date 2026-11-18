@@ -193,6 +193,10 @@ export function mensagemDeConviteParaEncontro(profissional: string, e: { nome: s
   return `📅 ${profissional} convidou você: ${e.nome}\n${dataLongaDaChave(e.data)}, ${e.hora}\n📍 ${e.local}\nAceite o convite em Eventos, no app, e me diga se você vai.`;
 }
 
+export function mensagemDeConteudoNovo(profissional: string, titulo: string): string {
+  return `📚 ${profissional} publicou um conteúdo novo: ${titulo}\nVeja em Conteúdos, no app.`;
+}
+
 // ---------- check-ins da rotina ----------
 
 /** A pergunta de cada check-in, como a Luana manda no horário da rotina. */

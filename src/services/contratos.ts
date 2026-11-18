@@ -33,6 +33,7 @@ import type { CampoDaDivida, CompraParcelada, ModoCompras } from "@/lib/banco/ti
 import type { Categoria, DadosDoBanco, LeituraDeDocumento, Necessidade, ResultadoDaSincronizacao } from "./tipos";
 import type { Conquista, IconeDaConquista, TipoDeConquista } from "./tipos";
 import type { DadosDoEvento, RespostaAoEncontro, SalaDoEvento, TipoDePost } from "./tipos";
+import type { DetalheDoConteudo, FeedDeConteudos, NovoConteudo } from "./tipos";
 
 /** Quem está usando o app neste navegador. */
 export interface Eu {
@@ -158,6 +159,22 @@ export interface EventosService {
   apagarPost(eventoId: string, postId: string): Promise<void>;
 }
 
+export interface ConteudosService {
+  /** Publicações dos profissionais do espaço, os criadores e (para o profissional) o que falta responder. */
+  feed(): Promise<FeedDeConteudos>;
+  ver(conteudoId: string): Promise<DetalheDoConteudo>;
+  /** Só profissional; com `avisar`, a Luana conta para quem segue. */
+  publicar(conteudo: NovoConteudo & { avisar: boolean }): Promise<{ id: string }>;
+  apagar(conteudoId: string): Promise<void>;
+  /** Curtir ou salvar (alterna). */
+  reagir(conteudoId: string, tipo: "curtir" | "salvar"): Promise<void>;
+  votar(conteudoId: string, opcao: number): Promise<void>;
+  comentar(conteudoId: string, texto: string): Promise<{ id: string }>;
+  apagarComentario(comentarioId: string): Promise<void>;
+  /** A pessoa segue ou deixa de seguir (alterna). */
+  seguir(profissionalId: string): Promise<void>;
+}
+
 export interface RotinaService {
   obter(pessoaId: string): Promise<DadosDaRotina>;
   salvar(
@@ -254,6 +271,7 @@ export interface Servicos {
   metas: MetasService;
   conquistas: ConquistasService;
   eventos: EventosService;
+  conteudos: ConteudosService;
   rotina: RotinaService;
   contas: ContasService;
   faturas: FaturasService;

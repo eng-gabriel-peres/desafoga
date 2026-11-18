@@ -5,6 +5,7 @@
  */
 import { randomBytes } from "node:crypto";
 import { materializar, PROFISSIONAIS, SEMENTES } from "@/fixtures/desafoga";
+import { BIOS, CONTEUDOS_DA_DEMO } from "@/fixtures/desafoga/conteudos";
 import { EVENTOS_DA_DEMO } from "@/fixtures/desafoga/eventos";
 import { emData } from "@/fixtures/desafoga/sementes";
 import { hojeEmBrasilia } from "@/lib/luana/lancamentos";
@@ -33,7 +34,7 @@ export async function criarEspacoDemo(db: Transacao, agora = new Date()): Promis
   const profissionais: Record<string, string> = {};
   for (const p of PROFISSIONAIS) {
     const criado = await db.profissional.create({
-      data: { espacoId: espaco.id, slug: p.id, nome: p.nome, papel: p.papel, cor: p.cor, convite: novoConvite() },
+      data: { espacoId: espaco.id, slug: p.id, nome: p.nome, papel: p.papel, cor: p.cor, convite: novoConvite(), bio: BIOS[p.id] ?? "" },
     });
     profissionais[p.id] = criado.id;
   }
@@ -204,6 +205,7 @@ export async function criarEspacoDemo(db: Transacao, agora = new Date()): Promis
   }
 
   await criarEventosDaDemo(db, pessoas, profissionais, agora);
+  await criarConteudosDaDemo(db, pessoas, profissionais, agora);
   return { espacoId: espaco.id, pessoas, profissionais };
 }
 
@@ -350,5 +352,42 @@ async function criarEventosDaDemo(db: Transacao, pessoas: Record<string, string>
         },
       });
     }
+  }
+}
+
+/** O feed de Conteúdos do protótipo, com os comentários. */
+async function criarConteudosDaDemo(db: Transacao, pessoas: Record<string, string>, profissionais: Record<string, string>, agora: Date): Promise<void> {
+  for (const c of CONTEUDOS_DA_DEMO) {
+    // Horários no futuro viram "5 minutos atrás"; os comentários ficam sempre em ordem, depois do post.
+    const criadoEm = emData({ dias: c.dias, hora: c.hora }, agora);
+    let ultimo = criadoEm.getTime();
+    const comentarios = (c.comentarios ?? []).map((x) => {
+      ultimo = Math.max(emData({ dias: x.dias, hora: x.hora }, agora).getTime(), ultimo + 60_000);
+      return { ...x, quando: new Date(Math.min(ultimo, agora.getTime())) };
+    });
+    await db.conteudo.create({
+      data: {
+        profissionalId: profissionais[c.por],
+        tipo: c.tipo,
+        tema: c.tema,
+        cor: c.cor,
+        titulo: c.titulo,
+        texto: c.texto ?? "",
+        corpo: c.corpo ?? [],
+        cartoes: c.cartoes ?? [],
+        opcoes: c.opcoes ?? [],
+        votosIniciais: c.votos ?? [],
+        curtidasIniciais: c.curtidas,
+        criadoEm,
+        comentarios: {
+          create: comentarios.map((x) => ({
+            pessoaId: pessoas[x.por] ?? null,
+            profissionalId: profissionais[x.por] ?? null,
+            texto: x.texto,
+            criadoEm: x.quando,
+          })),
+        },
+      },
+    });
   }
 }

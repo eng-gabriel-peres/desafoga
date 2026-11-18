@@ -80,6 +80,17 @@ export const servicosDaApi: Servicos = {
     listar: (id) => chamar("orcamentos.listar", [id]),
     salvar: (id, categoria, limite) => chamar("orcamentos.salvar", [id, categoria, limite], true),
   },
+  conteudos: {
+    feed: () => chamar("conteudos.feed"),
+    ver: (id) => chamar("conteudos.ver", [id]),
+    publicar: (conteudo) => chamar("conteudos.publicar", [conteudo], true),
+    apagar: (id) => chamar("conteudos.apagar", [id], true),
+    reagir: (id, tipo) => chamar("conteudos.reagir", [id, tipo], true),
+    votar: (id, opcao) => chamar("conteudos.votar", [id, opcao], true),
+    comentar: (id, texto) => chamar("conteudos.comentar", [id, texto], true),
+    apagarComentario: (id) => chamar("conteudos.apagarComentario", [id], true),
+    seguir: (profissionalId) => chamar("conteudos.seguir", [profissionalId], true),
+  },
   eventos: {
     listar: () => chamar("eventos.listar"),
     ver: (eventoId) => chamar("eventos.ver", [eventoId]),

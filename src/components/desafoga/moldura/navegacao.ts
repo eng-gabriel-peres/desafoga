@@ -1,4 +1,4 @@
-import { AlarmClock, BarChart3, Brain, CalendarCheck, CalendarDays, ChartPie, ClipboardList, House, MessageCircle, Plus, Target, Trophy, Users, Wallet, type LucideIcon } from "lucide-react";
+import { AlarmClock, BarChart3, Brain, CalendarCheck, CalendarDays, ChartPie, Newspaper, ClipboardList, House, MessageCircle, Plus, Target, Trophy, Users, Wallet, type LucideIcon } from "lucide-react";
 
 /**
  * O Desafoga tem duas áreas separadas:
@@ -22,7 +22,7 @@ export interface ItemDoMenu {
 }
 
 /** Telas do painel que não são de um paciente (eventos com várias pessoas). */
-const foraDoPaciente = (c: string) => /^\/painel\/eventos(\/|$)/.test(c);
+const foraDoPaciente = (c: string) => /^\/painel\/(eventos|conteudos)(\/|$)/.test(c);
 
 export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
   if (area === "pessoa") {
@@ -35,6 +35,7 @@ export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
       { href: "/app/contas", rotulo: "Contas", Icone: CalendarCheck, ativo: (c) => c === "/app/contas", soDesktop: true },
       { href: "/app/orcamento", rotulo: "Orçamento", Icone: ChartPie, ativo: (c) => c === "/app/orcamento", soDesktop: true },
       { href: "/app/semana", rotulo: "Semana", Icone: BarChart3, ativo: (c) => c === "/app/semana", soDesktop: true },
+      { href: "/app/conteudos", rotulo: "Conteúdos", Icone: Newspaper, ativo: (c) => c.startsWith("/app/conteudos"), soDesktop: true },
       { href: "/app/eventos", rotulo: "Eventos", Icone: CalendarDays, ativo: (c) => c.startsWith("/app/eventos"), soDesktop: true },
       { href: "/app/conquistas", rotulo: "Conquistas", Icone: Trophy, ativo: (c) => c === "/app/conquistas", soDesktop: true },
       { href: "/app/rotina", rotulo: "Rotina", Icone: AlarmClock, ativo: (c) => c === "/app/rotina", soDesktop: true },
@@ -49,7 +50,8 @@ export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
     { href: `${base}/metas`, rotulo: "Metas", Icone: Target, ativo: (c) => /^\/painel\/[^/]+\/metas/.test(c) },
     { href: `${base}/memoria`, rotulo: "Memória", Icone: Brain, ativo: (c) => c.endsWith("/memoria") },
     { href: `${base}/conquistas`, rotulo: "Conquistas", Icone: Trophy, ativo: (c) => c.endsWith("/conquistas") },
-    { href: "/painel/eventos", rotulo: "Eventos", Icone: CalendarDays, ativo: foraDoPaciente },
+    { href: "/painel/conteudos", rotulo: "Conteúdos", Icone: Newspaper, ativo: (c) => c.startsWith("/painel/conteudos") },
+    { href: "/painel/eventos", rotulo: "Eventos", Icone: CalendarDays, ativo: (c) => c.startsWith("/painel/eventos") },
   ];
 }
 
@@ -66,6 +68,11 @@ export function tituloDaRota(caminho: string): Titulo {
   if (caminho === "/app/contas") return { titulo: "Contas do mês", subtitulo: "O que você paga todo mês e quando vence" };
   if (caminho === "/app/rotina") return { titulo: "Rotina e privacidade", subtitulo: "Seus horários e o que quem te acompanha vê" };
   if (/^\/painel\/[^/]+\/contas$/.test(caminho)) return { titulo: "Contas do paciente", subtitulo: "Só leitura, se a pessoa compartilhou" };
+  if (caminho === "/app/conteudos") return { titulo: "Conteúdos", subtitulo: "Dicas e textos de profissionais para te ajudar" };
+  if (caminho === "/painel/conteudos") return { titulo: "Conteúdos", subtitulo: "Publique conteúdos para ajudar quem você acompanha" };
+  if (caminho === "/painel/conteudos/novo") return { titulo: "Publicar conteúdo", subtitulo: "Dica, artigo, carrossel ou enquete" };
+  if (/^\/(app|painel)\/conteudos\/perfil\//.test(caminho)) return { titulo: "Perfil", subtitulo: "Publicações do profissional" };
+  if (/^\/(app|painel)\/conteudos\//.test(caminho)) return { titulo: "Conteúdo", subtitulo: "Leia, comente e salve" };
   if (caminho === "/app/eventos") return { titulo: "Eventos", subtitulo: "Desafios e encontros de que você participa" };
   if (caminho.startsWith("/app/eventos/")) return { titulo: "Evento", subtitulo: "Mural, ranking e o seu andamento" };
   if (caminho === "/painel/eventos") return { titulo: "Eventos", subtitulo: "Desafios em grupo e encontros presenciais" };

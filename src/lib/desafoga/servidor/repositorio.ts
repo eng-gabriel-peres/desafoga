@@ -710,3 +710,4 @@ export async function desfazerPagamento(pessoaId: string, tipo: Pagamento["tipo"
 export * from "./repositorio-banco";
 export * from "./repositorio-conquistas";
 export * from "./repositorio-eventos";
+export * from "./repositorio-conteudos";
