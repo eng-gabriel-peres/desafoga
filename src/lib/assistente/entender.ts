@@ -144,6 +144,11 @@ export function lerEmocao(texto: string): Emocao | null {
   return null;
 }
 
+/** "Não lembro", "esqueci", "não sei" na pergunta de como a pessoa estava. */
+export function naoLembraComoEstava(texto: string): boolean {
+  return /\b(nao|nem) (me )?lembr|\besqueci|^nao sei\b|^sei la\b/.test(normalizar(texto));
+}
+
 /** "Sim", "Não", "Não sei" -> necessidade, ou null. */
 export function lerNecessidade(texto: string): Necessidade | null {
   const t = normalizar(texto);

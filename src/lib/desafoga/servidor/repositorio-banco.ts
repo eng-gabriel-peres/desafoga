@@ -673,8 +673,9 @@ export async function desmarcarParceladaAvisada(parceladaId: string): Promise<vo
 }
 
 /** Compra registrada sozinha pelo banco: a pessoa completa como estava. */
-export async function completarEmocao(pessoaId: string, compraId: string, emocao: number, necessidade: string): Promise<void> {
-  const r = await prisma().compra.updateMany({ where: { id: compraId, pessoaId }, data: { emocao, necessidade } });
+/** emocao null: a pessoa não lembra como estava (a compra deixa de ficar pendente). */
+export async function completarEmocao(pessoaId: string, compraId: string, emocao: number | null, necessidade: string): Promise<void> {
+  const r = await prisma().compra.updateMany({ where: { id: compraId, pessoaId }, data: { emocao, necessidade, naoLembra: emocao === null } });
   if (!r.count) throw new NaoEncontrado("Compra não encontrada.");
   // A emoção completa pode fechar uma conquista ("dias com nota boa") ou fazer do dia um dia difícil.
   await conferirDiaDificil(pessoaId);

@@ -120,8 +120,9 @@ export interface NovaCompra {
   item: string;
   categoria: Categoria;
   valor: number;
-  /** null: veio do banco no modo "registrar sozinho". */
+  /** null: veio do banco no modo "registrar sozinho", ou a pessoa não lembra (`naoLembra`). */
   emocao: Emocao | null;
+  naoLembra?: boolean;
   necessidade: Necessidade | null;
   via: Compra["via"];
   parcelas?: number | null;

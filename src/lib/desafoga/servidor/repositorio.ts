@@ -57,6 +57,7 @@ export function paraCompra(c: Prisma.CompraModel): Compra {
     categoria: c.categoria as Categoria,
     valor: c.valor,
     emocao: c.emocao as Emocao | null,
+    naoLembra: c.naoLembra,
     necessidade: c.necessidade as Necessidade | null,
     quando: iso(c.quando),
     via: c.via as Compra["via"],

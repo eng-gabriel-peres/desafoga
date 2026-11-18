@@ -27,8 +27,10 @@ export interface Compra {
   categoria: Categoria;
   /** Centavos. */
   valor: number;
-  /** null: veio do banco no modo "registrar sozinho" e a pessoa ainda não disse como estava. */
+  /** null: veio do banco no modo "registrar sozinho" e a pessoa ainda não disse como estava (ou não lembra). */
   emocao: Emocao | null;
+  /** A pessoa disse que não lembra como estava: fica sem emoção (fora da nota do dia) e não é cobrada de novo. */
+  naoLembra?: boolean;
   necessidade: Necessidade | null;
   /** Data e hora em ISO 8601. */
   quando: string;

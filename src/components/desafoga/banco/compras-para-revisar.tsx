@@ -49,8 +49,8 @@ export function comprasParaRevisar(banco: DadosDoBanco): ParaRevisar[] {
 
 export function previaDe({ movimento: m, parcelada }: ParaRevisar): PreviaDoRegistro {
   return parcelada
-    ? { tipo: "banco", movimentoId: m.id, item: parcelada.nome === parcelada.lojaOriginal ? nomeDaLoja(parcelada.nome) : parcelada.nome, valor: parcelada.valorTotal, categoria: parcelada.categoria, parcelas: parcelada.totalParcelas }
-    : { tipo: "banco", movimentoId: m.id, item: nomeDaLoja(m.descricao), valor: m.valor, categoria: m.categoria ?? "Outro", parcelas: null };
+    ? { tipo: "banco", movimentoId: m.id, item: parcelada.nome === parcelada.lojaOriginal ? nomeDaLoja(parcelada.nome) : parcelada.nome, valor: parcelada.valorTotal, categoria: parcelada.categoria, parcelas: parcelada.totalParcelas, dia: m.data, loja: m.descricao }
+    : { tipo: "banco", movimentoId: m.id, item: nomeDaLoja(m.descricao), valor: m.valor, categoria: m.categoria ?? "Outro", parcelas: null, dia: m.data, loja: m.descricao };
 }
 
 /** Cartão de Hoje: compras do banco esperando a pessoa dizer como estava. */

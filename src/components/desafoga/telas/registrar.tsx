@@ -34,9 +34,18 @@ interface Rascunho {
   valorTexto: string;
   categoria: Categoria | null;
   emocao: Emocao | null;
+  /** "Não lembro como eu estava": registra sem emoção (fora da nota do dia). */
+  naoLembra: boolean;
 }
 
-const VAZIO: Rascunho = { item: "", valorTexto: "", categoria: null, emocao: null };
+const VAZIO: Rascunho = { item: "", valorTexto: "", categoria: null, emocao: null, naoLembra: false };
+
+/** "na segunda-feira, 16 de novembro" (ou "no sábado, …") a partir de "YYYY-MM-DD". */
+const noDia = (dia: string) => {
+  const d = new Date(`${dia}T12:00:00Z`);
+  const t = d.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+  return `${d.getUTCDay() === 0 || d.getUTCDay() === 6 ? "no" : "na"} ${t}`;
+};
 
 /** Pelo endereço /app/registrar: ao terminar ou cancelar, volta para Hoje. */
 export function TelaRegistrar() {
@@ -51,7 +60,7 @@ export function TelaRegistrar() {
 export function FluxoDeRegistro({ fechar, previa }: { fechar: () => void; previa?: PreviaDoRegistro }) {
   const pessoaId = useMinhaPessoaId();
   // A prévia não muda enquanto a janela está aberta (cada abertura remonta o fluxo).
-  const inicial = useMemo<Rascunho>(() => (previa ? { item: previa.item, valorTexto: "", categoria: previa.categoria, emocao: null } : VAZIO), [previa]);
+  const inicial = useMemo<Rascunho>(() => (previa ? { item: previa.item, valorTexto: "", categoria: previa.categoria, emocao: null, naoLembra: false } : VAZIO), [previa]);
   // Completar uma compra do banco começa direto em "como você estava".
   const primeiroPasso = previa?.tipo === "completar" ? 2 : 1;
   const [passo, setPasso] = useState<1 | 2 | 3 | 4>(primeiroPasso);
@@ -84,7 +93,7 @@ export function FluxoDeRegistro({ fechar, previa }: { fechar: () => void; previa
 
   async function concluir(necessidade: Necessidade) {
     const valor = valorDoRascunho();
-    if (!valor || !rascunho.categoria || !rascunho.emocao || salvando) return;
+    if (!valor || !rascunho.categoria || (!rascunho.emocao && !rascunho.naoLembra) || salvando) return;
     setSalvando(true);
     const item = rascunho.item.trim().charAt(0).toUpperCase() + rascunho.item.trim().slice(1);
     try {
@@ -223,6 +232,21 @@ export function FluxoDeRegistro({ fechar, previa }: { fechar: () => void; previa
             Como você estava na hora da compra?
           </h1>
           <p className="text-muted">Toque na carinha mais parecida com o que sentia.</p>
+          {previa?.dia && (
+            <p className="mt-2 rounded-xl bg-surface2 px-3 py-2 text-[0.92rem]">
+              Para ajudar a lembrar: foi {noDia(previa.dia)}
+              {previa.loja ? (
+                <>
+                  , em <b>{previa.loja}</b>
+                </>
+              ) : (
+                <>
+                  , <b>{previa.item}</b>
+                </>
+              )}
+              , {reais(previa.valor)}.
+            </p>
+          )}
           <div role="radiogroup" aria-labelledby="pergunta-emocao" className="mt-4.5 grid grid-cols-5 gap-1.5">
             {([1, 2, 3, 4, 5] as Emocao[]).map((e) => (
               <button
@@ -231,7 +255,7 @@ export function FluxoDeRegistro({ fechar, previa }: { fechar: () => void; previa
                 role="radio"
                 aria-checked={rascunho.emocao === e}
                 onClick={() => {
-                  mudar({ emocao: e });
+                  mudar({ emocao: e, naoLembra: false });
                   setPasso(3);
                 }}
                 className="flex flex-col items-center gap-2 rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-0.5 py-3 text-center text-[0.74rem] leading-tight font-bold hover:border-primary hover:bg-primary-soft aria-checked:border-primary aria-checked:bg-primary-soft"
@@ -250,6 +274,18 @@ export function FluxoDeRegistro({ fechar, previa }: { fechar: () => void; previa
             <span>Mais triste</span>
             <span>Mais feliz</span>
           </div>
+          <button
+            type="button"
+            aria-pressed={rascunho.naoLembra}
+            onClick={() => {
+              mudar({ emocao: null, naoLembra: true });
+              setPasso(3);
+            }}
+            className="mt-4 w-full rounded-[var(--radius-ctl)] border-2 border-dashed border-line bg-surface px-3 py-3 text-center font-bold text-muted hover:border-primary hover:text-ink aria-pressed:border-primary aria-pressed:text-ink"
+          >
+            Não lembro como eu estava
+          </button>
+          <p className="mt-1.5 text-center text-[0.85rem] text-muted">Melhor que chutar: a compra fica registrada e só não entra na nota do dia.</p>
         </section>
       )}
 

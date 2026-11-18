@@ -9,9 +9,10 @@ import { FluxoDeRegistro } from "./telas/registrar";
  * - "banco": uma compra que veio do banco (valor fixo, categoria automática que dá para trocar);
  * - "completar": uma compra registrada sozinha pelo banco, só falta dizer como estava.
  */
+/** `dia` ("YYYY-MM-DD") e `loja` (como veio do banco) ajudam a lembrar como a pessoa estava. */
 export type PreviaDoRegistro =
-  | { tipo: "banco"; movimentoId: string; item: string; valor: number; categoria: Categoria; parcelas: number | null }
-  | { tipo: "completar"; compraId: string; item: string; valor: number; categoria: Categoria };
+  | { tipo: "banco"; movimentoId: string; item: string; valor: number; categoria: Categoria; parcelas: number | null; dia?: string; loja?: string }
+  | { tipo: "completar"; compraId: string; item: string; valor: number; categoria: Categoria; dia?: string; loja?: string };
 
 const AbrirRegistro = createContext<(previa?: PreviaDoRegistro) => void>(() => {});
 

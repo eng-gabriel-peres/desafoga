@@ -83,7 +83,7 @@ describe("conversa da Luana", () => {
 
   it("registra a compra perguntando emoção e necessidade", () => {
     const { resultados, ultima, estado } = conversar("comprei pão 12", "3", "Sim");
-    expect(resultados[0].respostas[0].respostasRapidas).toHaveLength(5);
+    expect(resultados[0].respostas[0].respostasRapidas).toHaveLength(6);
     expect(resultados[1].respostas[0].texto).toBe("Essa compra era necessária?");
     expect(ultima.efeitos).toEqual([
       {
@@ -108,6 +108,19 @@ describe("conversa da Luana", () => {
     expect(fim.efeitos).toHaveLength(2);
     expect(fim.efeitos[0]).toMatchObject({ compra: { item: "Almoço", categoria: "Comida pronta", emocao: 4, via: "whatsapp" } });
     expect(fim.respostas[0].texto).toContain("• Uber, R$ 18,50");
+  });
+
+  it("aceita \"não lembro\" como a pessoa estava: registra sem emoção, sem mexer na nota do dia", () => {
+    const inicio = iniciarRegistro([{ item: "Shopee", valor: 8990, categoria: "Outro" }]);
+    expect(inicio.respostas[0].respostasRapidas?.map((r) => r.rotulo)).toContain("Não lembro");
+    for (const resposta of ["não lembro", "Não lembro", "esqueci", "nem lembro"]) {
+      const emocao = responder(inicio.estado, resposta, ctx);
+      expect(emocao.estado).toMatchObject({ etapa: "necessidade", emocao: null });
+    }
+    const fim = responder(responder(inicio.estado, "não lembro", ctx).estado, "sim", ctx);
+    expect(fim.efeitos[0]).toMatchObject({ compra: { item: "Shopee", emocao: null, naoLembra: true, necessidade: "sim" } });
+    expect(fim.respostas[0].texto).toContain("Você estava: não lembra");
+    expect(fim.respostas[0].texto).not.toContain("Sua nota de hoje agora é NaN");
   });
 
   it("pergunta o valor quando faltar e insiste se não entender", () => {

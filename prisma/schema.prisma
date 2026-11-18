@@ -138,6 +138,8 @@ model Acompanhamento {
 }
 
 model Compra {
+  /// A pessoa disse que não lembra como estava (emocao fica null e a compra não é cobrada de novo).
+  naoLembra             Boolean          @default(false)
   id                    String       @id @default(uuid())
   pessoaId              String
   pessoa                Pessoa       @relation(fields: [pessoaId], references: [id], onDelete: Cascade)

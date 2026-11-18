@@ -147,7 +147,7 @@ describe("conversa da Luana com IA", () => {
       redigir: async () => "",
     };
     const [r] = await conversar(ana.dados, "ana", "app", "comprei pão 12", { ia: quebrada, agora: AGORA });
-    expect(r.respostasRapidas).toHaveLength(5);
+    expect(r.respostasRapidas).toHaveLength(6);
   });
 
   it("as conversas do app e do WhatsApp são separadas", async () => {

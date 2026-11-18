@@ -45,7 +45,7 @@ import type {
   RespostaRapida,
   TipoAviso,
 } from "@/services/tipos";
-import { adivinharCategoria, apelidosDaMeta, entender, lerEmocao, lerNecessidade, nomeDaCompra, normalizar, temPalavra } from "./entender";
+import { adivinharCategoria, apelidosDaMeta, entender, lerEmocao, lerNecessidade, naoLembraComoEstava, nomeDaCompra, normalizar, temPalavra } from "./entender";
 import {
   AVISO_EDUCATIVO,
   NOME_DA_EMOCAO,
@@ -96,7 +96,8 @@ export type EstadoConversa =
   | { etapa: "livre" }
   | { etapa: "valor"; item: string }
   | { etapa: "emocao"; compras: CompraContada[] }
-  | { etapa: "necessidade"; compras: CompraContada[]; emocao: Emocao }
+  /** emocao null: a pessoa não lembra como estava. */
+  | { etapa: "necessidade"; compras: CompraContada[]; emocao: Emocao | null }
   /** A pessoa guardou dinheiro e tem mais de uma meta ativa: falta saber qual. */
   | { etapa: "meta"; valor: number; descricao: string };
 
@@ -121,10 +122,11 @@ export interface Resultado {
   efeitos: Efeito[];
 }
 
-export const RAPIDAS_EMOCAO: RespostaRapida[] = ([1, 2, 3, 4, 5] as Emocao[]).map((e) => ({
-  rotulo: NOME_DA_EMOCAO[e],
-  emocao: e,
-}));
+export const RAPIDAS_EMOCAO: RespostaRapida[] = [
+  ...([1, 2, 3, 4, 5] as Emocao[]).map((e) => ({ rotulo: NOME_DA_EMOCAO[e], emocao: e })),
+  // Melhor "não lembro" do que uma carinha chutada: ela não entra na nota do dia.
+  { rotulo: "Não lembro" },
+];
 export const RAPIDAS_NECESSIDADE: RespostaRapida[] = (["sim", "nao", "talvez"] as Necessidade[]).map((n) => ({
   rotulo: RESPOSTA_DA_NECESSIDADE[n],
 }));
@@ -279,12 +281,13 @@ function respostaSofrimento(ctx: ContextoAssistente): Resultado {
   };
 }
 
-function registrar(ctx: ContextoAssistente, contadas: CompraContada[], emocao: Emocao, necessidade: Necessidade): Resultado {
+function registrar(ctx: ContextoAssistente, contadas: CompraContada[], emocao: Emocao | null, necessidade: Necessidade): Resultado {
   const novas: NovaCompra[] = contadas.map((c) => ({
     item: c.item,
     categoria: c.categoria ?? adivinharCategoria(c.item),
     valor: c.valor,
     emocao,
+    ...(emocao === null ? { naoLembra: true } : {}),
     necessidade,
     via: ctx.canal,
   }));
@@ -295,10 +298,9 @@ function registrar(ctx: ContextoAssistente, contadas: CompraContada[], emocao: E
     novas.length === 1
       ? `Anotado: ${novas[0].item}, ${reais(novas[0].valor)}.`
       : `Anotado:\n${novas.map((c) => `• ${c.item}, ${reais(c.valor)}`).join("\n")}`,
-    `Você estava: ${NOME_DA_EMOCAO[emocao]}`,
+    `Você estava: ${emocao === null ? "não lembra" : NOME_DA_EMOCAO[emocao]}`,
     `${novas.length === 1 ? "Era necessária" : "Eram necessárias"}: ${RESPOSTA_DA_NECESSIDADE[necessidade]}`,
-    "",
-    `Sua nota de hoje agora é ${umaCasa(nota)} (${rotuloDaNota(nota)}).`,
+    ...(nota === null ? [] : ["", `Sua nota de hoje agora é ${umaCasa(nota)} (${rotuloDaNota(nota)}).`]),
   ];
   // Orçamento das categorias dessas compras: quanto resta e quanto dá por dia.
   const todas = [...ctx.compras, ...registradas];
@@ -306,7 +308,7 @@ function registrar(ctx: ContextoAssistente, contadas: CompraContada[], emocao: E
     const orcamento = ctx.orcamentos.find((o) => o.categoria === categoria && o.limite > 0);
     if (orcamento) linhas.push("", explicarOrcamento(situacaoDoOrcamento(orcamento, gastoDoMes(todas, categoria, ctx.agora), ctx.agora)));
   }
-  if (emocao <= 2 && necessidade === "nao") {
+  if (emocao !== null && emocao <= 2 && necessidade === "nao") {
     linhas.push("", "Se quiser, me conta o que aconteceu antes dessa compra. Isso ajuda a entender o padrão.");
   }
   return {
@@ -425,8 +427,9 @@ function continuarCompra(estado: Exclude<EstadoConversa, { etapa: "livre" }>, te
     return iniciarRegistro([{ item: estado.item, valor }]);
   }
   if (estado.etapa === "emocao") {
-    const emocao = lerEmocao(texto);
-    if (!emocao) return so(estado, { texto: "Responda com um número de 1 a 5, ou toque numa carinha.", respostasRapidas: RAPIDAS_EMOCAO });
+    const naoLembra = naoLembraComoEstava(texto);
+    const emocao = naoLembra ? null : lerEmocao(texto);
+    if (!naoLembra && !emocao) return so(estado, { texto: "Responda com um número de 1 a 5, toque numa carinha ou diga que não lembra.", respostasRapidas: RAPIDAS_EMOCAO });
     const pergunta = estado.compras.length === 1 ? "Essa compra era necessária?" : "Essas compras eram necessárias?";
     return so({ ...estado, etapa: "necessidade", emocao }, { texto: pergunta, respostasRapidas: RAPIDAS_NECESSIDADE });
   }

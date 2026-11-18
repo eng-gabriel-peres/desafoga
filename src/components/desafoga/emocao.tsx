@@ -90,6 +90,10 @@ export function LinhaDeCompra({ compra, semNecessidade }: { compra: Compra; semN
     <li className="grid grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-line py-3 last:border-0">
       {compra.emocao !== null ? (
         <Carinha emocao={compra.emocao} />
+      ) : compra.naoLembra ? (
+        <span role="img" aria-label="Não lembra como estava" title="Não lembra como estava" className="grid size-12 shrink-0 place-items-center rounded-full border-2 border-line bg-surface2 text-[1.3rem] font-bold text-muted">
+          ?
+        </span>
       ) : (
         <span role="img" aria-label="Sem emoção registrada" className="grid size-12 shrink-0 place-items-center rounded-full border-2 border-dashed border-line text-center text-[0.68rem] leading-tight text-muted" title="Sem emoção registrada">
           sem
@@ -112,10 +116,11 @@ export function LinhaDeCompra({ compra, semNecessidade }: { compra: Compra; semN
         {compra.emocao === null && minha && (
           <button
             type="button"
-            onClick={() => abrirRegistro({ tipo: "completar", compraId: compra.id, item: compra.item, valor: compra.valor, categoria: compra.categoria })}
-            className="mt-1 text-[0.85rem] font-bold text-primary"
+            onClick={() => abrirRegistro({ tipo: "completar", compraId: compra.id, item: compra.item, valor: compra.valor, categoria: compra.categoria, dia: compra.quando.slice(0, 10) })}
+            className={`mt-1 text-[0.85rem] font-bold ${compra.naoLembra ? "text-muted" : "text-primary"}`}
           >
-            Completar emoção
+            {/* Quem disse que não lembra não é cobrado; se lembrar depois, dá para completar. */}
+            {compra.naoLembra ? "Lembrei" : "Completar emoção"}
           </button>
         )}
         {!semNecessidade && compra.necessidade !== null && (

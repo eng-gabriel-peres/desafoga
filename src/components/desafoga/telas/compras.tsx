@@ -81,7 +81,7 @@ export function TelaComprasDoPaciente({ pessoaId }: { pessoaId: string }) {
   };
   const disse = (c: Compra) => (c.necessidade ? <EtiquetaNecessidade necessidade={c.necessidade} /> : <span className="text-muted">Não respondeu</span>);
   const carinha = (c: Compra) =>
-    c.emocao === null ? <span className="text-muted">Sem emoção</span> : <span className="inline-flex items-center gap-1.5"><Carinha emocao={c.emocao} tamanho="sm" rotulo={false} />{NOME_DA_EMOCAO[c.emocao]}</span>;
+    c.emocao === null ? <span className="text-muted">{c.naoLembra ? "Não lembrou" : "Sem emoção"}</span> : <span className="inline-flex items-center gap-1.5"><Carinha emocao={c.emocao} tamanho="sm" rotulo={false} />{NOME_DA_EMOCAO[c.emocao]}</span>;
 
   return (
     <>

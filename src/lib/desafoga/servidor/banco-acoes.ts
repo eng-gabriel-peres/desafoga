@@ -153,7 +153,8 @@ export async function marcarTransferencia(pessoaId: string, movimentoId: string)
 export interface RegistroDoBanco {
   item: string;
   categoria: Categoria;
-  emocao: Emocao;
+  /** null: a pessoa não lembra como estava. */
+  emocao: Emocao | null;
   necessidade: Necessidade;
 }
 
@@ -182,7 +183,7 @@ async function registrarReservado(pessoaId: string, m: Movimento, r: RegistroDoB
     if (parcelada.compraId) throw new RecusaDoBanco("Essa compra parcelada já foi registrada.");
     const compra = await repo.registrarCompra(
       pessoaId,
-      { item, categoria: r.categoria, valor: parcelada.valorTotal, emocao: r.emocao, necessidade: r.necessidade, via: "banco", parcelas: parcelada.totalParcelas, valorDaParcela: parcelada.valorParcela, parceladaId: parcelada.id },
+      { item, categoria: r.categoria, valor: parcelada.valorTotal, emocao: r.emocao, naoLembra: r.emocao === null, necessidade: r.necessidade, via: "banco", parcelas: parcelada.totalParcelas, valorDaParcela: parcelada.valorParcela, parceladaId: parcelada.id },
       new Date(`${parcelada.compradaEm}T12:00:00-03:00`),
     );
     await repo.ligarParceladaACompra(parcelada.id, compra.id);
@@ -194,7 +195,7 @@ async function registrarReservado(pessoaId: string, m: Movimento, r: RegistroDoB
   }
   const compra = await repo.registrarCompra(
     pessoaId,
-    { item, categoria: r.categoria, valor: m.valor, emocao: r.emocao, necessidade: r.necessidade, via: "banco" },
+    { item, categoria: r.categoria, valor: m.valor, emocao: r.emocao, naoLembra: r.emocao === null, necessidade: r.necessidade, via: "banco" },
     new Date(`${m.data}T12:00:00-03:00`),
   );
   await repo.mudarMovimento(pessoaId, movimentoId, { situacao: "registrada", compraId: compra.id, categoria: r.categoria });

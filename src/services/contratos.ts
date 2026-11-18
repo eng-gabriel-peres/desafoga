@@ -233,8 +233,9 @@ export interface BancoService {
   modo(pessoaId: string, modo: ModoCompras): Promise<void>;
   ignorar(pessoaId: string, movimentoId: string): Promise<void>;
   marcarTransferencia(pessoaId: string, movimentoId: string): Promise<void>;
-  registrar(pessoaId: string, movimentoId: string, r: { item: string; categoria: Categoria; emocao: Emocao; necessidade: Necessidade }): Promise<void>;
-  completarEmocao(pessoaId: string, compraId: string, emocao: Emocao, necessidade: Necessidade): Promise<void>;
+  /** emocao null: a pessoa não lembra como estava. */
+  registrar(pessoaId: string, movimentoId: string, r: { item: string; categoria: Categoria; emocao: Emocao | null; necessidade: Necessidade }): Promise<void>;
+  completarEmocao(pessoaId: string, compraId: string, emocao: Emocao | null, necessidade: Necessidade): Promise<void>;
   renomearParcelada(pessoaId: string, parceladaId: string, nome: string, categoria?: Categoria): Promise<CompraParcelada>;
   aceitarSugestao(pessoaId: string, chave: string, correcoes?: Partial<Record<CampoDaDivida, number>>, vencimento?: number): Promise<Divida>;
   vincularSugestao(pessoaId: string, chave: string, dividaId: string): Promise<Divida>;

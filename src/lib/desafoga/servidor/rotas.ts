@@ -316,10 +316,11 @@ const ACOES = {
     await repo.avaliarCompra(p, c, avaliacao);
   }),
   "compras.registrar": acao(
-    z.tuple([id, z.object({ item: texto(80), categoria, valor: centavos.min(1), emocao, necessidade, via: z.enum(["app", "whatsapp", "fatura"]) })]),
+    // emocao null: "não lembro como eu estava".
+    z.tuple([id, z.object({ item: texto(80), categoria, valor: centavos.min(1), emocao: emocao.nullable(), necessidade, via: z.enum(["app", "whatsapp", "fatura"]) })]),
     async ([p, nova], { sessao }) => {
       exigirAPropriaPessoa(sessao, p);
-      return repo.registrarCompra(p, nova);
+      return repo.registrarCompra(p, { ...nova, naoLembra: nova.emocao === null });
     },
   ),
   "dividas.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
@@ -594,13 +595,13 @@ const ACOES = {
     await banco.marcarTransferencia(p, m);
   }),
   "banco.registrar": acao(
-    z.tuple([id, id, z.object({ item: texto(80), categoria, emocao, necessidade })]),
+    z.tuple([id, id, z.object({ item: texto(80), categoria, emocao: emocao.nullable(), necessidade })]),
     async ([p, m, r], { sessao }) => {
       exigirAPropriaPessoa(sessao, p);
       await doBanco(() => banco.registrarDoBanco(p, m, r));
     },
   ),
-  "banco.completarEmocao": acao(z.tuple([id, id, emocao, necessidade]), async ([p, compraId, e, n], { sessao }) => {
+  "banco.completarEmocao": acao(z.tuple([id, id, emocao.nullable(), necessidade]), async ([p, compraId, e, n], { sessao }) => {
     exigirAPropriaPessoa(sessao, p);
     await repo.completarEmocao(p, compraId, e, n);
   }),
