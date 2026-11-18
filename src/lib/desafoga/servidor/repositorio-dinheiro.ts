@@ -192,15 +192,27 @@ export async function dinheiroDaPessoa(pessoaId: string, agora = new Date()): Pr
     saldo = correntes.reduce((s, c) => s + c.saldo, 0);
   } else if (saldoInf) {
     const nomeDoAlvo = new Map([...contas.map((c) => [c.id, c.nome] as const), ...dividasDaPessoa.map((d) => [d.id, d.nome] as const), ...cartoes.map((c) => [c.id, `Fatura ${c.nome}`] as const)]);
+    // No mesmo dia do saldo informado, conta só o que foi registrado depois dele.
+    const depois = (d: Date) => d.getTime() > saldoInf.quando.getTime();
     const movimentos: DinheiroDaPessoa["extrato"] = [
-      ...todasAsCompras.filter((x) => x.meio === "conta").map((x) => ({ dia: hojeEmBrasilia(new Date(x.quando)), valor: -x.valor, descricao: x.item, tipo: "compra" as const })),
+      ...todasAsCompras
+        .filter((x) => x.meio === "conta")
+        .map((x) => ({ dia: hojeEmBrasilia(new Date(x.quando)), valor: -x.valor, descricao: x.item, tipo: "compra" as const, depoisDoSaldo: depois(new Date(x.quando)) })),
       ...pagamentos.map((p) => ({
         dia: hojeEmBrasilia(p.quando),
         valor: -p.valor,
         descricao: nomeDoAlvo.get(p.alvoId) ?? "Pagamento",
         tipo: (p.tipo === "fatura" ? "fatura" : p.tipo === "divida" ? "divida" : "conta") as MovimentoDaConta["tipo"],
+        depoisDoSaldo: depois(p.quando),
       })),
-      ...lancamentos.map((l) => ({ id: l.id, dia: l.dia, valor: l.valor, descricao: l.descricao, tipo: (l.valor >= 0 ? "entrada" : "saida") as MovimentoDaConta["tipo"] })),
+      ...lancamentos.map((l) => ({
+        id: l.id,
+        dia: l.dia,
+        valor: l.valor,
+        descricao: l.descricao,
+        tipo: (l.valor >= 0 ? "entrada" : "saida") as MovimentoDaConta["tipo"],
+        depoisDoSaldo: depois(l.criadoEm),
+      })),
     ];
     const r = saldoDaConta({ saldoInformado: saldoInf.valor, desde: saldoInf.desde, renda: rendaDaPessoa, movimentos }, hoje);
     saldo = r.saldo;

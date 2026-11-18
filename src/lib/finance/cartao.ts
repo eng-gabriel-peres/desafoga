@@ -92,6 +92,8 @@ export interface MovimentoDaConta {
   valor: number;
   descricao: string;
   tipo: "renda" | "entrada" | "saida" | "compra" | "conta" | "divida" | "fatura";
+  /** No mesmo dia do saldo informado, mas registrado depois dele: conta. */
+  depoisDoSaldo?: boolean;
 }
 
 /**
@@ -104,7 +106,7 @@ export function saldoDaConta(
   d: { saldoInformado: number; desde: string; renda: Renda | null; movimentos: MovimentoDaConta[] },
   hoje: string,
 ): { saldo: number; extrato: MovimentoDaConta[] } {
-  const extrato = d.movimentos.filter((m) => m.dia > d.desde && m.dia <= hoje);
+  const extrato = d.movimentos.filter((m) => (m.dia > d.desde || (m.dia === d.desde && m.depoisDoSaldo)) && m.dia <= hoje);
   if (d.renda && d.renda.valor > 0) {
     const [a, m] = partes(d.desde);
     for (let k = 0; ; k++) {

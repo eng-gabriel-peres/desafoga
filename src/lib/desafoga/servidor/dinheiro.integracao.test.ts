@@ -74,6 +74,15 @@ describe.runIf(url)("seu dinheiro", { timeout: 30_000 }, () => {
     expect(depois.faturas.map((f) => f.vence)).toEqual(["2027-01-05", "2027-02-05"]);
   });
 
+  it("o que acontece no mesmo dia, depois de informar o saldo, conta; o de antes, não", async () => {
+    const p = await bia();
+    await repo.registrarCompra(p, { item: "Antes", categoria: "Mercado", valor: 700, emocao: 4, necessidade: "sim", via: "app", meio: "conta" }, new Date("2026-11-18T08:00:00-03:00"));
+    await repo.informarSaldo(p, 100000, new Date("2026-11-18T09:00:00-03:00"));
+    await repo.registrarCompra(p, { item: "Depois", categoria: "Mercado", valor: 1800, emocao: 4, necessidade: "sim", via: "app", meio: "conta" }, new Date("2026-11-18T10:00:00-03:00"));
+    await repo.lancarNaConta(p, { valor: 30000, descricao: "Pix", dia: "2026-11-18" });
+    expect((await repo.dinheiroDaPessoa(p, agora)).saldo).toBe(100000 - 1800 + 30000);
+  });
+
   it("sem saldo informado: o app pede (saldo null), mas a previsão de faturas aparece", async () => {
     const p = await bia();
     const d = await repo.dinheiroDaPessoa(p, agora);
