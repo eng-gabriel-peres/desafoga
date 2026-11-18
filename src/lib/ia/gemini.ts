@@ -22,7 +22,9 @@ const MODELOS = [
 const RODADAS = 2;
 /** Tempo máximo de cada tentativa e do conjunto, em milissegundos. */
 const LIMITE_POR_TENTATIVA = 70_000;
-const LIMITE_TOTAL = 150_000;
+const LIMITE_TOTAL = 120_000;
+/** Com menos que isso sobrando, não começa outra tentativa (a pessoa já esperou demais). */
+const MINIMO_PARA_TENTAR = 30_000;
 /** Depois de um "sem cota" (429), o modelo fica este tempo sem ser tentado. */
 const PAUSA_SEM_COTA = 10 * 60_000;
 const semCotaAte = new Map<string, number>();
@@ -41,7 +43,7 @@ async function gerar(partes: Part[], config: GenerateContentConfig): Promise<str
     // Modelos em pausa por falta de cota só entram se não sobrar nenhum outro.
     const disponiveis = MODELOS.filter((m) => (semCotaAte.get(m) ?? 0) < Date.now());
     for (const model of disponiveis.length > 0 ? disponiveis : MODELOS) {
-      if (Date.now() - inicio > LIMITE_TOTAL) break;
+      if (Date.now() - inicio > LIMITE_TOTAL - MINIMO_PARA_TENTAR) break;
       const t0 = Date.now();
       try {
         const resposta = await ia.models.generateContent({
