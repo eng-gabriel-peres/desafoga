@@ -28,6 +28,7 @@ import { andamento, CartaoDaConquista } from "../conquistas/cartao";
 import { servicos } from "@/services";
 import { ListaDoOrcamento } from "../orcamento";
 import { ProximasContas } from "../contas";
+import { ResumoDoDinheiro } from "../dinheiro";
 import { gastosAvulsosDoBanco } from "../banco/avulsos";
 import { ComprasParaRevisar } from "../banco/compras-para-revisar";
 import { CartaoDeCheckIns } from "../rotina";
@@ -41,6 +42,7 @@ export function TelaHoje() {
   const pessoaId = useMinhaPessoaId();
   const dados = usePessoa(pessoaId);
   const conquistas = useConsulta(`conquistas:${pessoaId}`, () => servicos.conquistas.listar(pessoaId));
+  const dinheiro = useConsulta(`dinheiro:${pessoaId}`, () => servicos.dinheiro.ver(pessoaId));
   const agora = useAgora();
   if (!dados || !agora) return <Carregando />;
 
@@ -48,6 +50,11 @@ export function TelaHoje() {
   const compromissos = compromissosDoMes(contas.contas, dividas, plano, contas.pagamentos, agora);
   const checkIns = <CartaoDeCheckIns pessoaId={pessoaId} apelido={persona.apelido} rotina={rotina.rotina} checkins={rotina.checkins} agora={agora} />;
   const proximasContas = <ProximasContas compromissos={compromissos} totais={totaisDoMes(compromissos, contas.renda)} agora={agora} />;
+  const seuDinheiro = dinheiro && (
+    <Painel titulo="Seu dinheiro" acao={<Link href="/app/contas" className="text-[0.92rem] font-bold text-primary">Ver tudo</Link>}>
+      <ResumoDoDinheiro d={dinheiro} agora={agora} comLink compacto />
+    </Painel>
+  );
   const doMes = orcamentoDoMes(orcamentos, compras, agora, gastosAvulsosDoBanco(banco));
   const paraRevisar = <ComprasParaRevisar pessoaId={pessoaId} banco={banco} agora={agora} />;
   const deHoje = comprasDoDia(compras, chaveDoDia(agora)).reverse();
@@ -135,6 +142,7 @@ export function TelaHoje() {
           <div className="grid gap-4 desk:hidden">
             {registrar}
             {checkIns}
+            {seuDinheiro}
             {proximasContas}
             {painelOrcamento}
             {atalhoMetas}
@@ -153,6 +161,7 @@ export function TelaHoje() {
             {registrar}
           </Painel>
           <div className="hidden desk:block">{checkIns}</div>
+          <div className="hidden desk:block">{seuDinheiro}</div>
           <div className="hidden desk:block">{proximasContas}</div>
           <div className="hidden desk:block">{painelOrcamento}</div>
           <div className="hidden desk:block">{atalhoMetas}</div>

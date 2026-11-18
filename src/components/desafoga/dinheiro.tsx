@@ -21,7 +21,8 @@ const nomeDoMes = (agora: Date, n: number) => {
 };
 
 /** Saldo de hoje, quanto sobra até o fim do mês e a previsão do mês que vem. */
-export function ResumoDoDinheiro({ d, agora, comLink }: { d: DinheiroDaPessoa; agora: Date; comLink?: boolean }) {
+/** `compacto`: em lista (colunas estreitas, como a da Hoje). */
+export function ResumoDoDinheiro({ d, agora, comLink, compacto }: { d: DinheiroDaPessoa; agora: Date; comLink?: boolean; compacto?: boolean }) {
   if (d.saldo === null || !d.previsao) {
     return (
       <p className="text-muted">
@@ -35,7 +36,16 @@ export function ResumoDoDinheiro({ d, agora, comLink }: { d: DinheiroDaPessoa; a
     );
   }
   const p = d.previsao;
-  const linha = (rotulo: string, valor: number, detalhe?: string) => (
+  const linha = (rotulo: string, valor: number, detalhe?: string) =>
+    compacto ? (
+      <div className="flex items-baseline justify-between gap-3 border-b border-line py-2 last:border-0">
+        <span>
+          {rotulo}
+          {detalhe && <span className="block text-[0.8rem] text-muted">{detalhe}</span>}
+        </span>
+        <b className={`text-[1.1rem] whitespace-nowrap ${valor < 0 ? "text-bad" : ""}`}>{reais(valor)}</b>
+      </div>
+    ) : (
     <div className="rounded-2xl bg-surface2 p-3">
       <span className="block text-[0.85rem] text-muted">{rotulo}</span>
       <b className={`text-[1.3rem] ${valor < 0 ? "text-bad" : ""}`}>{reais(valor)}</b>
@@ -43,7 +53,7 @@ export function ResumoDoDinheiro({ d, agora, comLink }: { d: DinheiroDaPessoa; a
     </div>
   );
   return (
-    <div className="grid grid-cols-1 gap-2 desk:grid-cols-3">
+    <div className={compacto ? "grid" : "grid grid-cols-1 gap-2 desk:grid-cols-3"}>
       {linha(d.conectado ? "Na conta (pelo banco)" : "Na conta hoje", p.saldo)}
       {linha(
         `Sobra no fim de ${nomeDoMes(agora, 0)}`,
