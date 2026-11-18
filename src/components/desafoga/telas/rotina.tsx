@@ -1,9 +1,11 @@
 "use client";
 
+import { Brain, EyeOff } from "lucide-react";
 import { useState } from "react";
 import { useAgora } from "@/hooks/use-agora";
 import { usePessoa } from "@/hooks/use-pessoa";
 import { NOME_DO_PERIODO, PERIODOS, type Periodo } from "@/lib/finance";
+import { useConsulta } from "@/hooks/use-consulta";
 import { servicos } from "@/services";
 import { GradeDeHumor, ICONE_DO_PERIODO } from "../rotina";
 import { useMinhaPessoaId, useEu } from "../sessao";
@@ -108,15 +110,80 @@ export function TelaRotina() {
             <Linha titulo="Avisar quem me acompanha quando eu responder triste" descricao={`${responsavel} recebe um aviso se você responder 1 ou 2 num check-in.`}>
               <Interruptor ligado={rotina.avisarQuandoTriste} rotulo="Avisar quando responder triste" mudar={(v) => salvar({ avisarQuandoTriste: v })} />
             </Linha>
-            <Linha titulo="Quem me acompanha pode ver minhas contas" descricao="Se desligar, não veem as contas fixas nem a renda.">
+            <Linha
+              titulo="Quem me acompanha pode ver minhas contas e dívidas"
+              descricao="Se desligar, não veem contas fixas, renda, faturas, dívidas, o plano nem os bancos conectados."
+            >
               <Interruptor ligado={rotina.compartilharContas} rotulo="Compartilhar contas" mudar={(v) => salvar({ compartilharContas: v })} />
             </Linha>
           </Painel>
         </div>
-        <Painel titulo="Sua semana nos check-ins">
-          <GradeDeHumor checkins={checkins} rotina={rotina} agora={agora} />
-        </Painel>
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+          <Painel titulo="Sua semana nos check-ins">
+            <GradeDeHumor checkins={checkins} rotina={rotina} agora={agora} />
+          </Painel>
+          <OQueAAssistenteSabe pessoaId={pessoaId} />
+        </div>
       </div>
     </>
+  );
+}
+
+/** O que os profissionais deixaram para a Luana te ajudar melhor (sem as anotações privadas deles). */
+function OQueAAssistenteSabe({ pessoaId }: { pessoaId: string }) {
+  const memoria = useConsulta(`memoria-minha:${pessoaId}`, () => servicos.memoria.minha(pessoaId));
+  const eu = useEu();
+  const agora = useAgora();
+  if (!memoria) return null;
+  const autor = (id: string) => eu.acompanhantes.find((p) => p.id === id);
+  const vazia = !memoria.caracteristicas.length && !memoria.objetivo && !memoria.anotacoes.length;
+  return (
+    <Painel titulo="O que a Luana sabe sobre você" acao={<Brain aria-hidden="true" className="size-5 text-muted" />}>
+      <Sub>Quem te acompanha deixa orientações para a Luana te ajudar melhor.</Sub>
+      {vazia && <p className="mt-3 text-muted">Ainda não há orientações.</p>}
+      {memoria.caracteristicas.length > 0 && (
+        <ul className="mt-3 flex flex-wrap gap-1.5">
+          {memoria.caracteristicas.map((c) => (
+            <li key={c} className="rounded-full border border-line bg-surface2 px-2.5 py-1 text-[0.85rem]">
+              {c}
+            </li>
+          ))}
+        </ul>
+      )}
+      {memoria.objetivo && (
+        <p className="mt-3">
+          <b>Objetivo:</b> {memoria.objetivo}
+        </p>
+      )}
+      {memoria.anotacoes.length > 0 && (
+        <ul className="mt-3 grid gap-2.5">
+          {memoria.anotacoes.map((n) => {
+            const a = autor(n.autorId);
+            return (
+              <li key={n.id} className="flex gap-2.5">
+                <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full text-[0.75rem] font-bold text-white" style={{ background: a?.cor ?? "var(--muted)" }}>
+                  {(a?.nome ?? "?").split(" ").map((x) => x[0]).slice(0, 2).join("")}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[0.85rem]">
+                    <b>{a?.nome ?? "Quem te acompanha"}</b>
+                    <span className="text-muted">
+                      {a ? `, ${a.papel}` : ""}
+                      {agora ? ` · ${new Date(n.quando).toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}` : ""}
+                    </span>
+                  </p>
+                  <p>{n.texto}</p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {memoria.temPrivadas && (
+        <p className="mt-3 flex items-center gap-1.5 text-[0.85rem] text-muted">
+          <EyeOff aria-hidden="true" className="size-4" /> Algumas anotações são privadas de quem te acompanha e não aparecem aqui.
+        </p>
+      )}
+    </Painel>
   );
 }

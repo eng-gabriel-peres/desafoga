@@ -135,6 +135,7 @@ export const servicosDaApi: Servicos = {
   },
   memoria: {
     obter: (id) => chamar("memoria.obter", [id]),
+    minha: (id) => chamar("memoria.minha", [id]),
     salvar: (id, m) => chamar("memoria.salvar", [id, m], true),
     anotar: (id, nota) => chamar("memoria.anotar", [id, nota], true),
     apagarAnotacao: (id, notaId) => chamar("memoria.apagarAnotacao", [id, notaId], true),

@@ -1,5 +1,6 @@
 "use client";
 
+import { Lock } from "lucide-react";
 import { useState } from "react";
 import type { Divida } from "@/lib/finance";
 
@@ -46,6 +47,18 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
 
   const { persona, dividas, plano, faturas, compras, banco } = dados;
   const daPessoa = area === "pessoa";
+
+  if (!daPessoa && !dados.contas.compartilhadas) {
+    return (
+      <Painel>
+        <div className="grid justify-items-center gap-2 py-6 text-center">
+          <Lock aria-hidden="true" className="size-8 text-muted" />
+          <h2 className="text-[1.15rem] font-bold">{persona.apelido} não compartilhou as dívidas</h2>
+          <Sub>A pessoa decide em Rotina e privacidade se quem acompanha pode ver contas, faturas, dívidas e o plano.</Sub>
+        </div>
+      </Painel>
+    );
+  }
 
   const sugestoes = daPessoa && <SugestoesDeDivida pessoaId={pessoaId} sugestoes={banco.sugestoes} dividas={dividas} />;
   const registrato = daPessoa && (

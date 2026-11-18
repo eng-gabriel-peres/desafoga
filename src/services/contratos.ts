@@ -177,6 +177,8 @@ export interface BancoService {
 
 export interface MemoriaService {
   obter(pessoaId: string): Promise<Memoria>;
+  /** O que a assistente sabe, visto pela própria pessoa (sem anotações privadas nem orientações internas). */
+  minha(pessoaId: string): Promise<{ caracteristicas: string[]; objetivo: string; anotacoes: Anotacao[]; temPrivadas: boolean }>;
   salvar(pessoaId: string, mudancas: Partial<Omit<Memoria, "anotacoes">>): Promise<Memoria>;
   /** O autor é quem está na sessão. */
   anotar(pessoaId: string, anotacao: Pick<Anotacao, "texto" | "privada">): Promise<Anotacao>;

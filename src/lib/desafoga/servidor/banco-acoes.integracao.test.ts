@@ -205,8 +205,8 @@ describe.runIf(url)("ações dos bancos conectados", () => {
     await chamar("rotina.salvar", [p, { compartilharContas: false }], ana);
     const paula = await entrar("paula", ana);
     const faturas = (await chamar("faturas.listar", [p], paula)) as { fonte?: string }[];
-    expect(faturas.some((f) => f.fonte === "pluggy")).toBe(false);
-    expect(faturas.length).toBeGreaterThan(0);
+    // Como no protótipo: sem compartilhar, nenhuma fatura (do banco ou em PDF).
+    expect(faturas).toEqual([]);
   });
 
   it("o servidor recusa correção absurda (taxa acima de 30% ao mês, parcelas quebradas)", async () => {
@@ -247,6 +247,35 @@ describe.runIf(url)("ações dos bancos conectados", () => {
     const viagem = metas.find((m) => m.nome === "Viagem para a praia")!;
     expect(viagem.guardadoPeloBanco ?? null).toBeNull();
     expect(viagem.investimentos ?? []).toEqual([]);
+  });
+
+  it("privacidade: sem compartilhar, a profissional não vê dívidas, plano nem faturas e não sugere valor", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    const paula0 = await entrar("paula", ana);
+    expect(((await chamar("dividas.listar", [p], paula0)) as unknown[]).length).toBeGreaterThan(0);
+    const ana2 = await entrar("ana", paula0);
+    await chamar("rotina.salvar", [p, { compartilharContas: false }], ana2);
+    const paula = await entrar("paula", ana2);
+    expect(await chamar("dividas.listar", [p], paula)).toEqual([]);
+    expect(await chamar("faturas.listar", [p], paula)).toEqual([]);
+    expect(await chamar("dividas.plano", [p], paula)).toMatchObject({ valorMensal: 0, valorSugerido: null });
+    await expect(chamar("dividas.sugerirValor", [p, 50000], paula)).rejects.toThrow();
+    // A própria pessoa continua vendo tudo.
+    const ana3 = await entrar("ana", paula);
+    expect(((await chamar("dividas.listar", [p], ana3)) as unknown[]).length).toBeGreaterThan(0);
+  });
+
+  it("a pessoa vê o que a assistente sabe sobre ela, sem as anotações privadas", async () => {
+    const ana = await entrar("ana");
+    const p = ana.pessoa!.id;
+    const m = (await chamar("memoria.minha", [p], ana)) as { caracteristicas: string[]; anotacoes: { privada: boolean }[]; temPrivadas: boolean; evitar?: string };
+    expect(m.caracteristicas.length).toBeGreaterThan(0);
+    expect(m.anotacoes.every((n) => !n.privada)).toBe(true);
+    expect(typeof m.temPrivadas).toBe("boolean");
+    expect(m.evitar).toBeUndefined();
+    const paula = await entrar("paula", ana);
+    await expect(chamar("memoria.minha", [p], paula)).rejects.toThrow();
   });
 
   it("ligar meta a investimento: ids que não são da pessoa (ou sumiram) são deixados de lado", async () => {

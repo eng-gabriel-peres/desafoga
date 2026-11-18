@@ -105,6 +105,15 @@ async function salvarFaturaDaPessoa(p: string, f: Fatura, c: Record<string, Clas
   return salvarDocumento(p, f, c, conta?.id ?? null);
 }
 
+/**
+ * Contas, renda, faturas, dívidas, plano e banco: quem acompanha só vê se a pessoa
+ * deixou (Rotina e privacidade). Confere o acesso e diz se é para esconder.
+ */
+async function escondido(sessao: SessaoAtual | null, pessoaId: string): Promise<boolean> {
+  const s = await exigirVer(sessao, pessoaId);
+  return s.pessoa?.id !== pessoaId && !(await repo.rotina(pessoaId)).compartilharContas;
+}
+
 /** Recusa das ações do banco vira erro de entrada (mensagem para a pessoa). */
 async function doBanco<T>(f: () => Promise<T>): Promise<T> {
   try {
@@ -278,7 +287,7 @@ const ACOES = {
     },
   ),
   "dividas.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
-    await exigirVer(sessao, p);
+    if (await escondido(sessao, p)) return [];
     return repo.dividas(p);
   }),
   "dividas.salvar": acao(
@@ -306,7 +315,7 @@ const ACOES = {
     await repo.removerDivida(p, d);
   }),
   "dividas.plano": acao(z.tuple([id]), async ([p], { sessao }) => {
-    await exigirVer(sessao, p);
+    if (await escondido(sessao, p)) return { valorMensal: 0, estrategia: "mais-cara", valorSugerido: null };
     return repo.plano(p);
   }),
   "dividas.salvarPlano": acao(
@@ -318,6 +327,7 @@ const ACOES = {
   ),
   "dividas.sugerirValor": acao(z.tuple([id, centavos.min(1)]), async ([p, valor], { sessao }) => {
     const s = await exigirProfissionalDe(sessao, p);
+    if (!(await repo.rotina(p)).compartilharContas) throw new SemPermissao("A pessoa não compartilhou as dívidas.");
     await repo.sugerirValor(p, valor, s.profissional);
   }),
 
@@ -492,11 +502,9 @@ const ACOES = {
 
   // ----- faturas -----
   "faturas.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
-    const s = await exigirVer(sessao, p);
-    const faturas = await repo.faturas(p);
-    // A fatura que veio do banco é dado de banco: só com as contas compartilhadas.
-    if (s.pessoa?.id !== p && !(await repo.rotina(p)).compartilharContas) return faturas.filter((f) => f.fonte !== "pluggy");
-    return faturas;
+    // Faturas são parte das contas e dívidas: só com o compartilhamento ligado.
+    if (await escondido(sessao, p)) return [];
+    return repo.faturas(p);
   }),
   "faturas.salvar": acao(
     z.tuple([id, fatura, z.record(z.string(), z.object({ emocao: emocao.optional(), necessidade: necessidade.optional() })), id.nullable().optional()]),
@@ -607,6 +615,17 @@ const ACOES = {
   }),
 
   // ----- memória (profissionais) -----
+  /** O que a assistente sabe, visto pela própria pessoa: sem as anotações privadas nem as orientações internas. */
+  "memoria.minha": acao(z.tuple([id]), async ([p], { sessao }) => {
+    exigirAPropriaPessoa(sessao, p);
+    const [publica, completa] = await Promise.all([repo.memoria(p, false), repo.memoria(p, true)]);
+    return {
+      caracteristicas: publica.caracteristicas,
+      objetivo: publica.objetivo,
+      anotacoes: publica.anotacoes,
+      temPrivadas: completa.anotacoes.length > publica.anotacoes.length,
+    };
+  }),
   "memoria.obter": acao(z.tuple([id]), async ([p], { sessao }) => {
     await exigirProfissionalDe(sessao, p);
     return repo.memoria(p, true);
