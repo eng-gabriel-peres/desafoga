@@ -18,7 +18,7 @@ describe("em qual fatura cai a compra", () => {
   });
 
   it("dia 31 em mês curto vira o último dia", () => {
-    expect(faturaDaCompra("2026-02-10", { id: "x", nome: "X", fechamento: 31, vencimento: 8 })).toEqual({ fecha: "2026-02-28", vence: "2026-03-08" });
+    expect(faturaDaCompra("2026-02-10", { fechamento: 31, vencimento: 8 })).toEqual({ fecha: "2026-02-28", vence: "2026-03-08" });
   });
 });
 
