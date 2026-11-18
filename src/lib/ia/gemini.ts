@@ -11,17 +11,21 @@ export class IaSobrecarregada extends IaIndisponivel {}
  * sobrecarregado, sem cota, fora do ar ou demora demais, a chamada segue para
  * o próximo.
  */
+// Sem repetir: com GEMINI_MODEL igual a um da lista, o mesmo modelo era tentado duas vezes
+// seguidas (70 s cada) e os reservas nunca entravam a tempo.
 const MODELOS = [
-  ...(process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []),
-  // Primeiro o que responde com as chaves novas do AI Studio; os outros ficam de reserva.
-  "gemini-3.5-flash",
-  "gemini-3.6-flash",
-  "gemini-3.8-flash",
-  "gemini-3.5-flash-lite",
+  ...new Set([
+    ...(process.env.GEMINI_MODEL ? [process.env.GEMINI_MODEL] : []),
+    // Primeiro o que responde com as chaves novas do AI Studio; os outros ficam de reserva.
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.8-flash",
+    "gemini-3.5-flash-lite",
+  ]),
 ];
 const RODADAS = 2;
 /** Tempo máximo de cada tentativa e do conjunto, em milissegundos. */
-const LIMITE_POR_TENTATIVA = 70_000;
+const LIMITE_POR_TENTATIVA = 55_000;
 const LIMITE_TOTAL = 120_000;
 /** Com menos que isso sobrando, não começa outra tentativa (a pessoa já esperou demais). */
 const MINIMO_PARA_TENTAR = 30_000;
@@ -43,13 +47,15 @@ async function gerar(partes: Part[], config: GenerateContentConfig): Promise<str
     // Modelos em pausa por falta de cota só entram se não sobrar nenhum outro.
     const disponiveis = MODELOS.filter((m) => (semCotaAte.get(m) ?? 0) < Date.now());
     for (const model of disponiveis.length > 0 ? disponiveis : MODELOS) {
-      if (Date.now() - inicio > LIMITE_TOTAL - MINIMO_PARA_TENTAR) break;
+      const restante = LIMITE_TOTAL - (Date.now() - inicio);
+      if (restante < MINIMO_PARA_TENTAR) break;
       const t0 = Date.now();
       try {
         const resposta = await ia.models.generateContent({
           model,
           contents: [{ role: "user", parts: partes }],
-          config,
+          // Cada tentativa cabe no que sobra do tempo total.
+          config: { ...config, abortSignal: AbortSignal.timeout(Math.min(LIMITE_POR_TENTATIVA, restante)) },
         });
         const texto = resposta.text?.trim();
         if (texto) {
