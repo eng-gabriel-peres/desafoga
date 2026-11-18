@@ -486,6 +486,8 @@ model ConexaoBancaria {
   ultimaSincronizacao       DateTime?
   ultimoPedidoDeAtualizacao DateTime?
   sincronizandoDesde        DateTime?
+  /// Última vez que o agendador tentou atualizar (dá certo ou não): quem falha espera a vez de novo.
+  ultimaTentativaAutomatica DateTime?
   consentimentoAte          DateTime?
   cpfDoTitular              String?
   conectadaEm               DateTime               @default(now())

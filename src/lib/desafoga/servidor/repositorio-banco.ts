@@ -110,24 +110,38 @@ export async function atualizarConexao(
 }
 
 /**
- * Conexões da Pluggy de contas reais paradas há mais de `horas` (as nunca
- * lidas e as mais antigas primeiro); `pessoas` restringe (testes). Fora: a
- * demonstração e as que precisam que a pessoa reconecte.
+ * Reserva até `limite` conexões da Pluggy de contas reais paradas há mais de
+ * `horas` (as nunca lidas e as mais antigas primeiro) para o agendador
+ * atualizar. A reserva marca a tentativa: quem falha só volta depois de
+ * `horas` (não trava a fila) e duas rodadas juntas não pegam a mesma.
+ * `pessoas` restringe (testes). Fora: a demonstração e quem precisa reconectar.
  */
-export async function conexoesParadas(agora: Date, { horas, limite, pessoas }: { horas: number; limite: number; pessoas?: string[] }): Promise<string[]> {
-  const lista = await prisma().conexaoBancaria.findMany({
+export async function reservarConexoesParadas(agora: Date, { horas, limite, pessoas }: { horas: number; limite: number; pessoas?: string[] }): Promise<string[]> {
+  const antes = new Date(agora.getTime() - horas * 3_600_000);
+  const parada = {
+    AND: [
+      { OR: [{ ultimaSincronizacao: null }, { ultimaSincronizacao: { lt: antes } }] },
+      { OR: [{ ultimaTentativaAutomatica: null }, { ultimaTentativaAutomatica: { lt: antes } }] },
+    ],
+  };
+  const candidatas = await prisma().conexaoBancaria.findMany({
     where: {
       pluggyItemId: { not: null },
       status: { not: "reconectar" },
       pessoa: { espaco: { tipo: "REAL" } },
       ...(pessoas ? { pessoaId: { in: pessoas } } : {}),
-      OR: [{ ultimaSincronizacao: null }, { ultimaSincronizacao: { lt: new Date(agora.getTime() - horas * 3_600_000) } }],
+      ...parada,
     },
     select: { id: true },
     orderBy: { ultimaSincronizacao: { sort: "asc", nulls: "first" } },
     take: limite,
   });
-  return lista.map((c) => c.id);
+  const reservadas: string[] = [];
+  for (const c of candidatas) {
+    const r = await prisma().conexaoBancaria.updateMany({ where: { id: c.id, ...parada }, data: { ultimaTentativaAutomatica: agora } });
+    if (r.count) reservadas.push(c.id);
+  }
+  return reservadas;
 }
 
 /** Marca a conexão como sincronizando; false se outra sincronização começou há menos de 5 minutos. */

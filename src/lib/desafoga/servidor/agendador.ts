@@ -60,7 +60,7 @@ export async function rodarAgendador({ agora = new Date(), pessoas, whatsapp, si
   const r: ResultadoDoAgendador = { pessoas: lista.length, enviados: 0, whatsapp: 0, falhas: 0, bancos: 0 };
 
   if (atualizarBanco) {
-    const paradas = await repo.conexoesParadas(agora, { horas: HORAS_SEM_ATUALIZAR, limite: BANCOS_POR_RODADA, pessoas });
+    const paradas = await repo.reservarConexoesParadas(agora, { horas: HORAS_SEM_ATUALIZAR, limite: BANCOS_POR_RODADA, pessoas });
     const feitas = await Promise.allSettled(paradas.map((id) => atualizarBanco(id)));
     r.bancos = feitas.filter((f) => f.status === "fulfilled").length;
     for (const f of feitas) if (f.status === "rejected") console.error("Desafoga: agendador não atualizou um banco,", f.reason instanceof Error ? f.reason.message.slice(0, 200) : "erro");

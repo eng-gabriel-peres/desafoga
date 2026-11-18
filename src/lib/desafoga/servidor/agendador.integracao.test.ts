@@ -99,6 +99,29 @@ describe.runIf(url)("agendador", () => {
     expect(r.bancos).toBe(2);
   });
 
+  it("um banco que sempre falha não trava a fila: só é tentado de novo depois de 6 horas", async () => {
+    const { criarConexao, atualizarConexao } = await import("./repositorio");
+    const ids: string[] = [];
+    const pessoas: string[] = [];
+    for (const horas of [50, 40, 30]) {
+      const p = await pessoa("REAL");
+      const c = await criarConexao(p, { pluggyItemId: `item-${crypto.randomUUID()}`, banco: "Itaú", logo: null });
+      await atualizarConexao(c.id, { ultimaSincronizacao: new Date(agora.getTime() - horas * 3_600_000) });
+      ids.push(c.id);
+      pessoas.push(p);
+    }
+    const chamadas: string[] = [];
+    const falha = async (id: string) => {
+      chamadas.push(id);
+      throw new Error("Pluggy fora do ar");
+    };
+    await rodarAgendador({ agora, pessoas, whatsapp: null, sincronizarBanco: falha });
+    expect(chamadas).toEqual([ids[0], ids[1]]);
+    // 15 minutos depois: as que falharam esperam; vez da terceira.
+    await rodarAgendador({ agora: new Date(agora.getTime() + 15 * 60_000), pessoas, whatsapp: null, sincronizarBanco: falha });
+    expect(chamadas).toEqual([ids[0], ids[1], ids[2]]);
+  });
+
   it("não manda nada para a demo", async () => {
     const p = await pessoa("DEMO");
     const r = await rodarAgendador({ agora, pessoas: [p], whatsapp: async () => {} });
