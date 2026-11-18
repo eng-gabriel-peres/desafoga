@@ -55,3 +55,27 @@ export function divisaoPorNecessidade(compras: Compra[]): Record<Necessidade, nu
   const soma = (n: Necessidade) => somaDosValores(compras.filter((c) => c.necessidade === n));
   return { sim: soma("sim"), nao: soma("nao"), talvez: soma("talvez") };
 }
+
+export interface CompraPorHorario {
+  nome: string;
+  faixa: string;
+  total: number;
+  naoNecessarias: number;
+  /** Média das emoções das compras do horário; null sem compras. */
+  nota: number | null;
+}
+
+const HORARIOS: [string, string, (h: number) => boolean][] = [
+  ["Manhã", "6h às 12h", (h) => h >= 6 && h < 12],
+  ["Tarde", "12h às 18h", (h) => h >= 12 && h < 18],
+  ["Noite", "18h às 22h", (h) => h >= 18 && h < 22],
+  ["Madrugada", "22h às 6h", (h) => h >= 22 || h < 6],
+];
+
+/** Em que horário a pessoa compra: quantas, como estava e quantas não eram necessárias. */
+export function comprasPorHorario(compras: Compra[]): CompraPorHorario[] {
+  return HORARIOS.map(([nome, faixa, dentro]) => {
+    const l = compras.filter((c) => dentro(horaDe(c.quando)));
+    return { nome, faixa, total: l.length, naoNecessarias: l.filter((c) => c.necessidade === "nao").length, nota: notaMedia(l) };
+  });
+}

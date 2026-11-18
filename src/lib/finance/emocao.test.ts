@@ -8,7 +8,7 @@ import {
   rotuloDaNota,
   situacaoDoPaciente,
 } from "./emocao";
-import { divisaoPorNecessidade, padroesDeCompra } from "./padroes";
+import { comprasPorHorario, divisaoPorNecessidade, padroesDeCompra } from "./padroes";
 import type { Compra, Emocao, Necessidade } from "./tipos";
 
 const HOJE = new Date(2026, 10, 16, 15, 0); // 16/11/2026, 15h
@@ -156,5 +156,17 @@ describe("compras sem emoção (registradas sozinhas pelo banco)", () => {
     const lista = [compra(1, 22, 1, "nao", 1000), sem(compra(1, 23, 1, "nao", 5000))];
     expect(padroesDeCompra(lista, HOJE).tristes).toEqual(padroesDeCompra([lista[0]], HOJE).tristes);
     expect(divisaoPorNecessidade(lista).nao).toBe(1000);
+  });
+});
+
+describe("compras por horário", () => {
+  it("separa manhã, tarde, noite e madrugada, com a carinha média e as não necessárias", () => {
+    const l = [compra(0, 8, 4, "sim"), compra(1, 13, 3, "sim"), compra(2, 23, 1, "nao"), compra(3, 2, 2, "nao"), compra(3, 22, 2, "talvez")];
+    const h = comprasPorHorario(l);
+    expect(h.map((x) => x.nome)).toEqual(["Manhã", "Tarde", "Noite", "Madrugada"]);
+    expect(h[0]).toMatchObject({ faixa: "6h às 12h", total: 1, naoNecessarias: 0, nota: 4 });
+    expect(h[2]).toMatchObject({ total: 0, nota: null });
+    expect(h[3]).toMatchObject({ faixa: "22h às 6h", total: 3, naoNecessarias: 2 });
+    expect(h[3].nota).toBeCloseTo(5 / 3);
   });
 });

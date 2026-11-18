@@ -4,6 +4,7 @@ import {
   emocaoDaNota,
   rotuloDaNota,
   type Compra,
+  type CompraPorHorario,
   type DiaResumo,
   type Padroes,
 } from "@/lib/finance";
@@ -223,3 +224,57 @@ export function ListaDePadroes({ padroes, sujeito }: { padroes: Padroes; sujeito
 }
 
 export { RostoSvg };
+
+/** Para onde foi o dinheiro da semana: necessárias, não necessárias e "não sei". */
+export function DivisaoDoDinheiro({ sim, nao, talvez }: { sim: number; nao: number; talvez: number }) {
+  const total = sim + nao + talvez || 1;
+  const partes = [
+    { rotulo: "Necessárias", valor: sim, cor: "bg-good" },
+    { rotulo: "Não necessárias", valor: nao, cor: "bg-bad" },
+    { rotulo: "Não sei", valor: talvez, cor: "bg-maybe" },
+  ];
+  return (
+    <>
+      <div aria-hidden="true" className="my-2.5 flex h-[22px] overflow-hidden rounded-full bg-line">
+        {partes.map((p) => (
+          <div key={p.rotulo} className={p.cor} style={{ width: `${(p.valor / total) * 100}%` }} />
+        ))}
+      </div>
+      <ul className="grid gap-1.5">
+        {partes.map((p) => (
+          <li key={p.rotulo} className="flex flex-wrap items-center gap-x-2">
+            <i aria-hidden="true" className={`inline-block size-3.5 rounded ${p.cor}`} />
+            {p.rotulo}
+            <b className="ml-auto">{reais(p.valor)}</b>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+/** Em que horário a pessoa compra: carinha média e barra das não necessárias. */
+export function HorariosDeCompra({ horarios }: { horarios: CompraPorHorario[] }) {
+  return (
+    <>
+      <ul className="grid gap-2.5">
+        {horarios.map((h) => (
+          <li key={h.nome} className="grid grid-cols-[96px_34px_1fr_auto] items-center gap-2.5">
+            <span>
+              <b>{h.nome}</b>
+              <span className="block text-[0.85rem] text-muted">{h.faixa}</span>
+            </span>
+            {h.nota === null ? <span className="text-muted">–</span> : <Carinha emocao={emocaoDaNota(h.nota)} tamanho="sm" rotulo={false} />}
+            <span title="Compras não necessárias" className="h-3 overflow-hidden rounded-md border border-line bg-surface2">
+              <i className="block h-full bg-bad" style={{ width: `${h.total ? Math.round((h.naoNecessarias / h.total) * 100) : 0}%` }} />
+            </span>
+            <span className="text-[0.85rem] text-muted">
+              {h.naoNecessarias} de {h.total}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2.5 text-[0.85rem] text-muted">Barra vermelha: parte das compras daquele horário que não eram necessárias.</p>
+    </>
+  );
+}

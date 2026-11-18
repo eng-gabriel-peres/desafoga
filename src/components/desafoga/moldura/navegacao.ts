@@ -1,4 +1,4 @@
-import { AlarmClock, Brain, CalendarCheck, ChartPie, ClipboardList, House, MessageCircle, Plus, Target, Users, Wallet, type LucideIcon } from "lucide-react";
+import { AlarmClock, BarChart3, Brain, CalendarCheck, ChartPie, ClipboardList, House, MessageCircle, Plus, Target, Users, Wallet, type LucideIcon } from "lucide-react";
 
 /**
  * O Desafoga tem duas áreas separadas:
@@ -31,6 +31,7 @@ export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
       { href: "/app/metas", rotulo: "Metas", Icone: Target, ativo: (c) => c.startsWith("/app/metas") },
       { href: "/app/contas", rotulo: "Contas", Icone: CalendarCheck, ativo: (c) => c === "/app/contas", soDesktop: true },
       { href: "/app/orcamento", rotulo: "Orçamento", Icone: ChartPie, ativo: (c) => c === "/app/orcamento", soDesktop: true },
+      { href: "/app/semana", rotulo: "Semana", Icone: BarChart3, ativo: (c) => c === "/app/semana", soDesktop: true },
       { href: "/app/rotina", rotulo: "Rotina", Icone: AlarmClock, ativo: (c) => c === "/app/rotina", soDesktop: true },
     ];
   }
@@ -58,6 +59,7 @@ export function tituloDaRota(caminho: string): Titulo {
   if (caminho === "/app/contas") return { titulo: "Contas do mês", subtitulo: "O que você paga todo mês e quando vence" };
   if (caminho === "/app/rotina") return { titulo: "Rotina e privacidade", subtitulo: "Seus horários e o que quem te acompanha vê" };
   if (/^\/painel\/[^/]+\/contas$/.test(caminho)) return { titulo: "Contas do paciente", subtitulo: "Só leitura, se a pessoa compartilhou" };
+  if (caminho === "/app/semana") return { titulo: "Sua semana", subtitulo: "Os últimos 7 dias" };
   if (caminho === "/app/orcamento") return { titulo: "Orçamento", subtitulo: "Quanto você quer gastar por categoria no mês" };
   if (caminho === "/app/metas") return { titulo: "Metas", subtitulo: "Junte dinheiro para o que importa" };
   if (caminho === "/app/metas/nova") return { titulo: "Nova meta", subtitulo: "Junte dinheiro para o que importa" };

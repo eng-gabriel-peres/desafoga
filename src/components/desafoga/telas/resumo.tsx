@@ -18,7 +18,7 @@ import { umaCasa } from "@/lib/assistente/textos";
 import { reais } from "@/lib/formatar";
 import { servicos } from "@/services";
 import { ListaDeAvisos } from "../avisos";
-import { FaixaDaSemana, ListaDePadroes } from "../emocao";
+import { DivisaoDoDinheiro, FaixaDaSemana, ListaDePadroes } from "../emocao";
 import { ListaDoOrcamento } from "../orcamento";
 import { Carregando, EtiquetaSituacao, Kpi, Painel } from "../ui/blocos";
 import { Carinha } from "../ui/carinha";
@@ -30,34 +30,6 @@ function ValorComCarinha({ nota, vazio }: { nota: number | null; vazio: string }
       <Carinha emocao={emocaoDaNota(nota)} tamanho="xs" rotulo={false} />
       {umaCasa(nota)}
     </span>
-  );
-}
-
-/** Para onde foi o dinheiro da semana: necessárias, não necessárias e "não sei". */
-function Divisao({ sim, nao, talvez }: { sim: number; nao: number; talvez: number }) {
-  const total = sim + nao + talvez || 1;
-  const partes = [
-    { rotulo: "Necessárias", valor: sim, cor: "bg-good" },
-    { rotulo: "Não necessárias", valor: nao, cor: "bg-bad" },
-    { rotulo: "Não sei", valor: talvez, cor: "bg-maybe" },
-  ];
-  return (
-    <>
-      <div aria-hidden="true" className="my-2.5 flex h-[22px] overflow-hidden rounded-full bg-line">
-        {partes.map((p) => (
-          <div key={p.rotulo} className={p.cor} style={{ width: `${(p.valor / total) * 100}%` }} />
-        ))}
-      </div>
-      <ul className="grid gap-1.5">
-        {partes.map((p) => (
-          <li key={p.rotulo} className="flex flex-wrap items-center gap-x-2">
-            <i aria-hidden="true" className={`inline-block size-3.5 rounded ${p.cor}`} />
-            {p.rotulo}
-            <b className="ml-auto">{reais(p.valor)}</b>
-          </li>
-        ))}
-      </ul>
-    </>
   );
 }
 
@@ -95,7 +67,7 @@ export function TelaResumo({ pessoaId }: { pessoaId: string }) {
             <GradeDeHumor checkins={dados.rotina.checkins} rotina={dados.rotina.rotina} agora={agora} />
           </Painel>
           <Painel titulo="Para onde foi o dinheiro da semana">
-            <Divisao {...divisaoPorNecessidade(semana.compras)} />
+            <DivisaoDoDinheiro {...divisaoPorNecessidade(semana.compras)} />
           </Painel>
         </div>
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
