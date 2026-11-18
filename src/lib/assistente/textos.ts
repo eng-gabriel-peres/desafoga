@@ -1,5 +1,5 @@
 import { formatarReais } from "@/lib/dinheiro";
-import type { Emocao, Estrategia, Frequencia, Meta, Necessidade, Periodo, SituacaoDaMeta, SituacaoDoOrcamento } from "@/lib/finance";
+import type { ContaFixa, Emocao, Estrategia, Frequencia, Meta, Necessidade, Periodo, SituacaoDaMeta, SituacaoDoOrcamento } from "@/lib/finance";
 import type { Tom } from "@/services/tipos";
 
 export const reais = formatarReais;
@@ -135,6 +135,12 @@ export function fatoDaMeta(meta: Meta, s: SituacaoDaMeta): string {
   if (s.concluida) return `${base}, concluída`;
   const fim = s.previsao ? `, termina em ${dataLonga(s.previsao.data)}` : "";
   return `${base}, plano ${reais(meta.valorPorPeriodo)} ${NOME_DA_FREQUENCIA[meta.frequencia].por}, ${rotuloDoRitmo(s).toLowerCase()}${fim}`;
+}
+
+/** Lembrete de conta fixa, um dia antes do vencimento. */
+export function lembreteDeConta(apelido: string, conta: ContaFixa): string {
+  const valor = `${conta.variavel ? "cerca de " : ""}${reaisCurto(conta.valor)}`;
+  return `📅 Oi, ${apelido}! ${conta.nome} vence amanhã: ${valor}.\nQuando pagar, me responda: paguei ${conta.nome.toLowerCase()} ${Math.round(conta.valor / 100)}`;
 }
 
 // ---------- check-ins da rotina ----------

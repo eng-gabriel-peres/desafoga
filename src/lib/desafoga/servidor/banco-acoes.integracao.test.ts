@@ -261,6 +261,10 @@ describe.runIf(url)("ações dos bancos conectados", () => {
     expect(await chamar("faturas.listar", [p], paula)).toEqual([]);
     expect(await chamar("dividas.plano", [p], paula)).toMatchObject({ valorMensal: 0, valorSugerido: null });
     await expect(chamar("dividas.sugerirValor", [p, 50000], paula)).rejects.toThrow();
+    // O texto que a assistente recebe, visto pela profissional, também não traz contas nem dívidas.
+    const contexto = (await chamar("assistente.contexto", [p], paula)) as string;
+    expect(contexto).not.toMatch(/Dívidas:|Contas fixas do mês|Renda informada|faturas lidas/);
+    expect(contexto).toMatch(/não compartilha as contas/);
     // A própria pessoa continua vendo tudo.
     const ana3 = await entrar("ana", paula);
     expect(((await chamar("dividas.listar", [p], ana3)) as unknown[]).length).toBeGreaterThan(0);

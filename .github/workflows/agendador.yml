@@ -1,0 +1,36 @@
+# Chama o agendador da Luana a cada 15 minutos (check-ins nos horários da
+# rotina, conta que vence amanhã, dia de guardar nas metas).
+#
+# A Vercel no plano grátis só roda cron uma vez por dia, por isso o GitHub.
+# Precisa de dois segredos no repositório (Settings > Secrets and variables >
+# Actions): AGENDADOR_URL (ex.: https://desafoga.vercel.app) e
+# AGENDADOR_SEGREDO (o mesmo valor da variável na Vercel). Sem eles, não faz nada.
+name: Agendador
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: agendador
+  cancel-in-progress: false
+
+jobs:
+  chamar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Chamar /api/agendador
+        env:
+          URL: ${{ secrets.AGENDADOR_URL }}
+          SEGREDO: ${{ secrets.AGENDADOR_SEGREDO }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$SEGREDO" ]; then
+            echo "AGENDADOR_URL ou AGENDADOR_SEGREDO não configurados; nada a fazer."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error --max-time 90 \
+            -X POST -H "Authorization: Bearer $SEGREDO" "${URL%/}/api/agendador"

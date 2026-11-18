@@ -42,11 +42,14 @@ function numerosDasContas(ctx: ContextoAssistente): string {
     .join("\n");
 }
 
-function numerosDoMes(ctx: ContextoAssistente): string {
+/** Para quem não vê as contas: no lugar dos números, só o aviso. */
+const SEM_CONTAS = "A pessoa não compartilha as contas, a renda e as dívidas com os profissionais.";
+
+function numerosDoMes(ctx: ContextoAssistente, semContas: boolean): string {
   const orcamento = orcamentoDoMes(ctx.orcamentos, ctx.compras, ctx.agora);
   return [
     "CONTAS DO MÊS (calculadas por código)",
-    numerosDasContas(ctx),
+    semContas ? SEM_CONTAS : numerosDasContas(ctx),
     `Orçamento do mês: ${orcamento.length ? orcamento.map((s) => explicarOrcamento(s, ctx.pessoa.apelido)).join(" ") : "nenhum limite definido."}`,
     "METAS DE ECONOMIA (calculadas por código)",
     ctx.metas.length ? ctx.metas.map((m) => fatoDaMeta(m, situacaoDaMeta(m, ctx.agora))).join("\n") : "Sem metas.",
@@ -83,7 +86,11 @@ function numerosDasDividas(ctx: ContextoAssistente): string {
     .join("\n");
 }
 
-export function montarContexto(ctx: ContextoAssistente): string {
+/**
+ * `semContas`: o texto vai ser lido por um profissional e a pessoa não
+ * compartilha as contas; saem contas, renda, dívidas, plano e faturas.
+ */
+export function montarContexto(ctx: ContextoAssistente, { semContas = false }: { semContas?: boolean } = {}): string {
   const { pessoa, memoria, profissionais } = ctx;
   const autor = (id: string) => profissionais.find((p) => p.id === id);
   const publicas = memoria.anotacoes.filter((a) => !a.privada);
@@ -125,6 +132,6 @@ COMO A PESSOA ESTÁ HOJE
 - Compras hoje: ${hoje.length}${nota !== null ? `, nota do dia ${umaCasa(nota)} de 5 (${rotuloDaNota(nota)})` : ""}.
 
 NÚMEROS DO SISTEMA (calculados por código; use exatamente)
-${numerosDasDividas(ctx)}
-${numerosDoMes(ctx)}`;
+${semContas ? SEM_CONTAS : numerosDasDividas(ctx)}
+${numerosDoMes(ctx, semContas)}`;
 }

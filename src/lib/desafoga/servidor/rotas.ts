@@ -10,6 +10,7 @@ import { situacaoDaMeta } from "@/lib/finance";
 import type { Classificacao, Fatura } from "@/services/tipos";
 import { exigirAPropriaPessoa, exigirProfissionalDe, exigirSessao, exigirVer, SemPermissao } from "./acesso";
 import { responderTexto, testarResposta } from "./acoes";
+import { checkInJaPerguntado } from "./agendador";
 import { salvarDocumento } from "./documentos";
 import * as banco from "./banco-acoes";
 import { enviarPeloWhatsapp, whatsappConfigurado } from "./enviar";
@@ -361,8 +362,10 @@ const ACOES = {
     await repo.responderCheckIn(p, periodoDoDia, humor);
     const resposta = respostaDoCheckIn(apelido, periodoDoDia, humor, memoria.caracteristicas, memoria.objetivo);
     if (humor <= 2 && rotina.avisarQuandoTriste) await repo.avisar(p, "checkin", avisoDeCheckInTriste(apelido, periodoDoDia, humor));
+    // Se o agendador já mandou a pergunta no chat, não repete.
+    const perguntou = await checkInJaPerguntado(p, periodoDoDia);
     await repo.guardarMensagens(p, "app", [
-      { de: "assistente", texto: perguntaDoCheckIn(apelido, periodoDoDia) },
+      ...(perguntou ? [] : [{ de: "assistente" as const, texto: perguntaDoCheckIn(apelido, periodoDoDia) }]),
       { de: "pessoa", texto: NOME_DA_EMOCAO[humor] },
       { de: "assistente", texto: resposta },
     ]);
@@ -680,7 +683,8 @@ const ACOES = {
   ),
   "assistente.contexto": acao(z.tuple([id]), async ([p], { sessao }) => {
     await exigirProfissionalDe(sessao, p);
-    return montarContexto(await repo.contextoDoAssistente(p, "app"));
+    // Quem lê é o profissional: respeita o "compartilhar contas" da pessoa.
+    return montarContexto(await repo.contextoDoAssistente(p, "app"), { semContas: await escondido(sessao, p) });
   }),
 
   // ----- avisos -----
