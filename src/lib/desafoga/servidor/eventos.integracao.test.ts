@@ -203,6 +203,38 @@ describe.runIf(url)("eventos", { timeout: 30_000 }, () => {
     expect(await daLuana()).toHaveLength(1);
   });
 
+  it("link de convite: só o dono liga; o convite mostra o básico; entrar pelo link já aceita; desligar invalida", async () => {
+    const { paula, ana, carlos } = await demo();
+    const { id } = await chamar<{ id: string }>("eventos.criar", [desafio([ana], { nome: "Com link" })], paula);
+    const anaS = await entrar("ana", paula);
+    await expect(chamar("eventos.link", [id, true], anaS)).rejects.toThrow();
+    const paula2 = await entrar("paula", anaS);
+    await chamar("eventos.link", [id, true], paula2);
+    const { convite } = await chamar<SalaDoEvento>("eventos.ver", [id], paula2);
+    expect(convite).toMatch(/^[A-Za-z0-9_-]{16,}$/);
+
+    // Sem sessão: só o básico, sem nomes de quem participa.
+    const publico = await chamar<Record<string, unknown>>("eventos.convite", [convite], null as unknown as SessaoAtual);
+    expect(publico).toMatchObject({ nome: "Com link", profissional: "Paula Reis", pessoasNoGrupo: 0 });
+    expect(JSON.stringify(publico)).not.toMatch(/Ana|Souza|participantes/);
+
+    const carlosS = await entrar("carlos", paula2);
+    const r = await chamar<{ id: string }>("eventos.entrarPeloLink", [convite], carlosS);
+    expect(r.id).toBe(id);
+    const sala = await chamar<SalaDoEvento>("eventos.ver", [id], carlosS);
+    expect(sala.convitePendente).toBe(false);
+    expect(sala.posts.some((p) => p.texto === "Carlos entrou no evento pelo link.")).toBe(true);
+    void carlos;
+
+    // Conta de outro espaço não entra.
+    const deFora = await entrar("lucia");
+    await expect(chamar("eventos.entrarPeloLink", [convite], deFora)).rejects.toThrow();
+
+    const paula3 = await entrar("paula", carlosS);
+    await chamar("eventos.link", [id, false], paula3);
+    await expect(chamar("eventos.convite", [convite], null as unknown as SessaoAtual)).rejects.toThrow();
+  });
+
   it("a demo já vem com os três eventos do protótipo", async () => {
     const { paula } = await demo();
     const lista = await chamar<{ nome: string }[]>("eventos.listar", [], paula);

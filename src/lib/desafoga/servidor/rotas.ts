@@ -830,6 +830,20 @@ const ACOES = {
     if (!s.pessoa) throw new SemPermissao("Só quem participa responde.");
     await repo.responderEncontro(e, s.pessoa.id, r);
   }),
+  "eventos.link": acao(z.tuple([id, z.boolean()]), async ([e, ligado], { sessao }) => {
+    await repo.ligarLinkDoEvento(e, profissionalDaSessao(sessao), ligado);
+  }),
+  // Público: quem abre o link vê o básico do evento (sem ninguém do grupo).
+  "eventos.convite": acao(z.tuple([z.string().regex(/^[A-Za-z0-9_-]{16,40}$/)]), async ([codigo]) => repo.conviteDoEvento(codigo), "codigo"),
+  "eventos.entrarPeloLink": acao(
+    z.tuple([z.string().regex(/^[A-Za-z0-9_-]{16,40}$/)]),
+    async ([codigo], { sessao }) => {
+      const s = exigirSessao(sessao);
+      if (!s.pessoa) throw new SemPermissao("Para participar, entre como a pessoa (o profissional organiza os eventos).");
+      return repo.entrarPeloLink(codigo, s.pessoa.id, s.espacoId);
+    },
+    "codigo",
+  ),
   "eventos.aceitar": acao(z.tuple([id]), async ([e], { sessao }) => {
     const s = exigirSessao(sessao);
     if (!s.pessoa) throw new SemPermissao("Só quem foi convidado aceita.");

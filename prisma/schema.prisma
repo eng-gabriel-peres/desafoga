@@ -686,6 +686,8 @@ model Evento {
   local          String?
   premio         String                 @default("")
   mostrarRanking Boolean                @default(true)
+  /// Código do link de convite (aleatório); null com o link desligado.
+  convite        String?                @unique
   criadoEm       DateTime               @default(now())
   participantes  ParticipanteDoEvento[]
   posts          PostDoEvento[]

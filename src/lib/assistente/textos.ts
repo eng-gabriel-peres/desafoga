@@ -206,6 +206,14 @@ export function mensagemDeConviteParaDesafio(profissional: string, e: RegrasDoDe
   return `🎯 ${profissional} convidou você para o desafio ${e.nome}!\nRegra: ${regraEmTexto(e)}.\nDe ${dataCurtaDaChave(e.inicio)} a ${dataCurtaDaChave(e.fim)}${e.premio ? `\nPrêmio: ${e.premio}` : ""}\nSe quiser participar, aceite o convite em Eventos, no app. Depois é só registrar suas compras que eu confiro para você.`;
 }
 
+/** Quem entrou pelo link de convite (já aceitou). */
+export function mensagemDeEntradaPeloLink(e: { tipo: string; nome: string; regra: RegrasDoDesafio["regra"] | null; categoria: RegrasDoDesafio["categoria"]; limite: number | null; inicio: string | null; fim: string | null; data: string | null; hora: string | null; local: string | null }): string {
+  if (e.tipo === "desafio" && e.regra && e.inicio && e.fim) {
+    return `🎯 Você entrou no desafio ${e.nome}!\nRegra: ${regraEmTexto({ regra: e.regra, categoria: e.categoria, limite: e.limite })}.\nDe ${dataCurtaDaChave(e.inicio)} a ${dataCurtaDaChave(e.fim)}.\nÉ só registrar suas compras normalmente que eu confiro para você.`;
+  }
+  return `📅 Você entrou em ${e.nome}\n${e.data ? dataLongaDaChave(e.data) : ""}, ${e.hora ?? ""}\n📍 ${e.local ?? ""}\nMe diga em Eventos, no app, se você vai.`;
+}
+
 export function mensagemDeConviteParaEncontro(profissional: string, e: { nome: string; data: string; hora: string; local: string }): string {
   return `📅 ${profissional} convidou você: ${e.nome}\n${dataLongaDaChave(e.data)}, ${e.hora}\n📍 ${e.local}\nAceite o convite em Eventos, no app, e me diga se você vai.`;
 }

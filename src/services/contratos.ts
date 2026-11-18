@@ -32,7 +32,7 @@ import type {
 import type { CampoDaDivida, CompraParcelada, ModoCompras } from "@/lib/banco/tipos";
 import type { Categoria, DadosDoBanco, LeituraDeDocumento, Necessidade, ResultadoDaSincronizacao } from "./tipos";
 import type { ConfigDosAvisos, Conquista, IconeDaConquista, TipoDeConquista } from "./tipos";
-import type { DadosDoEvento, RespostaAoEncontro, SalaDoEvento, TipoDePost } from "./tipos";
+import type { ConviteDoEvento, DadosDoEvento, RespostaAoEncontro, SalaDoEvento, TipoDePost } from "./tipos";
 import type { DetalheDoConteudo, FeedDeConteudos, NovoConteudo } from "./tipos";
 
 /** Quem está usando o app neste navegador. */
@@ -162,6 +162,12 @@ export interface EventosService {
   aceitar(eventoId: string): Promise<void>;
   /** Recusar o convite ou sair do evento (leva os próprios posts). */
   sair(eventoId: string): Promise<void>;
+  /** Só o dono: liga (código novo) ou desliga o link de convite. */
+  link(eventoId: string, ligado: boolean): Promise<void>;
+  /** Público: o básico do evento pelo código do link. */
+  convite(codigo: string): Promise<ConviteDoEvento>;
+  /** A pessoa da sessão entra pelo link (já aceita). */
+  entrarPeloLink(codigo: string): Promise<{ id: string }>;
   postar(eventoId: string, tipo: Exclude<TipoDePost, "sistema">, texto: string): Promise<{ id: string }>;
   apoiar(eventoId: string, postId: string): Promise<void>;
   fixar(eventoId: string, postId: string): Promise<void>;

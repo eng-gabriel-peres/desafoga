@@ -4,6 +4,8 @@ import {
   CalendarDays,
   Check,
   ChevronLeft,
+  Copy,
+  Link as LinkIcone,
   Crown,
   Flame,
   Gift,
@@ -14,6 +16,7 @@ import {
   MapPin,
   Medal,
   Megaphone,
+  MessageCircle,
   MessageSquare,
   Pin,
   PinOff,
@@ -475,11 +478,57 @@ function QuemVai({ evento, pessoaId }: { evento: SalaDoEvento; pessoaId: string 
   );
 }
 
+function LinkDeConvite({ evento }: { evento: SalaDoEvento }) {
+  const [copiado, setCopiado] = useState(false);
+  const url = evento.convite && typeof window !== "undefined" ? `${window.location.origin}/convite/${evento.convite}` : "";
+  if (!evento.convite) {
+    return (
+      <Painel titulo="Link de convite">
+        <Sub>Desligado. Só entra quem você adicionar.</Sub>
+        <Botao variante="secundario" tamanho="pequeno" className="mt-2.5" onClick={() => servicos.eventos.link(evento.id, true)}>
+          <LinkIcone aria-hidden="true" />
+          Ligar link
+        </Botao>
+      </Painel>
+    );
+  }
+  const whatsapp = `https://wa.me/?text=${encodeURIComponent(`${evento.profissional.nome} convidou você para ${evento.nome} no Desafoga: ${url}`)}`;
+  return (
+    <Painel titulo="Link de convite">
+      <Sub className="mb-2.5">Quem abrir o link faz um cadastro rápido (ou usa a conta que já tem) e já entra no evento.</Sub>
+      <div className="flex flex-wrap gap-2">
+        <input readOnly value={url} aria-label="Link de convite" onFocus={(e) => e.target.select()} className={`${CAMPO} min-w-0 flex-[1_1_220px]`} />
+        <Botao
+          variante="secundario"
+          tamanho="pequeno"
+          onClick={async () => {
+            await navigator.clipboard?.writeText(url).catch(() => {});
+            setCopiado(true);
+            setTimeout(() => setCopiado(false), 2000);
+          }}
+        >
+          <Copy aria-hidden="true" />
+          {copiado ? "Copiado" : "Copiar"}
+        </Botao>
+      </div>
+      <div className="mt-2.5 flex flex-wrap items-center gap-3">
+        <a href={whatsapp} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-bold text-primary">
+          <MessageCircle aria-hidden="true" className="size-4" /> Mandar no WhatsApp
+        </a>
+        <button type="button" onClick={() => servicos.eventos.link(evento.id, false)} className="font-bold text-muted hover:underline">
+          Desligar link
+        </button>
+      </div>
+    </Painel>
+  );
+}
+
 function Configurar({ evento, voltar }: { evento: SalaDoEvento; voltar: string }) {
   const router = useRouter();
   const [confirmar, setConfirmar] = useState(false);
   return (
     <>
+      <LinkDeConvite evento={evento} />
       {evento.tipo === "desafio" && (
         <Painel titulo="Ranking">
           <label className="flex items-start gap-2.5">

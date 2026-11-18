@@ -4,7 +4,8 @@
  * participa. Dos outros participantes a pessoa vê só nome e pontos, nunca as
  * compras nem os dias. Reexportado por `repositorio.ts`.
  */
-import { mensagemDeConviteParaDesafio, mensagemDeConviteParaEncontro, regraEmTexto } from "@/lib/assistente/textos";
+import { randomBytes } from "node:crypto";
+import { mensagemDeConviteParaDesafio, mensagemDeConviteParaEncontro, mensagemDeEntradaPeloLink, regraEmTexto } from "@/lib/assistente/textos";
 import {
   andamentoNoDesafio,
   classificar,
@@ -100,6 +101,16 @@ export interface SalaDoEvento extends DadosDoEvento {
   convitePendente: boolean;
   /** Quantas pessoas já aceitaram. */
   pessoasNoGrupo: number;
+  /** Código do link de convite (só o dono vê); null com o link desligado. */
+  convite: string | null;
+}
+
+/** O que o link de convite mostra a quem ainda não participa: o básico, sem ninguém do grupo. */
+export interface ConviteDoEvento extends DadosDoEvento {
+  id: string;
+  profissional: string;
+  pessoasNoGrupo: number;
+  situacao: SituacaoDoEvento;
 }
 
 /** Quem está olhando: uma pessoa ou um profissional. */
@@ -166,6 +177,7 @@ async function montarSala(e: EventoDoBanco, quem: Quem, agora: Date, comPosts: b
     situacao: situacaoDoEvento(dados, hoje),
     souDono,
     pessoasNoGrupo: aceitos.length,
+    convite: souDono ? e.convite : null,
   };
   // Convite pendente: nada do grupo (nem quem está nele) até aceitar.
   if (!souDono && !aceitos.some((p) => p.pessoaId === quem.pessoaId)) {
@@ -409,4 +421,45 @@ export async function avisarCompraForaDaRegra(pessoaId: string, compraId: string
       await mensagemDaLuana(pessoaId, `🎯 Essa compra ficou fora da regra do desafio ${e.nome} hoje (${regraEmTexto(regras)}).\nTudo bem: amanhã é um novo dia.`, agora);
     }
   }
+}
+
+/** Liga (gera um código novo) ou desliga o link de convite. */
+export async function ligarLinkDoEvento(id: string, profissionalId: string, ligado: boolean): Promise<void> {
+  await doDono(id, profissionalId);
+  await prisma().evento.update({ where: { id }, data: { convite: ligado ? randomBytes(16).toString("base64url") : null } });
+}
+
+async function peloConvite(codigo: string) {
+  const e = await prisma().evento.findUnique({ where: { convite: codigo }, include: { ...COMPLETO, profissional: { select: { nome: true, cor: true, espacoId: true } } } });
+  if (!e) throw new NaoEncontrado("Convite não encontrado. O link pode ter sido desligado; peça um novo para quem te convidou.");
+  return e;
+}
+
+export async function conviteDoEvento(codigo: string, agora = new Date()): Promise<ConviteDoEvento> {
+  const e = await peloConvite(codigo);
+  const dados = dadosDe(e);
+  return {
+    id: e.id,
+    ...dados,
+    profissional: e.profissional.nome,
+    pessoasNoGrupo: e.participantes.filter((p) => p.aceito).length,
+    situacao: situacaoDoEvento(dados, hojeEmBrasilia(agora)),
+  };
+}
+
+/** Entrar pelo link já é aceitar: a pessoa entra no grupo (só contas do mesmo espaço do evento). */
+export async function entrarPeloLink(codigo: string, pessoaId: string, espacoId: string, agora = new Date()): Promise<{ id: string }> {
+  const e = await peloConvite(codigo);
+  if (e.profissional.espacoId !== espacoId) throw new NaoEncontrado("Convite não encontrado.");
+  if (situacaoDoEvento(dadosDe(e), hojeEmBrasilia(agora)).fase === "fim") throw new NaoEncontrado("Este evento já terminou.");
+  const hoje = hojeEmBrasilia(agora);
+  const entrouEm = e.tipo === "desafio" && e.inicio && e.inicio > hoje ? e.inicio : hoje;
+  const ja = e.participantes.find((p) => p.pessoaId === pessoaId);
+  if (ja?.aceito) return { id: e.id };
+  if (ja) await prisma().participanteDoEvento.update({ where: { eventoId_pessoaId: { eventoId: e.id, pessoaId } }, data: { aceito: true } });
+  else await prisma().participanteDoEvento.create({ data: { eventoId: e.id, pessoaId, entrouEm, aceito: true } });
+  const p = await prisma().pessoa.findUniqueOrThrow({ where: { id: pessoaId }, select: { apelido: true } });
+  await prisma().postDoEvento.create({ data: { eventoId: e.id, tipo: "sistema", texto: `${p.apelido} entrou no evento pelo link.`, criadoEm: agora } });
+  await mensagemDaLuana(pessoaId, mensagemDeEntradaPeloLink(dadosDe(e)), agora);
+  return { id: e.id };
 }

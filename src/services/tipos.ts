@@ -142,6 +142,7 @@ export type {
 } from "@/lib/banco/tipos";
 export type { DadosDoBanco } from "@/lib/desafoga/servidor/banco-acoes";
 export type {
+  ConviteDoEvento,
   DadosDoEvento,
   LinhaDoRanking,
   ParticipanteVisto,
