@@ -22,6 +22,7 @@ import type { Categoria, Divida, TipoDivida } from "@/lib/finance";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "./prisma";
 import { NaoEncontrado, paraDivida } from "./repositorio";
+import { conferirConquistas } from "./repositorio-conquistas";
 
 const iso = (d: Date) => d.toISOString();
 const UMA_HORA = 60 * 60 * 1000;
@@ -640,6 +641,8 @@ export async function desmarcarParceladaAvisada(parceladaId: string): Promise<vo
 export async function completarEmocao(pessoaId: string, compraId: string, emocao: number, necessidade: string): Promise<void> {
   const r = await prisma().compra.updateMany({ where: { id: compraId, pessoaId }, data: { emocao, necessidade } });
   if (!r.count) throw new NaoEncontrado("Compra não encontrada.");
+  // A emoção completa pode fechar uma conquista ("dias com nota boa").
+  await conferirConquistas(pessoaId);
 }
 
 // ---------- investimentos ----------

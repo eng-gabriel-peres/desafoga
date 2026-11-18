@@ -31,6 +31,7 @@ import type {
 } from "./tipos";
 import type { CampoDaDivida, CompraParcelada, ModoCompras } from "@/lib/banco/tipos";
 import type { Categoria, DadosDoBanco, LeituraDeDocumento, Necessidade, ResultadoDaSincronizacao } from "./tipos";
+import type { Conquista, IconeDaConquista, TipoDeConquista } from "./tipos";
 
 /** Quem está usando o app neste navegador. */
 export interface Eu {
@@ -117,6 +118,22 @@ export interface MetasService {
   incentivar(pessoaId: string, metaId: string): Promise<{ whatsapp: boolean }>;
   /** Manda agora o lembrete de guardar (no WhatsApp, se conectado; senão no chat do app). */
   lembrar(pessoaId: string, metaId: string): Promise<{ whatsapp: boolean }>;
+}
+
+export interface NovaConquista {
+  icone: IconeDaConquista;
+  tipo: TipoDeConquista;
+  alvo: number;
+  /** Vazio: título automático. */
+  titulo: string;
+  premio: string;
+}
+
+export interface ConquistasService {
+  listar(pessoaId: string): Promise<Conquista[]>;
+  /** Só quem acompanha; a Luana avisa a pessoa no chat. */
+  criar(pessoaId: string, nova: NovaConquista): Promise<Conquista>;
+  apagar(pessoaId: string, conquistaId: string): Promise<void>;
 }
 
 export interface RotinaService {
@@ -213,6 +230,7 @@ export interface Servicos {
   dividas: DividasService;
   orcamentos: OrcamentosService;
   metas: MetasService;
+  conquistas: ConquistasService;
   rotina: RotinaService;
   contas: ContasService;
   faturas: FaturasService;

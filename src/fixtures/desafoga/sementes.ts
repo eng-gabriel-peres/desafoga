@@ -7,6 +7,7 @@ import type {
   Aviso,
   CheckIn,
   Compra,
+  Conquista,
   ContaFixa,
   Emocao,
   Pagamento,
@@ -51,6 +52,13 @@ export interface SementeMeta extends Omit<Meta, "prazo" | "criadaEm" | "deposito
   depositos: ({ valor: number } & Quando)[];
 }
 
+/** Conquista criada pelo profissional `autorId` há N dias; com `concluidaHaDias`, já alcançada. */
+export interface SementeConquista extends Omit<Conquista, "id" | "criadaEm" | "concluidaEm" | "autor"> {
+  autorId: string;
+  criadaHaDias: number;
+  concluidaHaDias?: number;
+}
+
 export interface SementePessoa {
   persona: Persona;
   compras: SementeCompra[];
@@ -72,6 +80,7 @@ export interface SementePessoa {
   parcelasEmDia?: boolean;
   /** Banco conectado de demonstração (sem Pluggy). */
   banco?: SementeBanco;
+  conquistas?: SementeConquista[];
 }
 
 export interface DadosDaPessoa {

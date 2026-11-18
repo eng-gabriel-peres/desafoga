@@ -51,6 +51,7 @@ export async function rodarAgendador({ agora = new Date(), pessoas, whatsapp }: 
         repo.pagamentos(p.id, agora),
         repo.metas(p.id),
       ]);
+      await repo.conferirConquistas(p.id, agora);
       const envios = enviosDoMomento({ pessoaId: p.id, apelido: p.apelido, rotina, checkins, contas, pagamentos, metas }, agora);
       for (const [i, e] of envios.entries()) {
         // Reserva a chave antes: duas chamadas ao mesmo tempo não mandam duas vezes.

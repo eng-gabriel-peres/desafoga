@@ -20,6 +20,7 @@ import type {
 
 export type { Categoria, Compra, Deposito, Divida, Emocao, Estrategia, Fatura, Meta, Necessidade, Orcamento };
 export type { CategoriaDaConta, CheckIn, ContaFixa, Pagamento, Periodo, Renda, Rotina };
+export type { Conquista, IconeDaConquista, TipoDeConquista } from "@/lib/finance";
 
 /** Conta fixa nova (sem id) ou editada. */
 export type ContaEditada = Omit<ContaFixa, "id"> & { id?: string };
@@ -63,7 +64,7 @@ export interface Profissional {
   cor: string;
 }
 
-export type TipoAviso = "gasto-alto" | "nota-baixa" | "sofrimento" | "sugestao" | "meta" | "checkin" | "compra-banco" | "divida-encontrada" | "limite-cartao" | "consentimento" | "seguro";
+export type TipoAviso = "gasto-alto" | "nota-baixa" | "sofrimento" | "sugestao" | "meta" | "checkin" | "compra-banco" | "divida-encontrada" | "limite-cartao" | "consentimento" | "seguro" | "conquista";
 
 export interface Aviso {
   id: string;

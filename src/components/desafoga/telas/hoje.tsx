@@ -3,6 +3,7 @@
 import { ChevronRight, Plus, TrendingDown } from "lucide-react";
 import Link from "next/link";
 import { useAgora } from "@/hooks/use-agora";
+import { useConsulta } from "@/hooks/use-consulta";
 import { usePessoa } from "@/hooks/use-pessoa";
 import {
   chaveDoDia,
@@ -21,6 +22,8 @@ import {
 import { dataPorExtenso, reais } from "@/lib/formatar";
 import { FaixaDaSemana, LinhaDeCompra, ListaDePadroes, NotaDoDia } from "../emocao";
 import { MetasEmMiniatura } from "../metas/miniaturas";
+import { andamento, CartaoDaConquista } from "../conquistas/cartao";
+import { servicos } from "@/services";
 import { ListaDoOrcamento } from "../orcamento";
 import { ProximasContas } from "../contas";
 import { gastosAvulsosDoBanco } from "../banco/avulsos";
@@ -35,6 +38,7 @@ export function TelaHoje() {
   const abrirRegistro = useAbrirRegistro();
   const pessoaId = useMinhaPessoaId();
   const dados = usePessoa(pessoaId);
+  const conquistas = useConsulta(`conquistas:${pessoaId}`, () => servicos.conquistas.listar(pessoaId));
   const agora = useAgora();
   if (!dados || !agora) return <Carregando />;
 
@@ -47,6 +51,20 @@ export function TelaHoje() {
   const deHoje = comprasDoDia(compras, chaveDoDia(agora)).reverse();
   const semana = resumoDaSemana(compras, agora);
   const encargos = encargosDasFaturas(faturas).total || jurosMensaisTotais(dividas);
+
+  // "Quase lá": a conquista em aberto mais perto de ser alcançada.
+  const proxima = (conquistas ?? [])
+    .map((c) => ({ c, a: andamento(c, compras, agora) }))
+    .filter(({ a }) => !a.completa)
+    .sort((x, y) => y.a.feito / y.c.alvo - x.a.feito / x.c.alvo)[0];
+  const quaseLa = proxima && (
+    <section aria-labelledby="quase-la">
+      <h2 id="quase-la" className="mb-2.5 text-[1.12rem] font-bold">
+        Quase lá
+      </h2>
+      <CartaoDaConquista conquista={proxima.c} compras={compras} agora={agora} />
+    </section>
+  );
 
   const registrar = (
     <Botao tamanho="grande" bloco onClick={() => abrirRegistro()}>
@@ -121,6 +139,7 @@ export function TelaHoje() {
             {atalhoDividas}
           </div>
           {listaDeHoje}
+          <div className="desk:hidden">{quaseLa}</div>
           <Painel titulo="Sua semana" className="hidden desk:block">
             <FaixaDaSemana dias={semana.dias} agora={agora} sujeito="você estava" />
           </Painel>
@@ -136,6 +155,7 @@ export function TelaHoje() {
           <div className="hidden desk:block">{painelOrcamento}</div>
           <div className="hidden desk:block">{atalhoMetas}</div>
           <div className="hidden desk:block">{atalhoDividas}</div>
+          <div className="hidden desk:block">{quaseLa}</div>
           <Painel titulo="O que dá para perceber">
             <ListaDePadroes padroes={padroesDeCompra(compras, agora)} sujeito="você estava" />
           </Painel>

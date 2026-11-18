@@ -80,6 +80,11 @@ export const servicosDaApi: Servicos = {
     listar: (id) => chamar("orcamentos.listar", [id]),
     salvar: (id, categoria, limite) => chamar("orcamentos.salvar", [id, categoria, limite], true),
   },
+  conquistas: {
+    listar: (id) => chamar("conquistas.listar", [id]),
+    criar: (id, nova) => chamar("conquistas.criar", [id, nova], true),
+    apagar: (id, conquistaId) => chamar("conquistas.apagar", [id, conquistaId], true),
+  },
   metas: {
     listar: (id) => chamar("metas.listar", [id]),
     salvar: (id, meta) => chamar("metas.salvar", [id, meta], true),

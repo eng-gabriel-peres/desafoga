@@ -243,3 +243,25 @@ export interface Rotina {
   /** Profissionais podem ver as contas fixas e a renda. */
   compartilharContas: boolean;
 }
+
+/** O que conta numa conquista criada pelo profissional. */
+export type TipoDeConquista = "sem-impulso" | "registrar" | "nota-boa";
+export type IconeDaConquista = "broto" | "caderno" | "brilho" | "estrela" | "alvo" | "raio" | "medalha" | "festa";
+
+/** Meta com prêmio que o profissional cria para a pessoa. */
+export interface Conquista {
+  id: string;
+  icone: IconeDaConquista;
+  titulo: string;
+  tipo: TipoDeConquista;
+  /** Quantos dias ou compras. */
+  alvo: number;
+  /** Vazio sem prêmio. */
+  premio: string;
+  /** ISO; o progresso conta a partir daqui. */
+  criadaEm: string;
+  /** ISO de quando foi alcançada; depois disso fica conquistada mesmo se o progresso cair. */
+  concluidaEm: string | null;
+  /** Nome de quem criou. */
+  autor: string | null;
+}

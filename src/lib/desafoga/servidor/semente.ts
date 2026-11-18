@@ -136,6 +136,23 @@ export async function criarEspacoDemo(db: Transacao, agora = new Date()): Promis
       });
     }
 
+    const haDias = (n: number) => new Date(agora.getTime() - n * 86_400_000);
+    for (const c of semente.conquistas ?? []) {
+      await db.conquista.create({
+        data: {
+          pessoaId: pessoa.id,
+          autorId: profissionais[c.autorId],
+          icone: c.icone,
+          titulo: c.titulo,
+          tipo: c.tipo,
+          alvo: c.alvo,
+          premio: c.premio,
+          criadaEm: haDias(c.criadaHaDias),
+          concluidaEm: c.concluidaHaDias === undefined ? null : haDias(c.concluidaHaDias),
+        },
+      });
+    }
+
     for (const f of d.faturas) {
       await db.fatura.create({
         data: {

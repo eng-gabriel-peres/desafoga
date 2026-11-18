@@ -14,3 +14,4 @@ export * from "./metas";
 export * from "./contas";
 export * from "./checkins";
 export * from "./proximos-meses";
+export * from "./conquistas";

@@ -1,4 +1,4 @@
-import { AlarmClock, BarChart3, Brain, CalendarCheck, ChartPie, ClipboardList, House, MessageCircle, Plus, Target, Users, Wallet, type LucideIcon } from "lucide-react";
+import { AlarmClock, BarChart3, Brain, CalendarCheck, ChartPie, ClipboardList, House, MessageCircle, Plus, Target, Trophy, Users, Wallet, type LucideIcon } from "lucide-react";
 
 /**
  * O Desafoga tem duas áreas separadas:
@@ -32,6 +32,7 @@ export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
       { href: "/app/contas", rotulo: "Contas", Icone: CalendarCheck, ativo: (c) => c === "/app/contas", soDesktop: true },
       { href: "/app/orcamento", rotulo: "Orçamento", Icone: ChartPie, ativo: (c) => c === "/app/orcamento", soDesktop: true },
       { href: "/app/semana", rotulo: "Semana", Icone: BarChart3, ativo: (c) => c === "/app/semana", soDesktop: true },
+      { href: "/app/conquistas", rotulo: "Conquistas", Icone: Trophy, ativo: (c) => c === "/app/conquistas", soDesktop: true },
       { href: "/app/rotina", rotulo: "Rotina", Icone: AlarmClock, ativo: (c) => c === "/app/rotina", soDesktop: true },
     ];
   }
@@ -43,6 +44,7 @@ export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
     { href: `${base}/contas`, rotulo: "Contas", Icone: CalendarCheck, ativo: (c) => /^\/painel\/[^/]+\/contas$/.test(c) },
     { href: `${base}/metas`, rotulo: "Metas", Icone: Target, ativo: (c) => /^\/painel\/[^/]+\/metas/.test(c) },
     { href: `${base}/memoria`, rotulo: "Memória", Icone: Brain, ativo: (c) => c.endsWith("/memoria") },
+    { href: `${base}/conquistas`, rotulo: "Conquistas", Icone: Trophy, ativo: (c) => c.endsWith("/conquistas") },
   ];
 }
 
@@ -59,6 +61,8 @@ export function tituloDaRota(caminho: string): Titulo {
   if (caminho === "/app/contas") return { titulo: "Contas do mês", subtitulo: "O que você paga todo mês e quando vence" };
   if (caminho === "/app/rotina") return { titulo: "Rotina e privacidade", subtitulo: "Seus horários e o que quem te acompanha vê" };
   if (/^\/painel\/[^/]+\/contas$/.test(caminho)) return { titulo: "Contas do paciente", subtitulo: "Só leitura, se a pessoa compartilhou" };
+  if (caminho === "/app/conquistas") return { titulo: "Conquistas", subtitulo: "Metas com prêmio que quem te acompanha criou" };
+  if (/^\/painel\/[^/]+\/conquistas$/.test(caminho)) return { titulo: "Conquistas", subtitulo: "Metas com prêmio para o paciente" };
   if (caminho === "/app/semana") return { titulo: "Sua semana", subtitulo: "Os últimos 7 dias" };
   if (caminho === "/app/orcamento") return { titulo: "Orçamento", subtitulo: "Quanto você quer gastar por categoria no mês" };
   if (caminho === "/app/metas") return { titulo: "Metas", subtitulo: "Junte dinheiro para o que importa" };

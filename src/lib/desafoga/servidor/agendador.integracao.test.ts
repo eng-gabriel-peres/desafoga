@@ -65,6 +65,16 @@ describe.runIf(url)("agendador", () => {
     expect(await mensagens(p)).toHaveLength(2);
   });
 
+  it("confere as conquistas que avançam só com o tempo (dias sem compra por impulso)", async () => {
+    const p = await pessoa("REAL");
+    await prisma().conquista.create({
+      data: { pessoaId: p, icone: "broto", titulo: "1 dia sem compra por impulso", tipo: "sem-impulso", alvo: 1, criadaEm: new Date(agora.getTime() - 86_400_000) },
+    });
+    await rodarAgendador({ agora, pessoas: [p], whatsapp: async () => {} });
+    expect((await prisma().conquista.findFirstOrThrow({ where: { pessoaId: p } })).concluidaEm).not.toBeNull();
+    expect((await mensagens(p)).some((m) => m.texto.includes("Conquista desbloqueada"))).toBe(true);
+  });
+
   it("não manda nada para a demo", async () => {
     const p = await pessoa("DEMO");
     const r = await rodarAgendador({ agora, pessoas: [p], whatsapp: async () => {} });

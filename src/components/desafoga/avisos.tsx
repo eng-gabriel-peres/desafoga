@@ -1,4 +1,4 @@
-import { CreditCard, FileSearch, Frown, Gauge, KeyRound, ShieldAlert, HeartHandshake, Lightbulb, Target, TriangleAlert, Wallet, type LucideIcon } from "lucide-react";
+import { CreditCard, FileSearch, Frown, Gauge, KeyRound, ShieldAlert, HeartHandshake, Lightbulb, Target, TriangleAlert, Trophy, Wallet, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { quando } from "@/lib/formatar";
 import type { Aviso, TipoAviso } from "@/services";
@@ -15,6 +15,7 @@ const ICONE: Record<TipoAviso, [LucideIcon, string]> = {
   "limite-cartao": [Gauge, "text-maybe"],
   consentimento: [KeyRound, "text-maybe"],
   seguro: [ShieldAlert, "text-maybe"],
+  conquista: [Trophy, "text-good"],
 };
 
 export function ListaDeAvisos({ avisos, agora, vazio = "Nenhum aviso ainda." }: { avisos: Aviso[]; agora: Date; vazio?: string }) {

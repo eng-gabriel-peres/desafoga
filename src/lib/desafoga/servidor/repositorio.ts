@@ -30,6 +30,7 @@ import type {
 } from "@/services/tipos";
 import { avisoDeCompraAlta, avisoDeSugestao, mensagemDeSugestao, nomeDeCompraDaFatura } from "../regras";
 import { hojeEmBrasilia } from "@/lib/luana/lancamentos";
+import { conferirConquistas } from "./repositorio-conquistas";
 import { prisma } from "./prisma";
 
 export type Canal = "app" | "whatsapp";
@@ -309,6 +310,7 @@ export async function registrarCompra(pessoaId: string, nova: NovaCompra, quando
   const p = await prisma().pessoa.findUniqueOrThrow({ where: { id: pessoaId }, select: { apelido: true } });
   const aviso = avisoDeCompraAlta(nova, p.apelido);
   if (aviso) await avisar(pessoaId, "gasto-alto", aviso, quando);
+  await conferirConquistas(pessoaId, quando);
   return paraCompra(criada);
 }
 
@@ -706,3 +708,4 @@ export async function desfazerPagamento(pessoaId: string, tipo: Pagamento["tipo"
 }
 
 export * from "./repositorio-banco";
+export * from "./repositorio-conquistas";

@@ -68,6 +68,7 @@ model Pessoa {
   avisos             Aviso[]
   mensagens          Mensagem[]
   estados            EstadoConversa[]
+  conquistas         Conquista[]
   acompanhamentos    Acompanhamento[]
   sessoes            Sessao[]
   orcamentos         Orcamento[]
@@ -107,6 +108,7 @@ model Profissional {
   acompanhamentos Acompanhamento[]
   anotacoes       Anotacao[]
   sessoes         Sessao[]
+  conquistas      Conquista[]
 
   @@unique([espacoId, slug])
   @@map("profissionais")
@@ -616,4 +618,26 @@ model InvestimentoBancario {
 
   @@index([pessoaId])
   @@map("investimentos_bancarios")
+}
+
+/// Meta com prêmio que o profissional cria para a pessoa (como no protótipo).
+model Conquista {
+  id          String        @id @default(uuid())
+  pessoaId    String
+  pessoa      Pessoa        @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  autorId     String?
+  autor       Profissional? @relation(fields: [autorId], references: [id], onDelete: SetNull)
+  /// broto, caderno, brilho, estrela, alvo, raio, medalha, festa.
+  icone       String
+  titulo      String
+  /// sem-impulso, registrar, nota-boa.
+  tipo        String
+  alvo        Int
+  premio      String        @default("")
+  criadaEm    DateTime      @default(now())
+  /// Quando foi alcançada (a Luana parabeniza uma vez só).
+  concluidaEm DateTime?
+
+  @@index([pessoaId])
+  @@map("conquistas")
 }

@@ -691,6 +691,38 @@ const ACOES = {
     return montarContexto({ ...ctx, metas: metasSemBanco(ctx.metas) }, { semContas: true });
   }),
 
+  // ----- conquistas (o profissional cria; a pessoa vê) -----
+  "conquistas.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
+    await exigirVer(sessao, p);
+    // "Dias sem compra por impulso" avança com o tempo, sem compra nova: confere ao abrir.
+    await repo.conferirConquistas(p);
+    return repo.conquistas(p);
+  }),
+  "conquistas.criar": acao(
+    z.tuple([
+      id,
+      z.object({
+        icone: z.enum(["broto", "caderno", "brilho", "estrela", "alvo", "raio", "medalha", "festa"]),
+        tipo: z.enum(["sem-impulso", "registrar", "nota-boa"]),
+        alvo: z.number().int().min(1).max(365),
+        titulo: z.string().max(80),
+        premio: z.string().max(80),
+      }),
+    ]),
+    async ([p, nova], { sessao }) => {
+      const s = await exigirProfissionalDe(sessao, p);
+      const c = await repo.criarConquista(p, s.profissional.id, nova);
+      // Já alcançada ao criar (ex.: dias sem impulso que já vinham contando): parabéns na hora.
+      await repo.conferirConquistas(p);
+      return c;
+    },
+    "envio",
+  ),
+  "conquistas.apagar": acao(z.tuple([id, id]), async ([p, c], { sessao }) => {
+    await exigirProfissionalDe(sessao, p);
+    await repo.apagarConquista(p, c);
+  }),
+
   // ----- avisos -----
   "avisos.listar": acao(z.tuple([]), async (_, { sessao }) => {
     const s = exigirSessao(sessao);

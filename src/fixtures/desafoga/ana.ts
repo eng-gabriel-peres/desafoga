@@ -63,6 +63,13 @@ export const ana: SementePessoa = {
     { diasAtras: 1, humores: [3, 3, 2] },
   ],
   checkinsDeHoje: { manha: 2 },
+  // As do protótipo, criadas pela Paula; a primeira já foi alcançada.
+  conquistas: [
+    { autorId: "paula", icone: "caderno", titulo: "Anotar 5 compras", tipo: "registrar", alvo: 5, premio: "Um sorvete no sábado", criadaHaDias: 10, concluidaHaDias: 5 },
+    { autorId: "paula", icone: "broto", titulo: "3 dias sem compra por impulso", tipo: "sem-impulso", alvo: 3, premio: "Cinema no fim de semana", criadaHaDias: 6 },
+    { autorId: "paula", icone: "caderno", titulo: "Anotar 20 compras", tipo: "registrar", alvo: 20, premio: "Escolher o jantar de domingo", criadaHaDias: 6 },
+    { autorId: "paula", icone: "brilho", titulo: "5 dias comprando de bem com a vida", tipo: "nota-boa", alvo: 5, premio: "Passeio no parque", criadaHaDias: 6 },
+  ],
   metas: [
     {
       id: "ana-reserva",

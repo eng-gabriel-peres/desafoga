@@ -1,5 +1,5 @@
 import { formatarReais } from "@/lib/dinheiro";
-import type { ContaFixa, Emocao, Estrategia, Frequencia, Meta, Necessidade, Periodo, SituacaoDaMeta, SituacaoDoOrcamento } from "@/lib/finance";
+import type { Conquista, ContaFixa, Emocao, IconeDaConquista, Estrategia, Frequencia, Meta, Necessidade, Periodo, SituacaoDaMeta, SituacaoDoOrcamento } from "@/lib/finance";
 import type { Tom } from "@/services/tipos";
 
 export const reais = formatarReais;
@@ -141,6 +141,28 @@ export function fatoDaMeta(meta: Meta, s: SituacaoDaMeta): string {
 export function lembreteDeConta(apelido: string, conta: ContaFixa): string {
   const valor = `${conta.variavel ? "cerca de " : ""}${reaisCurto(conta.valor)}`;
   return `📅 Oi, ${apelido}! ${conta.nome} vence amanhã: ${valor}.\nQuando pagar, me responda: paguei ${conta.nome.toLowerCase()} ${Math.round(conta.valor / 100)}`;
+}
+
+// ---------- conquistas ----------
+
+/** No chat e no WhatsApp a conquista aparece com emoji, como no protótipo. */
+export const EMOJI_DA_CONQUISTA: Record<IconeDaConquista, string> = {
+  broto: "🌱",
+  caderno: "📝",
+  brilho: "☀️",
+  estrela: "⭐",
+  alvo: "🎯",
+  raio: "💪",
+  medalha: "🏅",
+  festa: "🎉",
+};
+
+export function mensagemDeConquistaNova(c: Conquista): string {
+  return `🎯 Nova conquista de ${c.autor ?? "quem te acompanha"} para você!\n${EMOJI_DA_CONQUISTA[c.icone]} ${c.titulo}${c.premio ? `\nPrêmio: ${c.premio}` : ""}`;
+}
+
+export function mensagemDeConquistaAlcancada(c: Conquista): string {
+  return `🏆 Conquista desbloqueada!\n${EMOJI_DA_CONQUISTA[c.icone]} ${c.titulo}${c.premio ? `\nSeu prêmio: ${c.premio}` : ""}`;
 }
 
 // ---------- check-ins da rotina ----------
