@@ -75,6 +75,30 @@ describe.runIf(url)("agendador", () => {
     expect((await mensagens(p)).some((m) => m.texto.includes("Conquista desbloqueada"))).toBe(true);
   });
 
+  it("atualiza os bancos parados há mais de 6 horas (os mais antigos primeiro), fora da demo e de quem precisa reconectar", async () => {
+    const { criarConexao, atualizarConexao } = await import("./repositorio");
+    const conexao = async (tipo: "REAL" | "DEMO", horas: number | null, status: "ok" | "reconectar" = "ok") => {
+      const p = await pessoa(tipo);
+      const c = await criarConexao(p, { pluggyItemId: `item-${crypto.randomUUID()}`, banco: "Itaú", logo: null });
+      await atualizarConexao(c.id, { status, ultimaSincronizacao: horas === null ? null : new Date(agora.getTime() - horas * 3_600_000) });
+      return { p, id: c.id };
+    };
+    const velha = await conexao("REAL", 30);
+    const nunca = await conexao("REAL", null);
+    const recente = await conexao("REAL", 2);
+    const reconectar = await conexao("REAL", 30, "reconectar");
+    const demo = await conexao("DEMO", 30);
+    const chamadas: string[] = [];
+    const r = await rodarAgendador({
+      agora,
+      pessoas: [velha.p, nunca.p, recente.p, reconectar.p, demo.p],
+      whatsapp: null,
+      sincronizarBanco: async (id) => void chamadas.push(id),
+    });
+    expect(chamadas.sort()).toEqual([nunca.id, velha.id].sort());
+    expect(r.bancos).toBe(2);
+  });
+
   it("não manda nada para a demo", async () => {
     const p = await pessoa("DEMO");
     const r = await rodarAgendador({ agora, pessoas: [p], whatsapp: async () => {} });

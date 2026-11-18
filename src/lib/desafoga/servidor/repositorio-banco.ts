@@ -100,13 +100,34 @@ export async function atualizarConexao(
     logo: string | null;
     status: ConexaoBancaria["status"];
     erro: string | null;
-    ultimaSincronizacao: Date;
+    ultimaSincronizacao: Date | null;
     ultimoPedidoDeAtualizacao: Date;
     consentimentoAte: Date | null;
     cpfDoTitular: string | null;
   }>,
 ): Promise<void> {
   await prisma().conexaoBancaria.update({ where: { id: conexaoId }, data: m });
+}
+
+/**
+ * Conexões da Pluggy de contas reais paradas há mais de `horas` (as nunca
+ * lidas e as mais antigas primeiro); `pessoas` restringe (testes). Fora: a
+ * demonstração e as que precisam que a pessoa reconecte.
+ */
+export async function conexoesParadas(agora: Date, { horas, limite, pessoas }: { horas: number; limite: number; pessoas?: string[] }): Promise<string[]> {
+  const lista = await prisma().conexaoBancaria.findMany({
+    where: {
+      pluggyItemId: { not: null },
+      status: { not: "reconectar" },
+      pessoa: { espaco: { tipo: "REAL" } },
+      ...(pessoas ? { pessoaId: { in: pessoas } } : {}),
+      OR: [{ ultimaSincronizacao: null }, { ultimaSincronizacao: { lt: new Date(agora.getTime() - horas * 3_600_000) } }],
+    },
+    select: { id: true },
+    orderBy: { ultimaSincronizacao: { sort: "asc", nulls: "first" } },
+    take: limite,
+  });
+  return lista.map((c) => c.id);
 }
 
 /** Marca a conexão como sincronizando; false se outra sincronização começou há menos de 5 minutos. */
