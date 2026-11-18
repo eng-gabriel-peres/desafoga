@@ -34,6 +34,7 @@ import type { Categoria, DadosDoBanco, LeituraDeDocumento, Necessidade, Resultad
 import type { ConfigDosAvisos, Conquista, IconeDaConquista, TipoDeConquista } from "./tipos";
 import type { ConviteDoEvento, DadosDoEvento, RespostaAoEncontro, SalaDoEvento, TipoDePost } from "./tipos";
 import type { DetalheDoConteudo, FeedDeConteudos, NovoConteudo } from "./tipos";
+import type { DinheiroDaPessoa, NovoCartao } from "./tipos";
 
 /** Quem está usando o app neste navegador. */
 export interface Eu {
@@ -174,6 +175,20 @@ export interface EventosService {
   apagarPost(eventoId: string, postId: string): Promise<void>;
 }
 
+export interface DinheiroService {
+  /** Saldo, extrato, cartões, faturas não pagas e previsão (o profissional só vê se a pessoa compartilha). */
+  ver(pessoaId: string): Promise<DinheiroDaPessoa>;
+  /** "Hoje tenho X na conta" (sem banco conectado). */
+  informarSaldo(pessoaId: string, valor: number): Promise<void>;
+  /** Entrada (positivo) ou saída (negativo) avulsa. */
+  lancar(pessoaId: string, l: { valor: number; descricao: string; dia: string }): Promise<{ id: string }>;
+  apagarLancamento(pessoaId: string, lancamentoId: string): Promise<void>;
+  pagarFatura(pessoaId: string, cartaoId: string, vence: string, valor: number): Promise<void>;
+  desfazerFatura(pessoaId: string, cartaoId: string, vence: string): Promise<void>;
+  salvarCartao(pessoaId: string, c: NovoCartao): Promise<{ id: string }>;
+  removerCartao(pessoaId: string, cartaoId: string): Promise<void>;
+}
+
 export interface ConteudosService {
   /** Publicações dos profissionais do espaço, os criadores e (para o profissional) o que falta responder. */
   feed(): Promise<FeedDeConteudos>;
@@ -291,6 +306,7 @@ export interface Servicos {
   configDosAvisos: ConfigDosAvisosService;
   eventos: EventosService;
   conteudos: ConteudosService;
+  dinheiro: DinheiroService;
   rotina: RotinaService;
   contas: ContasService;
   faturas: FaturasService;

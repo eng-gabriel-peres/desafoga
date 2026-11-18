@@ -81,6 +81,16 @@ export const servicosDaApi: Servicos = {
     listar: (id) => chamar("orcamentos.listar", [id]),
     salvar: (id, categoria, limite) => chamar("orcamentos.salvar", [id, categoria, limite], true),
   },
+  dinheiro: {
+    ver: (id) => chamar("dinheiro.ver", [id]),
+    informarSaldo: (id, valor) => chamar("dinheiro.informarSaldo", [id, valor], true),
+    lancar: (id, l) => chamar("dinheiro.lancar", [id, l], true),
+    apagarLancamento: (id, l) => chamar("dinheiro.apagarLancamento", [id, l], true),
+    pagarFatura: (id, c, vence, valor) => chamar("dinheiro.pagarFatura", [id, c, vence, valor], true),
+    desfazerFatura: (id, c, vence) => chamar("dinheiro.desfazerFatura", [id, c, vence], true),
+    salvarCartao: (id, c) => chamar("cartoes.salvar", [id, c], true),
+    removerCartao: (id, c) => chamar("cartoes.remover", [id, c], true),
+  },
   conteudos: {
     feed: () => chamar("conteudos.feed"),
     ver: (id) => chamar("conteudos.ver", [id]),

@@ -33,7 +33,7 @@ import { hojeEmBrasilia } from "@/lib/luana/lancamentos";
 import { avisarUmaVez } from "./repositorio-banco";
 import { conferirConquistas } from "./repositorio-conquistas";
 import { avisarCompraForaDaRegra } from "./repositorio-eventos";
-import { cartaoDaPessoa } from "./repositorio-dinheiro";
+import { cartaoDaPessoa, cartoesDaPessoa } from "./repositorio-dinheiro";
 import { prisma } from "./prisma";
 
 export type Canal = "app" | "whatsapp";
@@ -285,7 +285,7 @@ export async function acompanhados(profissionalId: string): Promise<Persona[]> {
 }
 
 export async function contextoDoAssistente(pessoaId: string, canal: Canal, agora = new Date()): Promise<ContextoAssistente> {
-  const [p, c, d, pl, f, m, profs, orc, mt, contas, pags, rd] = await Promise.all([
+  const [p, c, d, pl, f, m, profs, orc, mt, contas, pags, rd, cartoes, saldoInformado] = await Promise.all([
     persona(pessoaId),
     compras(pessoaId),
     dividas(pessoaId),
@@ -298,6 +298,8 @@ export async function contextoDoAssistente(pessoaId: string, canal: Canal, agora
     contasFixas(pessoaId),
     pagamentos(pessoaId, agora),
     renda(pessoaId),
+    cartoesDaPessoa(pessoaId),
+    prisma().saldoInformado.count({ where: { pessoaId } }),
   ]);
   if (!p) throw new Error("Pessoa não encontrada");
   return {
@@ -316,6 +318,8 @@ export async function contextoDoAssistente(pessoaId: string, canal: Canal, agora
     renda: rd,
     agora,
     canal,
+    cartoes: cartoes.map((x) => ({ id: x.id, nome: x.nome })),
+    acompanhaODinheiro: cartoes.length > 0 || saldoInformado > 0,
   };
 }
 

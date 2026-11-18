@@ -83,6 +83,10 @@ export interface ContextoAssistente {
   agora: Date;
   /** Por onde a conversa acontece: a compra registrada guarda a origem. */
   canal: "app" | "whatsapp";
+  /** Cartões da pessoa (à mão e do banco), para "como você pagou?". */
+  cartoes?: { id: string; nome: string }[];
+  /** Tem cartão cadastrado ou saldo informado: a Luana pergunta como pagou. */
+  acompanhaODinheiro?: boolean;
 }
 
 /** Compra que a pessoa contou e ainda falta classificar. */
@@ -98,6 +102,7 @@ export type EstadoConversa =
   | { etapa: "emocao"; compras: CompraContada[] }
   /** emocao null: a pessoa não lembra como estava. */
   | { etapa: "necessidade"; compras: CompraContada[]; emocao: Emocao | null }
+  | { etapa: "pagamento"; compras: CompraContada[]; emocao: Emocao | null; necessidade: Necessidade }
   /** A pessoa guardou dinheiro e tem mais de uma meta ativa: falta saber qual. */
   | { etapa: "meta"; valor: number; descricao: string };
 
@@ -281,7 +286,27 @@ function respostaSofrimento(ctx: ContextoAssistente): Resultado {
   };
 }
 
-function registrar(ctx: ContextoAssistente, contadas: CompraContada[], emocao: Emocao | null, necessidade: Necessidade): Resultado {
+type PagamentoContado = { meio: NonNullable<NovaCompra["meio"]>; cartaoId: string | null } | null;
+
+/** Débito/Pix, dinheiro ou o cartão pelo nome; "qual" quando disse "cartão" e tem mais de um; undefined se não entendeu. */
+function lerPagamento(texto: string, cartoes: { id: string; nome: string }[]): PagamentoContado | "qual" | undefined {
+  const t = normalizar(texto);
+  const peloNome = cartoes.find((c) => t.includes(normalizar(c.nome)));
+  if (peloNome) return { meio: "cartao", cartaoId: peloNome.id };
+  if (/debito|\bpix\b|\bconta\b|transferi/.test(t)) return { meio: "conta", cartaoId: null };
+  if (/dinheiro|especie|\bvivo\b/.test(t)) return { meio: "dinheiro", cartaoId: null };
+  if (/cartao|credito/.test(t)) return cartoes.length === 1 ? { meio: "cartao", cartaoId: cartoes[0].id } : cartoes.length ? "qual" : null;
+  if (/pular|nao sei|nao lembro|tanto faz/.test(t)) return null;
+  return undefined;
+}
+
+const rapidasDoPagamento = (ctx: ContextoAssistente): RespostaRapida[] => [
+  { rotulo: "Débito ou Pix" },
+  { rotulo: "Dinheiro" },
+  ...(ctx.cartoes ?? []).map((c) => ({ rotulo: c.nome })),
+];
+
+function registrar(ctx: ContextoAssistente, contadas: CompraContada[], emocao: Emocao | null, necessidade: Necessidade, pagamento: PagamentoContado = null): Resultado {
   const novas: NovaCompra[] = contadas.map((c) => ({
     item: c.item,
     categoria: c.categoria ?? adivinharCategoria(c.item),
@@ -290,6 +315,7 @@ function registrar(ctx: ContextoAssistente, contadas: CompraContada[], emocao: E
     ...(emocao === null ? { naoLembra: true } : {}),
     necessidade,
     via: ctx.canal,
+    ...(pagamento ? { meio: pagamento.meio, cartaoId: pagamento.cartaoId } : {}),
   }));
   const registradas: Compra[] = novas.map((c, i) => ({ ...c, id: `nova-${i}`, quando: ctx.agora.toISOString(), avaliacaoProfissional: null }));
   const hoje = comprasDoDia([...ctx.compras, ...registradas], chaveDoDia(ctx.agora));
@@ -433,8 +459,19 @@ function continuarCompra(estado: Exclude<EstadoConversa, { etapa: "livre" }>, te
     const pergunta = estado.compras.length === 1 ? "Essa compra era necessária?" : "Essas compras eram necessárias?";
     return so({ ...estado, etapa: "necessidade", emocao }, { texto: pergunta, respostasRapidas: RAPIDAS_NECESSIDADE });
   }
+  if (estado.etapa === "pagamento") {
+    const cartoes = ctx.cartoes ?? [];
+    const p = lerPagamento(texto, cartoes);
+    if (p === "qual") return so(estado, { texto: "Em qual cartão?", respostasRapidas: cartoes.map((c) => ({ rotulo: c.nome })) });
+    if (p === undefined) return so(estado, { texto: "Foi no débito ou Pix, em dinheiro ou em qual cartão?", respostasRapidas: rapidasDoPagamento(ctx) });
+    return registrar(ctx, estado.compras, estado.emocao, estado.necessidade, p);
+  }
   const necessidade = lerNecessidade(texto);
   if (!necessidade) return so(estado, { texto: "Responda Sim, Não ou Não sei.", respostasRapidas: RAPIDAS_NECESSIDADE });
+  // Quem acompanha o dinheiro (cartão ou saldo): a compra cai na conta ou na fatura certa.
+  if (ctx.acompanhaODinheiro) {
+    return so({ etapa: "pagamento", compras: estado.compras, emocao: estado.emocao, necessidade }, { texto: "Como você pagou?", respostasRapidas: rapidasDoPagamento(ctx) });
+  }
   return registrar(ctx, estado.compras, estado.emocao, necessidade);
 }
 

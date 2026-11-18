@@ -123,6 +123,23 @@ describe("conversa da Luana", () => {
     expect(fim.respostas[0].texto).not.toContain("Sua nota de hoje agora é NaN");
   });
 
+  it("quem acompanha o dinheiro: depois de \"era necessária?\", a Luana pergunta como pagou", () => {
+    const comCartao: ContextoAssistente = { ...ctx, acompanhaODinheiro: true, cartoes: [{ id: "nu", nome: "Nubank" }, { id: "it", nome: "Itaú" }] };
+    const inicio = iniciarRegistro([{ item: "Tênis", valor: 19990, categoria: "Roupa" }]);
+    const nec = responder(responder(inicio.estado, "2", comCartao).estado, "não", comCartao);
+    expect(nec.respostas[0].texto).toBe("Como você pagou?");
+    expect(nec.respostas[0].respostasRapidas?.map((r) => r.rotulo)).toEqual(["Débito ou Pix", "Dinheiro", "Nubank", "Itaú"]);
+    const noCartao = responder(nec.estado, "nubank", comCartao);
+    expect(noCartao.efeitos[0]).toMatchObject({ compra: { item: "Tênis", meio: "cartao", cartaoId: "nu" } });
+    expect(responder(nec.estado, "pix", comCartao).efeitos[0]).toMatchObject({ compra: { meio: "conta", cartaoId: null } });
+    expect(responder(nec.estado, "em dinheiro", comCartao).efeitos[0]).toMatchObject({ compra: { meio: "dinheiro" } });
+    // "Cartão" com mais de um cartão: pergunta qual.
+    expect(responder(nec.estado, "cartão", comCartao).estado).toMatchObject({ etapa: "pagamento" });
+    // Sem acompanhar o dinheiro, registra direto (como antes).
+    const semAcompanhar = responder(responder(inicio.estado, "2", ctx).estado, "não", ctx);
+    expect(semAcompanhar.efeitos).toHaveLength(1);
+  });
+
   it("pergunta o valor quando faltar e insiste se não entender", () => {
     const { resultados } = conversar("comprei um tênis", "não sei", "199,90");
     expect(resultados[0].respostas[0].texto).toBe("Quanto custou tênis?");

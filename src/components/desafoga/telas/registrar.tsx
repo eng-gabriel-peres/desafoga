@@ -28,6 +28,7 @@ import { useMinhaPessoaId } from "../sessao";
 import { Botao } from "../ui/botao";
 import { Carinha, COR_DA_EMOCAO } from "../ui/carinha";
 import type { PreviaDoRegistro } from "../registro";
+import { ComoPagou, guardarPagamento, SEM_PAGAMENTO, type Pagamento } from "../como-pagou";
 
 interface Rascunho {
   item: string;
@@ -36,9 +37,11 @@ interface Rascunho {
   emocao: Emocao | null;
   /** "Não lembro como eu estava": registra sem emoção (fora da nota do dia). */
   naoLembra: boolean;
+  /** Como pagou (só no registro à mão; a compra do banco já sabe). */
+  pagamento: Pagamento;
 }
 
-const VAZIO: Rascunho = { item: "", valorTexto: "", categoria: null, emocao: null, naoLembra: false };
+const VAZIO: Rascunho = { item: "", valorTexto: "", categoria: null, emocao: null, naoLembra: false, pagamento: SEM_PAGAMENTO };
 
 /** "na segunda-feira, 16 de novembro" (ou "no sábado, …") a partir de "YYYY-MM-DD". */
 const noDia = (dia: string) => {
@@ -60,7 +63,7 @@ export function TelaRegistrar() {
 export function FluxoDeRegistro({ fechar, previa }: { fechar: () => void; previa?: PreviaDoRegistro }) {
   const pessoaId = useMinhaPessoaId();
   // A prévia não muda enquanto a janela está aberta (cada abertura remonta o fluxo).
-  const inicial = useMemo<Rascunho>(() => (previa ? { item: previa.item, valorTexto: "", categoria: previa.categoria, emocao: null, naoLembra: false } : VAZIO), [previa]);
+  const inicial = useMemo<Rascunho>(() => (previa ? { item: previa.item, valorTexto: "", categoria: previa.categoria, emocao: null, naoLembra: false, pagamento: SEM_PAGAMENTO } : VAZIO), [previa]);
   // Completar uma compra do banco começa direto em "como você estava".
   const primeiroPasso = previa?.tipo === "completar" ? 2 : 1;
   const [passo, setPasso] = useState<1 | 2 | 3 | 4>(primeiroPasso);
@@ -102,7 +105,19 @@ export function FluxoDeRegistro({ fechar, previa }: { fechar: () => void; previa
       } else if (previa?.tipo === "completar") {
         await servicos.banco.completarEmocao(pessoaId, previa.compraId, rascunho.emocao, necessidade);
       } else {
-        await servicos.compras.registrar(pessoaId, { item, valor, categoria: rascunho.categoria, emocao: rascunho.emocao, necessidade, via: "app" });
+        const { meio, cartaoId, parcelas } = rascunho.pagamento;
+        await servicos.compras.registrar(pessoaId, {
+          item,
+          valor,
+          categoria: rascunho.categoria,
+          emocao: rascunho.emocao,
+          necessidade,
+          via: "app",
+          meio,
+          cartaoId,
+          parcelas: meio === "cartao" && parcelas > 1 ? parcelas : null,
+        });
+        guardarPagamento(pessoaId, rascunho.pagamento);
       }
     } catch (e) {
       setSalvando(false);
@@ -215,6 +230,7 @@ export function FluxoDeRegistro({ fechar, previa }: { fechar: () => void; previa
               })}
             </div>
           </fieldset>
+          {!previa && <ComoPagou pessoaId={pessoaId} valor={lerValorEmReais(rascunho.valorTexto)} pagamento={rascunho.pagamento} mudar={(p) => mudar({ pagamento: p })} />}
           {erro && (
             <p role="alert" className="mt-3 font-bold text-bad">
               {erro}

@@ -157,6 +157,7 @@ export type {
   TipoDeEvento,
   TipoDePost,
 } from "@/lib/desafoga/servidor/repositorio-eventos";
+export type { CartaoVisto, DinheiroDaPessoa, FaturaVista, NovoCartao } from "@/lib/desafoga/servidor/repositorio-dinheiro";
 export type { ComentarioVisto, ConteudoNoFeed, Criador, DetalheDoConteudo, FeedDeConteudos, NovoConteudo } from "@/lib/desafoga/servidor/repositorio-conteudos";
 export type { InvestimentoDoBanco, SugestaoGuardada } from "@/lib/desafoga/servidor/repositorio-banco";
 export type { ResultadoDaSincronizacao } from "@/lib/banco/sincronizar";
