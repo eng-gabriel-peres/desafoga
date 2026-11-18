@@ -314,6 +314,12 @@ export async function registrarCompra(pessoaId: string, nova: NovaCompra, quando
   return paraCompra(criada);
 }
 
+/** O profissional diz se a compra era necessária (null desfaz). Só compra desta pessoa. */
+export async function avaliarCompra(pessoaId: string, compraId: string, avaliacao: Necessidade | null): Promise<void> {
+  const r = await prisma().compra.updateMany({ where: { id: compraId, pessoaId }, data: { avaliacaoProfissional: avaliacao } });
+  if (!r.count) throw new NaoEncontrado("Compra não encontrada.");
+}
+
 /** Cria (sem id) ou atualiza uma dívida da pessoa. */
 export async function salvarDivida(pessoaId: string, d: Omit<Divida, "id"> & { id?: string }): Promise<Divida> {
   const dados = {

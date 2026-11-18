@@ -89,6 +89,8 @@ export interface PessoasService {
 export interface ComprasService {
   listar(pessoaId: string): Promise<Compra[]>;
   registrar(pessoaId: string, compra: NovaCompra): Promise<Compra>;
+  /** Só quem acompanha: a compra era necessária na opinião do profissional (null desfaz). A pessoa não vê. */
+  avaliar(pessoaId: string, compraId: string, avaliacao: Necessidade | null): Promise<void>;
 }
 
 export interface DividasService {

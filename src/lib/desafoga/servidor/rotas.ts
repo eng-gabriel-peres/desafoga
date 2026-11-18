@@ -297,8 +297,14 @@ const ACOES = {
 
   // ----- compras e dívidas -----
   "compras.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
-    await exigirVer(sessao, p);
-    return repo.compras(p);
+    const s = await exigirVer(sessao, p);
+    const compras = await repo.compras(p);
+    // A avaliação é do profissional: a pessoa vê só a própria resposta (como no protótipo).
+    return s.pessoa?.id === p ? compras.map((c) => ({ ...c, avaliacaoProfissional: null })) : compras;
+  }),
+  "compras.avaliar": acao(z.tuple([id, id, z.enum(["sim", "nao"]).nullable()]), async ([p, c, avaliacao], { sessao }) => {
+    await exigirProfissionalDe(sessao, p);
+    await repo.avaliarCompra(p, c, avaliacao);
   }),
   "compras.registrar": acao(
     z.tuple([id, z.object({ item: texto(80), categoria, valor: centavos.min(1), emocao, necessidade, via: z.enum(["app", "whatsapp", "fatura"]) })]),

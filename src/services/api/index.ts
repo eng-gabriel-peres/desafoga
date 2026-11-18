@@ -67,6 +67,7 @@ export const servicosDaApi: Servicos = {
   compras: {
     listar: (id) => chamar("compras.listar", [id]),
     registrar: (id, nova) => chamar("compras.registrar", [id, nova], true),
+    avaliar: (id, compraId, avaliacao) => chamar("compras.avaliar", [id, compraId, avaliacao], true),
   },
   dividas: {
     listar: (id) => chamar("dividas.listar", [id]),
