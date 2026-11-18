@@ -8,7 +8,7 @@ import type { NovaSessao, SessaoAtual } from "./sessao";
 
 const url = process.env.TEST_DATABASE_URL;
 
-describe.runIf(url)("eventos", () => {
+describe.runIf(url)("eventos", { timeout: 30_000 }, () => {
   let prisma: typeof import("./prisma").prisma;
 
   beforeAll(async () => {
@@ -64,19 +64,48 @@ describe.runIf(url)("eventos", () => {
     };
   }
 
-  it("a profissional cria um desafio; a Luana avisa quem entrou; só participantes e a dona veem", async () => {
+  it("a profissional convida; a pessoa só aparece para o grupo depois de aceitar; pode sair", async () => {
     const { paula, ana, carlos } = await demo();
-    const { id } = await chamar<{ id: string }>("eventos.criar", [desafio([ana])], paula);
+    const { id } = await chamar<{ id: string }>("eventos.criar", [desafio([ana, carlos])], paula);
     const msgs = await prisma().mensagem.findMany({ where: { pessoaId: ana, de: "assistente" }, orderBy: { quando: "desc" }, take: 1 });
-    expect(msgs[0].texto).toMatch(/Você entrou no desafio Teste sem delivery!\nRegra: Nenhuma compra de Comida pronta/);
+    expect(msgs[0].texto).toMatch(/Paula Reis convidou você para o desafio Teste sem delivery!\nRegra: Nenhuma compra de Comida pronta/);
 
+    // Convite pendente: a Ana vê o básico, não vê o grupo nem o mural, e não posta.
     const anaS = await entrar("ana", paula);
-    expect((await chamar<{ id: string }[]>("eventos.listar", [], anaS)).some((e) => e.id === id)).toBe(true);
+    const pendente = await chamar<SalaDoEvento>("eventos.ver", [id], anaS);
+    expect(pendente).toMatchObject({ convitePendente: true, participantes: [], posts: [], ranking: null, grupo: null });
+    await expect(chamar("eventos.postar", [id, "recado", "oi"], anaS)).rejects.toThrow();
+    await chamar("eventos.aceitar", [id], anaS);
+
+    // O Carlos ainda não aceitou: a Ana não o vê.
+    const aceita = await chamar<SalaDoEvento>("eventos.ver", [id], anaS);
+    expect(aceita.convitePendente).toBe(false);
+    expect(aceita.participantes.map((p) => p.pessoaId)).toEqual([ana]);
+    expect(aceita.ranking?.map((r) => r.pessoaId)).toEqual([ana]);
+
     const carlosS = await entrar("carlos", anaS);
+    await chamar("eventos.aceitar", [id], carlosS);
+    const daCarlos = await chamar<SalaDoEvento>("eventos.ver", [id], carlosS);
+    // Dos outros, só o primeiro nome e nada de data de entrada.
+    expect(daCarlos.participantes.find((p) => p.pessoaId === ana)).toMatchObject({ nome: "Ana", entrouEm: null });
+    await chamar("eventos.postar", [id, "recado", "Tô dentro"], carlosS);
+    await chamar("eventos.sair", [id], carlosS);
+    expect((await chamar<{ id: string }[]>("eventos.listar", [], carlosS)).some((e) => e.id === id)).toBe(false);
+    const paula2 = await entrar("paula", carlosS);
+    const daDona = await chamar<SalaDoEvento>("eventos.ver", [id], paula2);
+    expect(daDona.participantes.map((p) => p.pessoaId)).toEqual([ana]);
+    // Quem sai leva os próprios posts.
+    expect(daDona.posts.some((p) => p.texto === "Tô dentro")).toBe(false);
+  });
+
+  it("quem não foi convidado não vê nem posta", async () => {
+    const { paula, ana } = await demo();
+    const { id } = await chamar<{ id: string }>("eventos.criar", [desafio([ana])], paula);
+    const carlosS = await entrar("carlos", paula);
     expect((await chamar<{ id: string }[]>("eventos.listar", [], carlosS)).some((e) => e.id === id)).toBe(false);
     await expect(chamar("eventos.ver", [id], carlosS)).rejects.toThrow();
     await expect(chamar("eventos.postar", [id, "recado", "oi"], carlosS)).rejects.toThrow();
-    void carlos;
+    await expect(chamar("eventos.aceitar", [id], carlosS)).rejects.toThrow();
   });
 
   it("pessoa não cria evento nem põe quem a profissional não acompanha", async () => {
@@ -92,26 +121,32 @@ describe.runIf(url)("eventos", () => {
   it("ranking: a pessoa vê nome e pontos dos outros, nunca as compras nem os dias deles; desligado, só a dona vê", async () => {
     const { paula, ana, carlos } = await demo();
     const { id } = await chamar<{ id: string }>("eventos.criar", [desafio([ana, carlos])], paula);
-    const daDona = await chamar<SalaDoEvento>("eventos.ver", [id], paula);
+    const carlosS = await entrar("carlos", paula);
+    await chamar("eventos.aceitar", [id], carlosS);
+    const anaS = await entrar("ana", carlosS);
+    await chamar("eventos.aceitar", [id], anaS);
+    const paulaS = await entrar("paula", anaS);
+    const daDona = await chamar<SalaDoEvento>("eventos.ver", [id], paulaS);
     expect(daDona.ranking).toHaveLength(2);
     expect(daDona.andamento.map((a) => a.pessoaId).sort()).toEqual([ana, carlos].sort());
-
-    const anaS = await entrar("ana", paula);
-    const daAna = await chamar<SalaDoEvento>("eventos.ver", [id], anaS);
+    const anaS1 = await entrar("ana", paulaS);
+    const daAna = await chamar<SalaDoEvento>("eventos.ver", [id], anaS1);
     expect(daAna.ranking?.map((r) => Object.keys(r).sort())[0]).toEqual(["apelido", "contados", "cor", "nome", "ok", "pessoaId", "pontos", "posicao", "sequencia"]);
     expect(daAna.andamento.map((a) => a.pessoaId)).toEqual([ana]);
     expect(JSON.stringify(daAna)).not.toMatch(/"item"|"valor"/);
 
-    const paula2 = await entrar("paula", anaS);
+    const paula2 = await entrar("paula", anaS1);
     await chamar("eventos.configurar", [id, { mostrarRanking: false }], paula2);
     const anaS2 = await entrar("ana", paula2);
-    expect((await chamar<SalaDoEvento>("eventos.ver", [id], anaS2)).ranking).toBeNull();
+    // Sem ranking, nem a porcentagem do grupo (com poucas pessoas, ela entrega os outros).
+    expect(await chamar<SalaDoEvento>("eventos.ver", [id], anaS2)).toMatchObject({ ranking: null, grupo: null });
   });
 
   it("mural: aviso só da dona; apoiar alterna; fixar só a dona; apagar a dona ou quem escreveu", async () => {
     const { paula, ana } = await demo();
     const { id } = await chamar<{ id: string }>("eventos.criar", [desafio([ana])], paula);
     const anaS = await entrar("ana", paula);
+    await chamar("eventos.aceitar", [id], anaS);
     await expect(chamar("eventos.postar", [id, "aviso", "Atenção"], anaS)).rejects.toThrow();
     const post = await chamar<{ id: string }>("eventos.postar", [id, "dica", "Fiz marmita"], anaS);
     await chamar("eventos.apoiar", [id, post.id], anaS);
@@ -130,7 +165,7 @@ describe.runIf(url)("eventos", () => {
     await chamar("eventos.apagarPost", [id, post.id], anaS2);
     sala = await chamar<SalaDoEvento>("eventos.ver", [id], anaS2);
     expect(sala.posts.some((p) => p.id === post.id)).toBe(false);
-    // Entrar no evento vira post do sistema.
+    // Aceitar o convite vira post do sistema.
     expect(sala.posts.some((p) => p.autor.tipo === "sistema")).toBe(true);
   });
 
@@ -139,6 +174,7 @@ describe.runIf(url)("eventos", () => {
     const presencial = { ...desafio([ana, lucia]), tipo: "presencial", regra: null, categoria: null, inicio: null, fim: null, data: somar(hoje(), 3), hora: "19:00", local: "Sala 2" };
     const { id } = await chamar<{ id: string }>("eventos.criar", [presencial], paula);
     const anaS = await entrar("ana", paula);
+    await chamar("eventos.aceitar", [id], anaS);
     await chamar("eventos.responder", [id, "vou"], anaS);
     const sala = await chamar<SalaDoEvento>("eventos.ver", [id], anaS);
     expect(sala.participantes.find((p) => p.pessoaId === ana)?.resposta).toBe("vou");

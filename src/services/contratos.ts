@@ -148,6 +148,10 @@ export interface EventosService {
   configurar(eventoId: string, mudancas: { mostrarRanking: boolean }): Promise<void>;
   apagar(eventoId: string): Promise<void>;
   responder(eventoId: string, resposta: RespostaAoEncontro): Promise<void>;
+  /** A pessoa aceita o convite e passa a aparecer para o grupo. */
+  aceitar(eventoId: string): Promise<void>;
+  /** Recusar o convite ou sair do evento (leva os próprios posts). */
+  sair(eventoId: string): Promise<void>;
   postar(eventoId: string, tipo: Exclude<TipoDePost, "sistema">, texto: string): Promise<{ id: string }>;
   apoiar(eventoId: string, postId: string): Promise<void>;
   fixar(eventoId: string, postId: string): Promise<void>;

@@ -333,7 +333,7 @@ async function criarEventosDaDemo(db: Transacao, pessoas: Record<string, string>
         hora: e.hora ?? null,
         local: e.local ?? null,
         premio: e.premio ?? "",
-        participantes: { create: e.participantes.map((p) => ({ pessoaId: pessoas[p.quem], entrouEm: dia(p.entrou), resposta: p.resposta ?? null })) },
+        participantes: { create: e.participantes.map((p) => ({ pessoaId: pessoas[p.quem], entrouEm: dia(p.entrou), resposta: p.resposta ?? null, aceito: true })) },
       },
     });
     for (const p of e.posts) {

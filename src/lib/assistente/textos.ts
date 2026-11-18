@@ -185,12 +185,12 @@ export function regraEmTexto(r: RegrasDoDesafio): string {
   return "Nenhuma compra não necessária";
 }
 
-export function mensagemDeEntradaNoDesafio(e: RegrasDoDesafio & { nome: string; inicio: string; fim: string; premio: string }): string {
-  return `🎯 Você entrou no desafio ${e.nome}!\nRegra: ${regraEmTexto(e)}.\nDe ${dataCurtaDaChave(e.inicio)} a ${dataCurtaDaChave(e.fim)}${e.premio ? `\nPrêmio: ${e.premio}` : ""}\nÉ só registrar suas compras normalmente que eu confiro para você.`;
+export function mensagemDeConviteParaDesafio(profissional: string, e: RegrasDoDesafio & { nome: string; inicio: string; fim: string; premio: string }): string {
+  return `🎯 ${profissional} convidou você para o desafio ${e.nome}!\nRegra: ${regraEmTexto(e)}.\nDe ${dataCurtaDaChave(e.inicio)} a ${dataCurtaDaChave(e.fim)}${e.premio ? `\nPrêmio: ${e.premio}` : ""}\nSe quiser participar, aceite o convite em Eventos, no app. Depois é só registrar suas compras que eu confiro para você.`;
 }
 
-export function mensagemDeConviteParaEncontro(e: { nome: string; data: string; hora: string; local: string }): string {
-  return `📅 Convite: ${e.nome}\n${dataLongaDaChave(e.data)}, ${e.hora}\n📍 ${e.local}\nMe diga se você vai em Eventos, no app.`;
+export function mensagemDeConviteParaEncontro(profissional: string, e: { nome: string; data: string; hora: string; local: string }): string {
+  return `📅 ${profissional} convidou você: ${e.nome}\n${dataLongaDaChave(e.data)}, ${e.hora}\n📍 ${e.local}\nAceite o convite em Eventos, no app, e me diga se você vai.`;
 }
 
 // ---------- check-ins da rotina ----------

@@ -70,6 +70,8 @@ model Pessoa {
   estados            EstadoConversa[]
   conquistas         Conquista[]
   participacoes      ParticipanteDoEvento[]
+  comentarios        ComentarioDoConteudo[]
+  seguindo           Seguir[]
   postsDeEventos     PostDoEvento[]
   acompanhamentos    Acompanhamento[]
   sessoes            Sessao[]
@@ -106,12 +108,17 @@ model Profissional {
   cor             String
   /// Código que a pessoa digita para ser acompanhada por este profissional.
   convite         String           @unique
+  /// Apresentação no perfil de Conteúdos.
+  bio             String           @default("")
   criadoEm        DateTime         @default(now())
   acompanhamentos Acompanhamento[]
   anotacoes       Anotacao[]
   sessoes         Sessao[]
   conquistas      Conquista[]
   eventos         Evento[]
+  conteudos       Conteudo[]
+  comentarios     ComentarioDoConteudo[]
+  seguidores      Seguir[]
   postsDeEventos  PostDoEvento[]
 
   @@unique([espacoId, slug])
@@ -686,6 +693,8 @@ model ParticipanteDoEvento {
   entrouEm String
   /// Presencial: vou, talvez, nao (null sem resposta).
   resposta String?
+  /// O profissional convida; só depois de aceitar a pessoa aparece para o grupo.
+  aceito   Boolean @default(false)
 
   @@id([eventoId, pessoaId])
   @@index([pessoaId])
@@ -720,4 +729,75 @@ model ApoioDoPost {
 
   @@id([postId, quem])
   @@map("apoios_dos_posts")
+}
+
+/// Publicação de um profissional no feed de Conteúdos (visto por todo o espaço).
+model Conteudo {
+  id               String                 @id @default(uuid())
+  profissionalId   String
+  profissional     Profissional           @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  /// dica, artigo, carrossel, enquete.
+  tipo             String
+  tema             String
+  /// azul, ambar, verde, violeta, rosa, petroleo.
+  cor              String
+  titulo           String
+  /// Dica: a frase. Carrossel: a legenda.
+  texto            String                 @default("")
+  /// Artigo: os parágrafos.
+  corpo            String[]
+  /// Carrossel: os cartões depois do título.
+  cartoes          String[]
+  /// Enquete: as opções.
+  opcoes           String[]
+  /// Só na demonstração, para o feed não parecer vazio.
+  curtidasIniciais Int                    @default(0)
+  votosIniciais    Int[]
+  criadoEm         DateTime               @default(now())
+  reacoes          ReacaoAoConteudo[]
+  comentarios      ComentarioDoConteudo[]
+
+  @@index([profissionalId])
+  @@index([criadoEm])
+  @@map("conteudos")
+}
+
+/// Curtir, salvar ou votar (`opcao`) num conteúdo. `quem` é o id da pessoa ou do profissional.
+model ReacaoAoConteudo {
+  conteudoId String
+  conteudo   Conteudo @relation(fields: [conteudoId], references: [id], onDelete: Cascade)
+  quem       String
+  /// curtir, salvar, votar.
+  tipo       String
+  opcao      Int?
+
+  @@id([conteudoId, quem, tipo])
+  @@map("reacoes_aos_conteudos")
+}
+
+model ComentarioDoConteudo {
+  id             String        @id @default(uuid())
+  conteudoId     String
+  conteudo       Conteudo      @relation(fields: [conteudoId], references: [id], onDelete: Cascade)
+  pessoaId       String?
+  pessoa         Pessoa?       @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  profissionalId String?
+  profissional   Profissional? @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  texto          String
+  criadoEm       DateTime      @default(now())
+
+  @@index([conteudoId, criadoEm])
+  @@map("comentarios_dos_conteudos")
+}
+
+/// A pessoa segue o profissional em Conteúdos.
+model Seguir {
+  pessoaId       String
+  pessoa         Pessoa       @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  profissionalId String
+  profissional   Profissional @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  desde          DateTime     @default(now())
+
+  @@id([pessoaId, profissionalId])
+  @@map("seguir")
 }

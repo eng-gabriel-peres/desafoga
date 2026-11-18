@@ -47,8 +47,8 @@ export function PilhaDeAvatares({ participantes }: { participantes: Participante
 }
 
 /** Data, regra (ou local) e prêmio. */
-export function LinhasDoEvento({ evento: e }: { evento: SalaDoEvento }) {
-  const linhas: [typeof CalendarDays, string][] = [[CalendarDays, quandoDoEvento(e)]];
+export function LinhasDoEvento({ evento: e, semData }: { evento: SalaDoEvento; semData?: boolean }) {
+  const linhas: [typeof CalendarDays, string][] = semData ? [] : [[CalendarDays, quandoDoEvento(e)]];
   if (e.tipo === "desafio") linhas.push([ListChecks, regraDoEvento(e)]);
   else linhas.push([MapPin, e.local ?? ""]);
   if (e.tipo === "desafio" && e.premio) linhas.push([Gift, e.premio]);
@@ -146,3 +146,39 @@ export function VoceVai({ evento, atual }: { evento: SalaDoEvento; atual: Respos
 
 /** Hoje em Brasília, como o servidor conta os dias do desafio. */
 export const hojeNoBrasil = (agora: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(agora);
+
+/** Convite ainda não aceito: o que é, e aceitar ou recusar. Ninguém do grupo vê a pessoa antes de aceitar. */
+export function ConviteDoEvento({ evento }: { evento: SalaDoEvento }) {
+  const [enviando, setEnviando] = useState(false);
+  const agir = (f: () => Promise<void>) => async () => {
+    setEnviando(true);
+    await f().finally(() => setEnviando(false));
+  };
+  return (
+    <div className="mt-3 rounded-xl bg-primary-soft p-3">
+      <p className="font-bold">{evento.profissional.nome} convidou você.</p>
+      <p className="mt-0.5 text-[0.88rem] text-muted">
+        {evento.pessoasNoGrupo === 0 ? "Ninguém aceitou ainda" : `${evento.pessoasNoGrupo} ${evento.pessoasNoGrupo === 1 ? "pessoa já participa" : "pessoas já participam"}`}. Quem participa vê o seu primeiro nome
+        {evento.tipo === "desafio" ? " e os seus pontos, nunca as suas compras." : " e se você vai."}
+      </p>
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={enviando}
+          onClick={agir(() => servicos.eventos.aceitar(evento.id))}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-[var(--radius-ctl)] bg-primary px-4 font-bold text-primary-ink"
+        >
+          <Check aria-hidden="true" className="size-4" /> Aceitar convite
+        </button>
+        <button
+          type="button"
+          disabled={enviando}
+          onClick={agir(() => servicos.eventos.sair(evento.id))}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-[var(--radius-ctl)] border-2 border-line bg-surface px-4 font-bold"
+        >
+          <X aria-hidden="true" className="size-4" /> Recusar
+        </button>
+      </div>
+    </div>
+  );
+}

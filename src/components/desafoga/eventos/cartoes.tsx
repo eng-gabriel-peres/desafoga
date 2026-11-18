@@ -6,7 +6,7 @@ import type { SalaDoEvento } from "@/services";
 import { Sub } from "../ui/blocos";
 import { BotaoLink } from "../ui/botao";
 import { Barra } from "../ui/campos";
-import { Bolinhas, EtiquetaDaFase, hojeNoBrasil, IconeDoEvento, LinhasDoEvento, nomeDoTipo, PilhaDeAvatares, quandoDoEvento, regraDoEvento, VoceVai } from "./visual";
+import { Bolinhas, ConviteDoEvento, EtiquetaDaFase, hojeNoBrasil, IconeDoEvento, LinhasDoEvento, nomeDoTipo, PilhaDeAvatares, quandoDoEvento, regraDoEvento, VoceVai } from "./visual";
 
 function Topo({ evento: e, detalhe }: { evento: SalaDoEvento; detalhe: string }) {
   return (
@@ -32,7 +32,8 @@ export function CartaoDoEvento({ evento: e }: { evento: SalaDoEvento }) {
       <div className="mt-3 flex items-center gap-2">
         <PilhaDeAvatares participantes={e.participantes} />
         <span className="text-[0.88rem] text-muted">
-          {e.participantes.length} {e.participantes.length === 1 ? "pessoa" : "pessoas"}
+          {e.pessoasNoGrupo} {e.pessoasNoGrupo === 1 ? "pessoa" : "pessoas"}
+          {e.participantes.length > e.pessoasNoGrupo && `, ${e.participantes.length - e.pessoasNoGrupo} com convite pendente`}
         </span>
       </div>
       {e.tipo === "desafio" ? (
@@ -56,6 +57,16 @@ export function CartaoDoMeuEvento({ evento: e, pessoaId, agora }: { evento: Sala
   const eu = e.participantes.find((p) => p.pessoaId === pessoaId);
   const posicao = e.ranking?.find((r) => r.pessoaId === pessoaId);
   const hojeOk = meu?.dias.find((d) => d.dia === hoje)?.estado;
+  if (e.convitePendente) {
+    return (
+      <article className="entrar rounded-[var(--radius-card)] border-2 border-primary bg-surface p-4">
+        <Topo evento={e} detalhe={quandoDoEvento(e)} />
+        {e.descricao && <p className="mt-2.5 text-[0.95rem]">{e.descricao}</p>}
+        <LinhasDoEvento evento={e} semData />
+        <ConviteDoEvento evento={e} />
+      </article>
+    );
+  }
   return (
     <article className="entrar rounded-[var(--radius-card)] border border-line bg-surface p-4">
       <Topo evento={e} detalhe={quandoDoEvento(e)} />

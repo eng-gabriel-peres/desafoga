@@ -797,6 +797,16 @@ const ACOES = {
     if (!s.pessoa) throw new SemPermissao("Só quem participa responde.");
     await repo.responderEncontro(e, s.pessoa.id, r);
   }),
+  "eventos.aceitar": acao(z.tuple([id]), async ([e], { sessao }) => {
+    const s = exigirSessao(sessao);
+    if (!s.pessoa) throw new SemPermissao("Só quem foi convidado aceita.");
+    await repo.aceitarConvite(e, s.pessoa.id);
+  }),
+  "eventos.sair": acao(z.tuple([id]), async ([e], { sessao }) => {
+    const s = exigirSessao(sessao);
+    if (!s.pessoa) throw new SemPermissao("Só quem participa sai do evento.");
+    await repo.sairDoEvento(e, s.pessoa.id);
+  }),
   "eventos.postar": acao(
     z.tuple([id, z.enum(["recado", "dica", "conquista", "desabafo", "aviso"]), z.string().trim().min(1).max(1000)]),
     async ([e, tipo, texto], { sessao }) => repo.postarNoEvento(e, quemNoEvento(sessao), tipo, texto),

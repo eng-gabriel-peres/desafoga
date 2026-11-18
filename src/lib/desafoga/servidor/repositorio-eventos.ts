@@ -4,7 +4,7 @@
  * participa. Dos outros participantes a pessoa vê só nome e pontos, nunca as
  * compras nem os dias. Reexportado por `repositorio.ts`.
  */
-import { mensagemDeConviteParaEncontro, mensagemDeEntradaNoDesafio } from "@/lib/assistente/textos";
+import { mensagemDeConviteParaDesafio, mensagemDeConviteParaEncontro } from "@/lib/assistente/textos";
 import {
   andamentoNoDesafio,
   classificar,
@@ -44,13 +44,16 @@ export interface DadosDoEvento {
   mostrarRanking: boolean;
 }
 
+/** Para quem participa, dos outros só o primeiro nome (sem data de entrada). */
 export interface ParticipanteVisto {
   pessoaId: string;
   nome: string;
   apelido: string;
   cor: string;
-  entrouEm: string;
+  entrouEm: string | null;
   resposta: RespostaAoEncontro | null;
+  /** false: convite ainda não aceito (só o dono vê quem está pendente). */
+  aceito: boolean;
 }
 
 export interface PostDoMural {
@@ -92,6 +95,10 @@ export interface SalaDoEvento extends DadosDoEvento {
   posts: PostDoMural[];
   totalDePosts: number;
   souDono: boolean;
+  /** A pessoa foi convidada e ainda não aceitou: vê só o básico do evento. */
+  convitePendente: boolean;
+  /** Quantas pessoas já aceitaram. */
+  pessoasNoGrupo: number;
 }
 
 /** Quem está olhando: uma pessoa ou um profissional. */
@@ -139,18 +146,42 @@ async function doDono(id: string, profissionalId: string): Promise<EventoDoBanco
   return visivel(id, { profissionalId });
 }
 
+/** O dono, ou quem já aceitou o convite (postar, apoiar, responder). */
+async function noGrupo(id: string, quem: Quem): Promise<EventoDoBanco> {
+  const e = await visivel(id, quem);
+  if (quem.pessoaId && !e.participantes.some((p) => p.pessoaId === quem.pessoaId && p.aceito)) throw new NaoEncontrado("Aceite o convite para participar.");
+  return e;
+}
+
 async function montarSala(e: EventoDoBanco, quem: Quem, agora: Date, comPosts: boolean): Promise<SalaDoEvento> {
   const hoje = hojeEmBrasilia(agora);
   const dados = dadosDe(e);
   const souDono = quem.profissionalId === e.profissionalId;
-  const participantes: ParticipanteVisto[] = e.participantes.map((p) => ({
-    pessoaId: p.pessoaId,
-    nome: p.pessoa.nome,
-    apelido: p.pessoa.apelido,
-    cor: p.pessoa.cor,
-    entrouEm: p.entrouEm,
-    resposta: p.resposta as RespostaAoEncontro | null,
-  }));
+  const aceitos = e.participantes.filter((p) => p.aceito);
+  const base = {
+    id: e.id,
+    ...dados,
+    profissional: e.profissional,
+    situacao: situacaoDoEvento(dados, hoje),
+    souDono,
+    pessoasNoGrupo: aceitos.length,
+  };
+  // Convite pendente: nada do grupo (nem quem está nele) até aceitar.
+  if (!souDono && !aceitos.some((p) => p.pessoaId === quem.pessoaId)) {
+    return { ...base, participantes: [], grupo: null, ranking: null, andamento: [], posts: [], totalDePosts: 0, convitePendente: true };
+  }
+  const participantes: ParticipanteVisto[] = (souDono ? e.participantes : aceitos).map((p) => {
+    const eu = p.pessoaId === quem.pessoaId;
+    return {
+      pessoaId: p.pessoaId,
+      nome: souDono || eu ? p.pessoa.nome : p.pessoa.apelido,
+      apelido: p.pessoa.apelido,
+      cor: p.pessoa.cor,
+      entrouEm: souDono || eu ? p.entrouEm : null,
+      resposta: p.resposta as RespostaAoEncontro | null,
+      aceito: p.aceito,
+    };
+  });
 
   let ranking: LinhaDoRanking[] | null = null;
   let andamento: SalaDoEvento["andamento"] = [];
@@ -158,10 +189,11 @@ async function montarSala(e: EventoDoBanco, quem: Quem, agora: Date, comPosts: b
   if (dados.tipo === "desafio" && dados.inicio && dados.fim && dados.regra) {
     const desafio = { inicio: dados.inicio, fim: dados.fim, regra: dados.regra, categoria: dados.categoria, limite: dados.limite };
     const compras = await prisma().compra.findMany({
-      where: { pessoaId: { in: participantes.map((p) => p.pessoaId) }, quando: { gte: new Date(`${somarDias(dados.inicio, -1)}T00:00:00Z`) } },
+      where: { pessoaId: { in: aceitos.map((p) => p.pessoaId) }, quando: { gte: new Date(`${somarDias(dados.inicio, -1)}T00:00:00Z`) } },
       select: { pessoaId: true, categoria: true, valor: true, emocao: true, necessidade: true, quando: true },
     });
-    const todos = participantes.map((p) => {
+    // Ranking e grupo só com quem aceitou.
+    const todos = participantes.filter((p) => p.aceito).map((p) => {
       const minhas: CompraNoDia[] = compras
         .filter((c) => c.pessoaId === p.pessoaId)
         .map((c) => ({
@@ -171,12 +203,14 @@ async function montarSala(e: EventoDoBanco, quem: Quem, agora: Date, comPosts: b
           emocao: c.emocao as Emocao | null,
           necessidade: c.necessidade as Necessidade | null,
         }));
-      return { p, a: andamentoNoDesafio(desafio, p.entrouEm, minhas, hoje) };
+      const entrouEm = aceitos.find((x) => x.pessoaId === p.pessoaId)!.entrouEm;
+      return { p, a: andamentoNoDesafio(desafio, entrouEm, minhas, hoje) };
     });
     const ok = todos.reduce((s, x) => s + x.a.ok, 0);
     const contados = todos.reduce((s, x) => s + x.a.contados, 0);
-    grupo = contados ? Math.round((ok / contados) * 100) : null;
+    // Sem ranking, a porcentagem do grupo também fica só com o dono (com poucas pessoas, ela entrega os outros).
     if (souDono || dados.mostrarRanking) {
+      grupo = contados ? Math.round((ok / contados) * 100) : null;
       ranking = classificar(
         todos.map(({ p, a }) => ({ pessoaId: p.pessoaId, nome: p.nome, apelido: p.apelido, cor: p.cor, pontos: a.pontos, ok: a.ok, contados: a.contados, sequencia: a.sequencia })),
       );
@@ -213,19 +247,7 @@ async function montarSala(e: EventoDoBanco, quem: Quem, agora: Date, comPosts: b
     }));
   }
 
-  return {
-    id: e.id,
-    ...dados,
-    profissional: e.profissional,
-    participantes,
-    situacao: situacaoDoEvento(dados, hoje),
-    grupo,
-    ranking,
-    andamento,
-    posts,
-    totalDePosts: e._count.posts,
-    souDono,
-  };
+  return { ...base, participantes, grupo, ranking, andamento, posts, totalDePosts: e._count.posts, convitePendente: false };
 }
 
 export async function salaDoEvento(id: string, quem: Quem, agora = new Date()): Promise<SalaDoEvento> {
@@ -242,24 +264,28 @@ export async function eventosDe(quem: Quem, agora = new Date()): Promise<SalaDoE
   return Promise.all(lista.map((e) => montarSala(e, quem, agora, false)));
 }
 
-/** Põe a pessoa no evento, avisa pela Luana e deixa um post do sistema no mural. */
-async function incluir(e: { id: string } & DadosDoEvento, pessoaId: string, entrouEm: string, agora: Date): Promise<void> {
+/**
+ * Convida a pessoa: a Luana avisa no chat; ela só aparece para o grupo
+ * depois de aceitar (ser vista num evento revela que é acompanhada).
+ */
+async function convidar(e: { id: string } & DadosDoEvento, profissional: string, pessoaId: string, entrouEm: string, agora: Date): Promise<void> {
   const r = await prisma().participanteDoEvento.createMany({ data: [{ eventoId: e.id, pessoaId, entrouEm }], skipDuplicates: true });
   if (!r.count) return;
-  const p = await prisma().pessoa.findUniqueOrThrow({ where: { id: pessoaId }, select: { apelido: true } });
-  await prisma().postDoEvento.create({ data: { eventoId: e.id, tipo: "sistema", texto: `${p.apelido} entrou no evento.`, criadoEm: agora } });
   const texto =
     e.tipo === "desafio" && e.regra && e.inicio && e.fim
-      ? mensagemDeEntradaNoDesafio({ nome: e.nome, regra: e.regra, categoria: e.categoria, limite: e.limite, inicio: e.inicio, fim: e.fim, premio: e.premio })
-      : mensagemDeConviteParaEncontro({ nome: e.nome, data: e.data ?? entrouEm, hora: e.hora ?? "", local: e.local ?? "" });
+      ? mensagemDeConviteParaDesafio(profissional, { nome: e.nome, regra: e.regra, categoria: e.categoria, limite: e.limite, inicio: e.inicio, fim: e.fim, premio: e.premio })
+      : mensagemDeConviteParaEncontro(profissional, { nome: e.nome, data: e.data ?? entrouEm, hora: e.hora ?? "", local: e.local ?? "" });
   await mensagemDaLuana(pessoaId, texto, agora);
 }
+
+const nomeDoProfissional = async (id: string) => (await prisma().profissional.findUniqueOrThrow({ where: { id }, select: { nome: true } })).nome;
 
 /** Na criação, quem entra no desafio conta desde o início (o profissional escolheu as datas). */
 export async function criarEvento(profissionalId: string, dados: DadosDoEvento, participantes: string[], agora = new Date()): Promise<{ id: string }> {
   const e = await prisma().evento.create({ data: { profissionalId, ...dados } });
   const entrouEm = dados.tipo === "desafio" && dados.inicio ? dados.inicio : hojeEmBrasilia(agora);
-  for (const pessoaId of [...new Set(participantes)]) await incluir({ id: e.id, ...dados }, pessoaId, entrouEm, agora);
+  const autor = await nomeDoProfissional(profissionalId);
+  for (const pessoaId of [...new Set(participantes)]) await convidar({ id: e.id, ...dados }, autor, pessoaId, entrouEm, agora);
   return { id: e.id };
 }
 
@@ -268,7 +294,26 @@ export async function adicionarAoEvento(id: string, profissionalId: string, pess
   const e = await doDono(id, profissionalId);
   const hoje = hojeEmBrasilia(agora);
   const entrouEm = e.tipo === "desafio" && e.inicio && e.inicio > hoje ? e.inicio : hoje;
-  await incluir({ id: e.id, ...dadosDe(e) }, pessoaId, entrouEm, agora);
+  await convidar({ id: e.id, ...dadosDe(e) }, e.profissional.nome, pessoaId, entrouEm, agora);
+}
+
+/** A pessoa aceita o convite e passa a aparecer para o grupo. */
+export async function aceitarConvite(id: string, pessoaId: string, agora = new Date()): Promise<void> {
+  await visivel(id, { pessoaId });
+  const r = await prisma().participanteDoEvento.updateMany({ where: { eventoId: id, pessoaId, aceito: false }, data: { aceito: true } });
+  if (!r.count) return;
+  const p = await prisma().pessoa.findUniqueOrThrow({ where: { id: pessoaId }, select: { apelido: true } });
+  await prisma().postDoEvento.create({ data: { eventoId: id, tipo: "sistema", texto: `${p.apelido} entrou no evento.`, criadoEm: agora } });
+}
+
+/** Recusar o convite ou sair: some do evento junto com os próprios posts e apoios. */
+export async function sairDoEvento(id: string, pessoaId: string): Promise<void> {
+  await visivel(id, { pessoaId });
+  await prisma().$transaction([
+    prisma().apoioDoPost.deleteMany({ where: { quem: pessoaId, post: { eventoId: id } } }),
+    prisma().postDoEvento.deleteMany({ where: { eventoId: id, pessoaId } }),
+    prisma().participanteDoEvento.deleteMany({ where: { eventoId: id, pessoaId } }),
+  ]);
 }
 
 export async function removerDoEvento(id: string, profissionalId: string, pessoaId: string): Promise<void> {
@@ -287,13 +332,13 @@ export async function apagarEvento(id: string, profissionalId: string): Promise<
 }
 
 export async function responderEncontro(id: string, pessoaId: string, resposta: RespostaAoEncontro): Promise<void> {
-  const e = await visivel(id, { pessoaId });
+  const e = await noGrupo(id, { pessoaId });
   if (e.tipo !== "presencial") throw new NaoEncontrado("Só encontros pedem confirmação.");
   await prisma().participanteDoEvento.update({ where: { eventoId_pessoaId: { eventoId: id, pessoaId } }, data: { resposta } });
 }
 
 export async function postarNoEvento(id: string, quem: Quem, tipo: Exclude<TipoDePost, "sistema">, texto: string, agora = new Date()): Promise<{ id: string }> {
-  await visivel(id, quem);
+  await noGrupo(id, quem);
   if (tipo === "aviso" && !quem.profissionalId) throw new NaoEncontrado("Só quem organiza pode publicar avisos.");
   const p = await prisma().postDoEvento.create({
     data: { eventoId: id, pessoaId: quem.pessoaId ?? null, profissionalId: quem.profissionalId ?? null, tipo, texto, criadoEm: agora },
@@ -309,7 +354,7 @@ async function postDoEvento(id: string, postId: string) {
 
 /** Apoiar ou desfazer o apoio. */
 export async function apoiarPost(id: string, quem: Quem, postId: string): Promise<void> {
-  await visivel(id, quem);
+  await noGrupo(id, quem);
   await postDoEvento(id, postId);
   const chave = { postId_quem: { postId, quem: quemId(quem) } };
   const ja = await prisma().apoioDoPost.findUnique({ where: chave });
@@ -325,7 +370,7 @@ export async function fixarPost(id: string, profissionalId: string, postId: stri
 
 /** O dono apaga qualquer post; quem participa, só os seus. */
 export async function apagarPost(id: string, quem: Quem, postId: string): Promise<void> {
-  const e = await visivel(id, quem);
+  const e = await noGrupo(id, quem);
   const p = await postDoEvento(id, postId);
   const dono = quem.profissionalId === e.profissionalId;
   if (!dono && p.pessoaId !== quem.pessoaId) throw new NaoEncontrado("Post não encontrado.");

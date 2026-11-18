@@ -38,7 +38,7 @@ import { servicos, type PostDoMural, type SalaDoEvento, type TipoDePost } from "
 import { Avatar, Carregando, Etiqueta, Kpi, Painel, Sub, Vazio } from "../ui/blocos";
 import { Botao } from "../ui/botao";
 import { Barra, CAMPO } from "../ui/campos";
-import { Bolinhas, EtiquetaDaFase, hojeNoBrasil, IconeDoEvento, LegendaDasBolinhas, nomeDoTipo, PilhaDeAvatares, quandoDoEvento, regraDoEvento, VoceVai } from "./visual";
+import { Bolinhas, ConviteDoEvento, EtiquetaDaFase, hojeNoBrasil, IconeDoEvento, LegendaDasBolinhas, nomeDoTipo, PilhaDeAvatares, quandoDoEvento, regraDoEvento, VoceVai } from "./visual";
 
 type Aba = "mural" | "ranking" | "progresso" | "pessoas" | "config";
 
@@ -83,12 +83,15 @@ export function SalaDoEventoTela({ eventoId, pessoaId, voltar }: { eventoId: str
         </div>
         {evento.descricao && <p className="mt-3">{evento.descricao}</p>}
         <div className="mt-3 flex items-center gap-2">
-          <PilhaDeAvatares participantes={evento.participantes} />
+          <PilhaDeAvatares participantes={evento.participantes.filter((p) => p.aceito)} />
           <span className="text-[0.88rem] text-muted">
-            {evento.participantes.length} {evento.participantes.length === 1 ? "participante" : "participantes"}
+            {evento.pessoasNoGrupo} {evento.pessoasNoGrupo === 1 ? "participante" : "participantes"}
           </span>
         </div>
+        {evento.convitePendente && <ConviteDoEvento evento={evento} />}
       </Painel>
+      {!evento.convitePendente && (
+        <>
 
       <div role="tablist" aria-label="Partes do evento" className="mt-4 flex gap-1 overflow-x-auto rounded-xl bg-surface2 p-1">
         {abas.map(([a, Icone, rotulo]) => (
@@ -114,8 +117,13 @@ export function SalaDoEventoTela({ eventoId, pessoaId, voltar }: { eventoId: str
           {atual === "pessoas" && <QuemVai evento={evento} pessoaId={pessoaId} />}
           {atual === "config" && <Configurar evento={evento} voltar={voltar} />}
         </div>
-        <Lateral evento={evento} pessoaId={pessoaId} />
+        <div className="grid gap-4">
+          <Lateral evento={evento} pessoaId={pessoaId} />
+          {!evento.souDono && <SairDoEvento evento={evento} voltar={voltar} />}
+        </div>
       </div>
+        </>
+      )}
     </>
   );
 }
@@ -377,7 +385,9 @@ function Andamento({ evento, agora }: { evento: SalaDoEvento; agora: Date }) {
                   <Avatar nome={p.nome} cor={p.cor} tamanho="sm" />
                   <b className="truncate">{p.apelido}</b>
                 </span>
-                <span className="col-span-2 row-start-2 desk:col-span-1 desk:row-start-auto">{a && <Bolinhas dias={a.dias} hoje={hoje} />}</span>
+                <span className="col-span-2 row-start-2 desk:col-span-1 desk:row-start-auto">
+                  {p.aceito ? a && <Bolinhas dias={a.dias} hoje={hoje} /> : <Etiqueta>Convite enviado</Etiqueta>}
+                </span>
                 <span className="text-right whitespace-nowrap">
                   <b>
                     {a?.ok ?? 0} de {a?.contados ?? 0}
@@ -453,7 +463,7 @@ function QuemVai({ evento, pessoaId }: { evento: SalaDoEvento; pessoaId: string 
               <li key={p.pessoaId} className="flex items-center gap-2.5 border-b border-line py-2.5 last:border-0">
                 <Avatar nome={p.nome} cor={p.cor} tamanho="sm" />
                 <b className="min-w-0 flex-1 truncate">{p.pessoaId === pessoaId ? "Você" : p.nome}</b>
-                <Etiqueta tom={r ? r[1] : "neutra"}>{r ? r[0] : "Sem resposta"}</Etiqueta>
+                <Etiqueta tom={r ? r[1] : "neutra"}>{!p.aceito ? "Convite enviado" : r ? r[0] : "Sem resposta"}</Etiqueta>
                 {evento.souDono && <RemoverParticipante evento={evento} pessoaId={p.pessoaId} nome={p.apelido} />}
               </li>
             );
@@ -559,6 +569,39 @@ function Lateral({ evento, pessoaId }: { evento: SalaDoEvento; pessoaId: string 
           <Sub className="mt-1">{evento.grupo === null ? "O grupo ainda não tem dias para contar" : `O grupo cumpriu ${evento.grupo}% dos dias`}</Sub>
         </div>
       )}
+    </Painel>
+  );
+}
+
+/** Sair do evento: some do grupo junto com os próprios posts. */
+function SairDoEvento({ evento, voltar }: { evento: SalaDoEvento; voltar: string }) {
+  const router = useRouter();
+  const [confirmar, setConfirmar] = useState(false);
+  if (!confirmar) {
+    return (
+      <button type="button" onClick={() => setConfirmar(true)} className="justify-self-start font-bold text-muted underline-offset-2 hover:underline">
+        Sair do evento
+      </button>
+    );
+  }
+  return (
+    <Painel>
+      <p className="font-bold">Sair de {evento.nome}?</p>
+      <Sub className="mt-1">Você some do grupo, e os seus posts no mural são apagados.</Sub>
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        <Botao
+          tamanho="pequeno"
+          onClick={async () => {
+            await servicos.eventos.sair(evento.id);
+            router.push(voltar);
+          }}
+        >
+          Sair
+        </Botao>
+        <Botao variante="secundario" tamanho="pequeno" onClick={() => setConfirmar(false)}>
+          Ficar
+        </Botao>
+      </div>
     </Painel>
   );
 }
