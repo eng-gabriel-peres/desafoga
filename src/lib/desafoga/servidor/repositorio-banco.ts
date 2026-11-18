@@ -150,6 +150,8 @@ export async function apagarConexao(pessoaId: string, conexaoId: string): Promis
     // O PDF ligado a este cartão volta a valer sozinho.
     prisma().fatura.updateMany({ where: { pessoaId, contaId: { in: contas }, fonte: "documento" }, data: { contaId: null, foraDosCalculos: false } }),
     prisma().sugestao.deleteMany({ where: { pessoaId, situacao: "aberta", dados: { path: ["conexaoId"], equals: conexaoId } } }),
+    // A renda percebida vinha do banco; se outro banco conectado também mostrar, a próxima leitura sugere de novo.
+    prisma().sugestao.deleteMany({ where: { pessoaId, chave: "renda", situacao: "aberta" } }),
     prisma().conexaoBancaria.delete({ where: { id: conexaoId } }),
   ]);
   return c.pluggyItemId;

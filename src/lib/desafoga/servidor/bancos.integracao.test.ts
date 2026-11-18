@@ -266,6 +266,14 @@ describe.runIf(url)("bancos conectados no Postgres", () => {
     expect(await repo.avisos([pessoaId], { apenas: ["compra-banco"] })).toHaveLength(0);
   });
 
+  it("desconectar tira a sugestão de renda que veio do banco", async () => {
+    const { conexao } = await conexaoComConta();
+    await repo.sugerirRenda(pessoaId, 300000, 5);
+    expect((await repo.sugestoes(pessoaId)).some((s) => s.tipo === "renda")).toBe(true);
+    await repo.apagarConexao(pessoaId, conexao.id);
+    expect((await repo.sugestoes(pessoaId)).some((s) => s.tipo === "renda")).toBe(false);
+  });
+
   it("modo das compras e regras", async () => {
     expect(await repo.modoCompras(pessoaId)).toBe("revisar");
     await repo.salvarModoCompras(pessoaId, "automatico");

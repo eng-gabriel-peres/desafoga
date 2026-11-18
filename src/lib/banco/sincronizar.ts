@@ -3,9 +3,9 @@
  * fatura aberta de cada cartão. Idempotente: rodar duas vezes não duplica
  * nada. Chamada pelo webhook, ao abrir o app e pelo botão "Atualizar".
  */
-import { avisoDeCompraDoBanco, avisoDeConsentimento, avisoDeDividaEncontrada, avisoDeLimiteDoCartao, avisoDeSeguro, mensagemDeCompraDoBanco } from "@/lib/assistente/textos";
+import { avisoDeMetaConcluida, avisoDeCompraDoBanco, avisoDeConsentimento, avisoDeDividaEncontrada, avisoDeLimiteDoCartao, avisoDeSeguro, mensagemDeCompraDoBanco } from "@/lib/assistente/textos";
 import { rendaDetectada, usoDoLimite } from "./extras";
-import { fundirFaturas, type Compra, type Fatura, type Lancamento } from "@/lib/finance";
+import { fundirFaturas, situacaoDaMeta, type Compra, type Fatura, type Lancamento } from "@/lib/finance";
 import * as repo from "@/lib/desafoga/servidor/repositorio";
 import { categoriaDe, chaveDaDescricao, naturezaDe } from "./classificar";
 import { sugestaoDoChequeEspecial, sugestaoDoEmprestimo, chaveDaDivida, aplicarTravas } from "./dividas";
@@ -176,6 +176,13 @@ export async function sincronizar(
         conexaoId,
         lista.map((i) => ({ pluggyId: i.id, nome: i.name, tipo: i.type, saldo: Math.round((i.balance ?? 0) * 100) })),
       );
+      // Meta ligada ao banco que chegou ao alvo pelo saldo: o mesmo aviso de quando se guarda à mão, uma vez.
+      const apelido = (await repo.persona(pessoaId))?.apelido ?? "";
+      for (const meta of await repo.metas(pessoaId)) {
+        if (meta.guardadoPeloBanco != null && situacaoDaMeta(meta, agora).concluida) {
+          await repo.avisarUmaVez(pessoaId, `meta-concluida:${meta.id}`, "meta", avisoDeMetaConcluida(apelido, meta), agora);
+        }
+      }
     });
 
     // 4. Fatura aberta de cada cartão (alimenta a tela de fatura e os próximos meses).

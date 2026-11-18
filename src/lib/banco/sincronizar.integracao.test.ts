@@ -286,6 +286,17 @@ describe.runIf(url)("sincronizar com a Pluggy", () => {
     expect((await repo.sugestoes(pessoaId)).filter((x) => x.tipo === "renda")).toHaveLength(0);
   });
 
+  it("meta ligada ao banco que chega ao alvo pelo saldo avisa quem acompanha, uma vez", async () => {
+    await sync();
+    const previdencia = (await repo.investimentos(pessoaId)).find((i) => i.nome === "ITAU Sandbox previdencia")!;
+    const meta = await repo.salvarMeta(pessoaId, { nome: "Reserva", icone: "shield", cor: "azul", alvo: 1000000, inicial: 0, modo: "valor", frequencia: "mes", valorPorPeriodo: 50000, prazo: null, lembrete: false } as never);
+    await repo.ligarInvestimentos(pessoaId, meta.id, [previdencia.id]);
+    await sync();
+    await sync();
+    const avisos = (await repo.avisos([pessoaId], { apenas: ["meta"] })).filter((a) => a.texto.includes("Reserva"));
+    expect(avisos).toHaveLength(1);
+  });
+
   it("parcela de empréstimo na conta não é compra nem aviso", async () => {
     const c = cliente();
     const conta = Object.keys(c.dados.transacoes).find((k) => k.startsWith(CONTA))!;
