@@ -91,11 +91,14 @@ export function EditorDeLimite({
   categoria,
   limite,
   fechar,
+  cabeAte,
 }: {
   pessoaId: string;
   categoria: Categoria;
   limite: number;
   fechar: () => void;
+  /** Até quanto cabe no mês (renda menos o resto); null/undefined sem renda. */
+  cabeAte?: number | null;
 }) {
   const [valor, setValor] = useState(emTexto(limite));
   const [erro, setErro] = useState("");
@@ -156,6 +159,11 @@ export function EditorDeLimite({
           );
         })}
       </div>
+      {cabeAte !== undefined && cabeAte !== null && (
+        <p className={`mt-2 text-[0.9rem] ${atual > cabeAte && atual > limite ? "font-bold text-bad" : "text-muted"}`}>
+          {cabeAte > 0 ? `Cabe até ${reaisCurto(cabeAte)} neste mês, pelo que sobra da sua renda.` : "Não sobra nada da renda este mês: só dá para diminuir."}
+        </p>
+      )}
       {erro && (
         <p role="alert" className="mt-2 font-bold text-bad">
           {erro}
@@ -181,7 +189,7 @@ export function EditorDeLimite({
 }
 
 /** Cartão de uma categoria: anel do que foi usado, quanto resta, quanto dá por dia e o aviso. */
-export function CartaoDoOrcamento({ pessoaId, situacao: s }: { pessoaId: string; situacao: SituacaoDoOrcamento }) {
+export function CartaoDoOrcamento({ pessoaId, situacao: s, cabeAte }: { pessoaId: string; situacao: SituacaoDoOrcamento; cabeAte?: number | null }) {
   const [editando, setEditando] = useState(false);
   const cor = COR_DO_ESTADO[s.estado];
   const corDoAnel = COR_DO_ANEL[s.estado];
@@ -225,7 +233,7 @@ export function CartaoDoOrcamento({ pessoaId, situacao: s }: { pessoaId: string;
         {explicarOrcamento(s)}
       </p>
       {editando ? (
-        <EditorDeLimite pessoaId={pessoaId} categoria={s.categoria} limite={s.limite} fechar={() => setEditando(false)} />
+        <EditorDeLimite pessoaId={pessoaId} categoria={s.categoria} limite={s.limite} fechar={() => setEditando(false)} cabeAte={cabeAte} />
       ) : (
         <Botao variante="secundario" tamanho="pequeno" bloco className="mt-3" onClick={() => setEditando(true)}>
           <PencilLine aria-hidden="true" />
@@ -237,7 +245,7 @@ export function CartaoDoOrcamento({ pessoaId, situacao: s }: { pessoaId: string;
 }
 
 /** Categorias ainda sem limite: um toque para começar a acompanhar. */
-export function SemLimite({ pessoaId, categorias }: { pessoaId: string; categorias: Categoria[] }) {
+export function SemLimite({ pessoaId, categorias, cabeAte }: { pessoaId: string; categorias: Categoria[]; cabeAte?: number | null }) {
   const [aberta, setAberta] = useState<Categoria | null>(null);
   if (!categorias.length) return null;
   return (
@@ -264,7 +272,7 @@ export function SemLimite({ pessoaId, categorias }: { pessoaId: string; categori
       </div>
       {aberta && (
         <div className="mt-3 max-w-[480px] rounded-[20px] border border-line bg-surface px-4 pb-4">
-          <EditorDeLimite key={aberta} pessoaId={pessoaId} categoria={aberta} limite={0} fechar={() => setAberta(null)} />
+          <EditorDeLimite key={aberta} pessoaId={pessoaId} categoria={aberta} limite={0} fechar={() => setAberta(null)} cabeAte={cabeAte} />
         </div>
       )}
     </section>

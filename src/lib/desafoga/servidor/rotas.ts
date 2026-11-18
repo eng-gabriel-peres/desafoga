@@ -5,9 +5,9 @@
  */
 import { z } from "zod";
 import { montarContexto } from "@/lib/assistente/contexto";
-import { avisoDeCheckInTriste, mensagemDeIncentivo, mensagemDeLembrete, NOME_DA_EMOCAO, perguntaDoCheckIn, respostaDoCheckIn } from "@/lib/assistente/textos";
+import { avisoDeCheckInTriste, mensagemDeIncentivo, mensagemDeLembrete, NOME_DA_EMOCAO, perguntaDoCheckIn, respostaDoCheckIn, reais, NOME_DA_FREQUENCIA } from "@/lib/assistente/textos";
 import { TEMAS } from "@/lib/desafoga/conteudos";
-import { situacaoDaMeta, type Meta } from "@/lib/finance";
+import { situacaoDaMeta, VEZES_POR_MES, type Meta } from "@/lib/finance";
 import type { Classificacao, Fatura } from "@/services/tipos";
 import { exigirAPropriaPessoa, exigirProfissionalDe, exigirSessao, exigirVer, SemPermissao } from "./acesso";
 import { responderTexto, testarResposta } from "./acoes";
@@ -138,6 +138,10 @@ async function avisosDaSessao(s: SessaoAtual) {
   }
   return [];
 }
+
+/** O mês já passa da renda: aumentar qualquer coisa é recusado; só diminuir. */
+const mesNaoFecha = (sobra: number) =>
+  `O seu mês já passa ${reais(-sobra)} do que entra. Por enquanto, só dá para diminuir: um orçamento, uma meta ou o plano das dívidas. Veja a conta em Orçamento.`;
 
 async function escondido(sessao: SessaoAtual | null, pessoaId: string): Promise<boolean> {
   const s = await exigirVer(sessao, pessoaId);
@@ -359,6 +363,15 @@ const ACOES = {
     z.tuple([id, z.object({ valorMensal: centavos.optional(), estrategia: z.enum(["mais-cara", "menor"]).optional() })]),
     async ([p, m], { sessao }) => {
       exigirAPropriaPessoa(sessao, p);
+      if (m.valorMensal !== undefined) {
+        const r = await repo.conferirNoMes(p, { tipo: "plano", valorMensal: m.valorMensal });
+        if (!r.cabe) {
+          if ((r.d.sobra ?? 0) < 0) throw new ErroDeEntrada(mesNaoFecha(r.d.sobra ?? 0));
+          throw new ErroDeEntrada(
+            `Pagar ${reais(m.valorMensal)} por mês nas dívidas passa do que sobra no mês, depois da renda, das contas, das metas e dos orçamentos. Cabe até ${reais(r.ate ?? 0)}.`,
+          );
+        }
+      }
       return repo.salvarPlano(p, m);
     },
   ),
@@ -464,6 +477,13 @@ const ACOES = {
   }),
   "orcamentos.salvar": acao(z.tuple([id, categoria, centavos]), async ([p, c, limite], { sessao }) => {
     exigirAPropriaPessoa(sessao, p);
+    const r = await repo.conferirNoMes(p, { tipo: "orcamento", categoria: c, limite });
+    if (!r.cabe) {
+      if ((r.d.sobra ?? 0) < 0) throw new ErroDeEntrada(mesNaoFecha(r.d.sobra ?? 0));
+      throw new ErroDeEntrada(
+        `Esse limite passa do que sobra no mês. Com a sua renda, as contas fixas, as parcelas das dívidas, as metas e os outros orçamentos, cabem até ${reais(r.ate ?? 0)} em ${c.toLowerCase()}.`,
+      );
+    }
     return repo.salvarOrcamento(p, c, limite);
   }),
   "metas.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
@@ -491,6 +511,15 @@ const ACOES = {
     ]),
     async ([p, m], { sessao }) => {
       exigirAPropriaPessoa(sessao, p);
+      const r = await repo.conferirNoMes(p, { tipo: "meta", id: m.id, valorPorPeriodo: m.valorPorPeriodo, frequencia: m.frequencia });
+      if (!r.cabe) {
+        if ((r.d.sobra ?? 0) < 0) throw new ErroDeEntrada(mesNaoFecha(r.d.sobra ?? 0));
+        const por = NOME_DA_FREQUENCIA[m.frequencia].por;
+        const ate = Math.floor((r.ate ?? 0) / VEZES_POR_MES[m.frequencia] / 100) * 100;
+        throw new ErroDeEntrada(
+          `Guardar ${reais(m.valorPorPeriodo)} ${por} passa do que sobra no mês, depois da renda, das contas, das dívidas e dos orçamentos. Cabe até ${reais(ate)} ${por}${m.modo === "prazo" ? ": dá para aumentar o prazo" : ""}.`,
+        );
+      }
       return repo.salvarMeta(p, m);
     },
   ),

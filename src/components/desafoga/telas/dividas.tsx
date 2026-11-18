@@ -40,6 +40,8 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
   const dados = usePessoa(pessoaId);
   const agora = useAgora();
   const [editando, setEditando] = useState<Divida | "nova" | null>(null);
+  /** Recusa do plano (pagar mais por mês do que sobra da renda). */
+  const [erroDoPlano, setErroDoPlano] = useState("");
   const [enviando, setEnviando] = useState<"registrato" | "contrato" | null>(null);
   const [conferindo, setConferindo] = useState<Divida | null>(null);
   const eu = useEu();
@@ -150,7 +152,22 @@ export function TelaDividas({ pessoaId, area }: { pessoaId: string; area: Area }
     />
   );
   const planoPainel = daPessoa ? (
-    <PlanoEditavel dividas={dividas} plano={plano} agora={agora} aoMudar={(m) => servicos.dividas.salvarPlano(pessoaId, m)} />
+    <div className="grid gap-2">
+      <PlanoEditavel
+        dividas={dividas}
+        plano={plano}
+        agora={agora}
+        aoMudar={(m) => {
+          setErroDoPlano("");
+          servicos.dividas.salvarPlano(pessoaId, m).catch((e: unknown) => setErroDoPlano(e instanceof Error ? e.message : "Não deu para mudar o plano."));
+        }}
+      />
+      {erroDoPlano && (
+        <p role="alert" className="rounded-xl bg-bad-soft px-3.5 py-2.5 font-bold text-bad">
+          {erroDoPlano}
+        </p>
+      )}
+    </div>
   ) : (
     <PlanoLeitura
       key={pessoaId}

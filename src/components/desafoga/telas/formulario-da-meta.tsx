@@ -7,9 +7,13 @@ import { useAgora } from "@/hooks/use-agora";
 import { usePessoa } from "@/hooks/use-pessoa";
 import { lerValorEmReais } from "@/lib/dinheiro";
 import {
+  cabeNoMes,
   chaveDoDia,
   dividaMaisCara,
   guardadoNaMeta,
+  metaNoMes,
+  situacaoDaMeta,
+  VEZES_POR_MES,
   opcoesParaPrazo,
   previsaoDeTermino,
   somarPeriodos,
@@ -21,6 +25,7 @@ import {
 import { NOME_DA_FREQUENCIA, dataLonga, percentual, reaisCurto } from "@/lib/assistente/textos";
 import { servicos } from "@/services";
 import { COR_DA_META, ICONE_DA_META } from "../metas/visual";
+import { dinheiroDoMesDe } from "../mes";
 import { useMinhaPessoaId } from "../sessao";
 import { Carregando, Painel, Sub } from "../ui/blocos";
 import { Botao, BotaoLink } from "../ui/botao";
@@ -66,12 +71,16 @@ export function TelaFormularioDaMeta({
   const meta = metaId ? dados.metas.find((m) => m.id === metaId) : null;
   if (metaId && !meta) return <Sub>Essa meta não existe mais.</Sub>;
   const maisCara = dividaMaisCara(dados.dividas);
+  // Até quanto por mês esta meta pode tirar sem o mês passar da renda (no lugar do valor atual dela).
+  const atual = meta && !situacaoDaMeta(meta, agora).concluida ? metaNoMes(meta) : 0;
+  const cabeAte = cabeNoMes(dinheiroDoMesDe(dados, agora), atual, atual).ate;
   return (
     <Formulario
       pessoaId={pessoaId}
       meta={meta ?? null}
       hoje={chaveDoDia(agora)}
       dividaCara={maisCara && maisCara.taxaMensal >= 0.02 ? maisCara : null}
+      cabeAte={cabeAte}
       fechar={fechar}
     />
   );
@@ -82,12 +91,15 @@ function Formulario({
   meta,
   hoje,
   dividaCara,
+  cabeAte,
   fechar,
 }: {
   pessoaId: string;
   meta: Meta | null;
   hoje: string;
   dividaCara: { nome: string; taxaMensal: number } | null;
+  /** Valor no mês que cabe na renda para esta meta; null sem renda informada. */
+  cabeAte: number | null;
   fechar?: () => void;
 }) {
   const router = useRouter();
@@ -352,6 +364,18 @@ function Formulario({
             <input type="checkbox" checked={lembrete} onChange={(e) => setLembrete(e.target.checked)} className="size-5 accent-[var(--primary)]" />
             <span>Me lembrar no WhatsApp nos dias de guardar</span>
           </label>
+          {cabeAte !== null && falta > 0 && (() => {
+            const porPeriodo = modo === "prazo" ? (opcoes?.[frequencia] ?? 0) : valorDoPeriodo;
+            const ate = Math.floor(cabeAte / VEZES_POR_MES[frequencia] / 100) * 100;
+            const passa = metaNoMes({ valorPorPeriodo: porPeriodo, frequencia }) > cabeAte;
+            return (
+              <p className={`text-[0.92rem] ${passa ? "font-bold text-bad" : "text-muted"}`}>
+                {ate > 0
+                  ? `Pelo que sobra da sua renda no mês, cabe guardar até ${reaisCurto(ate)} ${NOME_DA_FREQUENCIA[frequencia].por}.${passa ? (modo === "prazo" ? " Aumente o prazo." : " Diminua o valor.") : ""}`
+                  : "Não sobra nada da renda este mês: reveja os orçamentos ou o plano das dívidas antes de criar uma meta."}
+              </p>
+            );
+          })()}
           {erro && (
             <p role="alert" className="mt-2 font-bold text-bad">
               {erro}

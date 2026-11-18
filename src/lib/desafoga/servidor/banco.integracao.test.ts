@@ -67,10 +67,15 @@ describe.runIf(url)("Desafoga no Postgres", () => {
     const p = ana.pessoa!.id;
     const { dados: inicial } = await chamar("orcamentos.listar", [p], ana);
     expect((inicial as { categoria: string }[]).map((o) => o.categoria)).toContain("Mercado");
-    const { dados: depois } = await chamar("orcamentos.salvar", [p, "Lazer", 15000], ana);
-    expect(depois).toContainEqual({ categoria: "Lazer", limite: 15000 });
+    // O mês da Ana não fecha (os orçamentos passam do que sobra da renda): aumentar é recusado; diminuir pode.
+    await expect(chamar("orcamentos.salvar", [p, "Lazer", 15000], ana)).rejects.toThrow(/passa do que sobra no mês|já passa .* do que entra/);
+    const { dados: menosRoupa } = await chamar("orcamentos.salvar", [p, "Roupa", 20000], ana);
+    expect(menosRoupa).toContainEqual({ categoria: "Roupa", limite: 20000 });
     const { dados: semMercado } = await chamar("orcamentos.salvar", [p, "Mercado", 0], ana);
     expect((semMercado as { categoria: string }[]).map((o) => o.categoria)).not.toContain("Mercado");
+    // Sobraram R$ 11,97: cabe um orçamento novo dentro disso.
+    const { dados: depois } = await chamar("orcamentos.salvar", [p, "Lazer", 1000], ana);
+    expect(depois).toContainEqual({ categoria: "Lazer", limite: 1000 });
 
     const paula = await entrar("paula", ana);
     expect(await chamar("orcamentos.listar", [p], paula)).toBeTruthy();

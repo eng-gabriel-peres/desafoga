@@ -17,3 +17,4 @@ export * from "./proximos-meses";
 export * from "./conquistas";
 export * from "./eventos";
 export * from "./avaliacao";
+export * from "./mes";

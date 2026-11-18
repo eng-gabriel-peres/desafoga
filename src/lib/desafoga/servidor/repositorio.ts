@@ -5,7 +5,7 @@
  */
 import type { ContextoAssistente, EstadoConversa } from "@/lib/assistente/conversa";
 import { ESTADO_INICIAL } from "@/lib/assistente/conversa";
-import { AVISOS_PADRAO, chaveDoDia, notaMedia, ROTINA_PADRAO, type ConfigDosAvisos, situacaoDaMeta, type CategoriaDaConta, type CheckIn, type ContaFixa, type Pagamento, type Periodo, type Renda, type Rotina, type Categoria, type Emocao, type Estrategia, type Necessidade, type TipoDivida, type TipoLancamento } from "@/lib/finance";
+import { AVISOS_PADRAO, cabeNoMes, chaveDoDia, compromissosDoMes, dinheiroDoMes, metaNoMes, notaMedia, totaisDoMes, type DinheiroDoMes, type Frequencia, ROTINA_PADRAO, type ConfigDosAvisos, situacaoDaMeta, type CategoriaDaConta, type CheckIn, type ContaFixa, type Pagamento, type Periodo, type Renda, type Rotina, type Categoria, type Emocao, type Estrategia, type Necessidade, type TipoDivida, type TipoLancamento } from "@/lib/finance";
 import { avisoDeMetaConcluida } from "@/lib/assistente/textos";
 import { Prisma } from "@/generated/prisma/client";
 import type {
@@ -775,3 +775,49 @@ export * from "./repositorio-banco";
 export * from "./repositorio-conquistas";
 export * from "./repositorio-eventos";
 export * from "./repositorio-conteudos";
+
+// ---------- o mês tem que bater com a renda ----------
+
+/** Contas, dívidas, plano, pagamentos, renda, metas e orçamentos do mês, e a conta deles. */
+async function dadosDoMes(pessoaId: string, agora: Date) {
+  const [contas, dividasDaPessoa, planoDaPessoa, pagamentosDoMes, rendaDaPessoa, metasDaPessoa, orcamentosDaPessoa] = await Promise.all([
+    contasFixas(pessoaId),
+    dividas(pessoaId),
+    plano(pessoaId),
+    pagamentos(pessoaId, agora),
+    renda(pessoaId),
+    metas(pessoaId),
+    orcamentos(pessoaId),
+  ]);
+  const ativas = metasDaPessoa.filter((m) => !situacaoDaMeta(m, agora).concluida);
+  const totais = (valorMensal: number) => totaisDoMes(compromissosDoMes(contas, dividasDaPessoa, { ...planoDaPessoa, valorMensal }, pagamentosDoMes, agora), rendaDaPessoa);
+  const t = totais(planoDaPessoa.valorMensal);
+  const d = dinheiroDoMes({ renda: t.renda, contas: t.contas, parcelas: t.parcelas, metas: ativas, orcamentos: orcamentosDaPessoa });
+  return { d, ativas, orcamentosDaPessoa, totais };
+}
+
+export async function dinheiroDoMesDaPessoa(pessoaId: string, agora = new Date()): Promise<DinheiroDoMes> {
+  return (await dadosDoMes(pessoaId, agora)).d;
+}
+
+export type MudancaNoMes =
+  | { tipo: "orcamento"; categoria: Categoria; limite: number }
+  | { tipo: "meta"; id?: string; valorPorPeriodo: number; frequencia: Frequencia }
+  | { tipo: "plano"; valorMensal: number };
+
+/**
+ * A mudança cabe no mês (renda menos contas, parcelas, metas e orçamentos)?
+ * `ate`: o maior valor mensal que cabe no lugar do atual (null sem renda).
+ */
+export async function conferirNoMes(pessoaId: string, m: MudancaNoMes, agora = new Date()): Promise<{ cabe: boolean; ate: number | null; d: DinheiroDoMes }> {
+  const { d, ativas, orcamentosDaPessoa, totais } = await dadosDoMes(pessoaId, agora);
+  if (m.tipo === "orcamento") {
+    const antes = orcamentosDaPessoa.find((o) => o.categoria === m.categoria)?.limite ?? 0;
+    return { ...cabeNoMes(d, antes, m.limite), d };
+  }
+  if (m.tipo === "meta") {
+    const atual = m.id ? ativas.find((x) => x.id === m.id) : undefined;
+    return { ...cabeNoMes(d, atual ? metaNoMes(atual) : 0, metaNoMes(m)), d };
+  }
+  return { ...cabeNoMes(d, d.parcelas, totais(m.valorMensal).parcelas), d };
+}

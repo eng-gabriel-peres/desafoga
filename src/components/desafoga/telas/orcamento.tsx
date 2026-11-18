@@ -3,7 +3,8 @@
 import { CalendarDays } from "lucide-react";
 import { useAgora } from "@/hooks/use-agora";
 import { usePessoa } from "@/hooks/use-pessoa";
-import { orcamentoDoMes, resumoDoOrcamento } from "@/lib/finance";
+import { cabeNoMes, orcamentoDoMes, resumoDoOrcamento } from "@/lib/finance";
+import { dinheiroDoMesDe, SeuMes } from "../mes";
 import { gastosAvulsosDoBanco } from "../banco/avulsos";
 import { reaisCurto } from "@/lib/assistente/textos";
 import { CATEGORIAS } from "../categorias";
@@ -23,10 +24,14 @@ export function TelaOrcamento() {
   const semLimite = CATEGORIAS.filter((c) => !situacoes.some((s) => s.categoria === c));
   const mes = agora.toLocaleDateString("pt-BR", { month: "long" });
   const estadoGeral = resumo.usado >= 1 ? "estourou" : resumo.usado >= 0.8 ? "atencao" : "tranquilo";
+  const mesDoDinheiro = dinheiroDoMesDe(dados, agora);
+  /** Até quanto o limite da categoria pode ir sem passar do que sobra da renda (null sem renda). */
+  const cabeAte = (limite: number) => cabeNoMes(mesDoDinheiro, limite, limite).ate;
 
   return (
     <>
       <TituloCelular titulo="Orçamento" subtitulo="Quanto você quer gastar por categoria no mês" />
+      <SeuMes d={mesDoDinheiro} />
       {situacoes.length > 0 && (
         <section
           aria-label={`Resumo de ${mes}`}
@@ -66,7 +71,7 @@ export function TelaOrcamento() {
       {situacoes.length ? (
         <div className="grid grid-cols-[minmax(0,1fr)] gap-3.5 desk:grid-cols-[repeat(auto-fill,minmax(340px,1fr))] desk:gap-4.5">
           {situacoes.map((s) => (
-            <CartaoDoOrcamento key={s.categoria} pessoaId={pessoaId} situacao={s} />
+            <CartaoDoOrcamento key={s.categoria} pessoaId={pessoaId} situacao={s} cabeAte={cabeAte(s.limite)} />
           ))}
         </div>
       ) : (
@@ -74,7 +79,7 @@ export function TelaOrcamento() {
           Defina quanto quer gastar em cada categoria. Aqui aparece quanto já usou, quanto resta e quanto dá para gastar por dia até o fim do mês.
         </div>
       )}
-      <SemLimite pessoaId={pessoaId} categorias={semLimite} />
+      <SemLimite pessoaId={pessoaId} categorias={semLimite} cabeAte={cabeAte(0)} />
     </>
   );
 }

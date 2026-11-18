@@ -19,7 +19,8 @@ import { AtualizarBancosAoAbrir } from "../banco/atualizar-ao-abrir";
 import { ComRegistro } from "../registro";
 import { BotaoIcone } from "../ui/botao";
 
-const NOME_DA_AREA: Record<Area, string> = { pessoa: "Meu Desafoga", responsavel: "Painel do responsável" };
+/** Só o painel ganha um nome embaixo da marca (no app da pessoa, a marca basta). */
+const NOME_DA_AREA: Record<Area, string | null> = { pessoa: null, responsavel: "Painel do responsável" };
 
 /**
  * Moldura de cada área. No celular: topo com sino e a bolinha
@@ -86,7 +87,7 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
           <div key="aberta" className="aparecer flex items-start gap-2 pl-2">
             <div className="min-w-0 flex-1">
               <Marca />
-              <p className="mt-1 text-[0.85rem] text-muted">{NOME_DA_AREA[area]}</p>
+              {NOME_DA_AREA[area] && <p className="mt-1 text-[0.85rem] text-muted">{NOME_DA_AREA[area]}</p>}
             </div>
             <BotaoIcone leve aria-label="Recolher o menu" aria-expanded title="Recolher o menu" onClick={alternarBarra}>
               <PanelLeftClose aria-hidden="true" />
