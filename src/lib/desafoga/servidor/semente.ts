@@ -5,6 +5,9 @@
  */
 import { randomBytes } from "node:crypto";
 import { materializar, PROFISSIONAIS, SEMENTES } from "@/fixtures/desafoga";
+import { EVENTOS_DA_DEMO } from "@/fixtures/desafoga/eventos";
+import { emData } from "@/fixtures/desafoga/sementes";
+import { hojeEmBrasilia } from "@/lib/luana/lancamentos";
 import type { SementeBanco } from "@/fixtures/desafoga/banco-da-ana";
 import { avisoDeCompraDoBanco, avisoDeConsentimento, avisoDeLimiteDoCartao } from "@/lib/assistente/textos";
 import { diaEmBrasilia } from "@/lib/banco/normalizar";
@@ -200,6 +203,7 @@ export async function criarEspacoDemo(db: Transacao, agora = new Date()): Promis
     if (semente.banco) await criarBancoDaDemo(db, pessoa.id, semente.banco, agora);
   }
 
+  await criarEventosDaDemo(db, pessoas, profissionais, agora);
   return { espacoId: espaco.id, pessoas, profissionais };
 }
 
@@ -307,4 +311,44 @@ function proximoDia(dia: number, agora: Date): string {
   const [a, m, d] = hoje.split("-").map(Number);
   const [ano, mes] = d < dia ? [a, m] : m === 12 ? [a + 1, 1] : [a, m + 1];
   return `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+}
+
+/** Os desafios e o encontro do protótipo, com o mural já conversado. */
+async function criarEventosDaDemo(db: Transacao, pessoas: Record<string, string>, profissionais: Record<string, string>, agora: Date): Promise<void> {
+  const hoje = hojeEmBrasilia(agora);
+  const dia = (n: number) => new Date(Date.parse(`${hoje}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+  const idDe = (slug: string) => pessoas[slug] ?? profissionais[slug];
+  for (const e of EVENTOS_DA_DEMO) {
+    const evento = await db.evento.create({
+      data: {
+        profissionalId: profissionais[e.autor],
+        tipo: e.tipo,
+        nome: e.nome,
+        descricao: e.descricao,
+        regra: e.regra ?? null,
+        categoria: e.categoria ?? null,
+        inicio: e.inicio === undefined ? null : dia(e.inicio),
+        fim: e.fim === undefined ? null : dia(e.fim),
+        data: e.data === undefined ? null : dia(e.data),
+        hora: e.hora ?? null,
+        local: e.local ?? null,
+        premio: e.premio ?? "",
+        participantes: { create: e.participantes.map((p) => ({ pessoaId: pessoas[p.quem], entrouEm: dia(p.entrou), resposta: p.resposta ?? null })) },
+      },
+    });
+    for (const p of e.posts) {
+      await db.postDoEvento.create({
+        data: {
+          eventoId: evento.id,
+          pessoaId: pessoas[p.por] ?? null,
+          profissionalId: profissionais[p.por] ?? null,
+          tipo: p.tipo,
+          texto: p.texto,
+          fixado: p.fixado ?? false,
+          criadoEm: emData({ dias: p.dias, hora: p.hora }, agora),
+          apoios: { create: (p.apoios ?? []).map((quem) => ({ quem: idDe(quem) })) },
+        },
+      });
+    }
+  }
 }

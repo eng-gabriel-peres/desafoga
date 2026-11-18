@@ -1,6 +1,6 @@
 "use client";
 
-import { AlarmClock, BarChart3, ChevronDown, ChevronsUpDown, Landmark, LogOut, RotateCcw, Trophy, UserRound, Users, type LucideIcon } from "lucide-react";
+import { AlarmClock, BarChart3, CalendarDays, ChevronDown, ChevronsUpDown, Landmark, LogOut, RotateCcw, Trophy, UserRound, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useId, useRef, useState, type ReactNode } from "react";
@@ -114,6 +114,9 @@ export function MenuDoPerfil({
                 <ItemLink href="/app/semana" Icone={BarChart3} aoEscolher={() => setAberto(false)}>
                   Sua semana
                 </ItemLink>
+                <ItemLink href="/app/eventos" Icone={CalendarDays} aoEscolher={() => setAberto(false)}>
+                  Eventos
+                </ItemLink>
                 <ItemLink href="/app/conquistas" Icone={Trophy} aoEscolher={() => setAberto(false)}>
                   Conquistas
                 </ItemLink>
@@ -125,9 +128,14 @@ export function MenuDoPerfil({
                 </ItemLink>
               </>
             ) : (
-              <ItemLink href="/painel" Icone={Users} aoEscolher={() => setAberto(false)}>
-                Pacientes e convite
-              </ItemLink>
+              <>
+                <ItemLink href="/painel" Icone={Users} aoEscolher={() => setAberto(false)}>
+                  Pacientes e convite
+                </ItemLink>
+                <ItemLink href="/painel/eventos" Icone={CalendarDays} aoEscolher={() => setAberto(false)}>
+                  Eventos
+                </ItemLink>
+              </>
             )}
             {eu.demo && (
               <li>

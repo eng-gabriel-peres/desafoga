@@ -1,4 +1,4 @@
-import { AlarmClock, BarChart3, Brain, CalendarCheck, ChartPie, ClipboardList, House, MessageCircle, Plus, Target, Trophy, Users, Wallet, type LucideIcon } from "lucide-react";
+import { AlarmClock, BarChart3, Brain, CalendarCheck, CalendarDays, ChartPie, ClipboardList, House, MessageCircle, Plus, Target, Trophy, Users, Wallet, type LucideIcon } from "lucide-react";
 
 /**
  * O Desafoga tem duas áreas separadas:
@@ -21,6 +21,9 @@ export interface ItemDoMenu {
   abreRegistro?: boolean;
 }
 
+/** Telas do painel que não são de um paciente (eventos com várias pessoas). */
+const foraDoPaciente = (c: string) => /^\/painel\/eventos(\/|$)/.test(c);
+
 export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
   if (area === "pessoa") {
     return [
@@ -32,6 +35,7 @@ export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
       { href: "/app/contas", rotulo: "Contas", Icone: CalendarCheck, ativo: (c) => c === "/app/contas", soDesktop: true },
       { href: "/app/orcamento", rotulo: "Orçamento", Icone: ChartPie, ativo: (c) => c === "/app/orcamento", soDesktop: true },
       { href: "/app/semana", rotulo: "Semana", Icone: BarChart3, ativo: (c) => c === "/app/semana", soDesktop: true },
+      { href: "/app/eventos", rotulo: "Eventos", Icone: CalendarDays, ativo: (c) => c.startsWith("/app/eventos"), soDesktop: true },
       { href: "/app/conquistas", rotulo: "Conquistas", Icone: Trophy, ativo: (c) => c === "/app/conquistas", soDesktop: true },
       { href: "/app/rotina", rotulo: "Rotina", Icone: AlarmClock, ativo: (c) => c === "/app/rotina", soDesktop: true },
     ];
@@ -39,12 +43,13 @@ export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
   const base = `/painel/${pacienteId}`;
   return [
     { href: "/painel", rotulo: "Pacientes", Icone: Users, ativo: (c) => c === "/painel" },
-    { href: base, rotulo: "Resumo", Icone: ClipboardList, ativo: (c) => /^\/painel\/[^/]+$/.test(c) },
+    { href: base, rotulo: "Resumo", Icone: ClipboardList, ativo: (c) => /^\/painel\/[^/]+$/.test(c) && !foraDoPaciente(c) },
     { href: `${base}/dividas`, rotulo: "Dívidas", Icone: Wallet, ativo: (c) => /^\/painel\/[^/]+\/dividas$/.test(c) },
     { href: `${base}/contas`, rotulo: "Contas", Icone: CalendarCheck, ativo: (c) => /^\/painel\/[^/]+\/contas$/.test(c) },
     { href: `${base}/metas`, rotulo: "Metas", Icone: Target, ativo: (c) => /^\/painel\/[^/]+\/metas/.test(c) },
     { href: `${base}/memoria`, rotulo: "Memória", Icone: Brain, ativo: (c) => c.endsWith("/memoria") },
     { href: `${base}/conquistas`, rotulo: "Conquistas", Icone: Trophy, ativo: (c) => c.endsWith("/conquistas") },
+    { href: "/painel/eventos", rotulo: "Eventos", Icone: CalendarDays, ativo: foraDoPaciente },
   ];
 }
 
@@ -61,6 +66,11 @@ export function tituloDaRota(caminho: string): Titulo {
   if (caminho === "/app/contas") return { titulo: "Contas do mês", subtitulo: "O que você paga todo mês e quando vence" };
   if (caminho === "/app/rotina") return { titulo: "Rotina e privacidade", subtitulo: "Seus horários e o que quem te acompanha vê" };
   if (/^\/painel\/[^/]+\/contas$/.test(caminho)) return { titulo: "Contas do paciente", subtitulo: "Só leitura, se a pessoa compartilhou" };
+  if (caminho === "/app/eventos") return { titulo: "Eventos", subtitulo: "Desafios e encontros de que você participa" };
+  if (caminho.startsWith("/app/eventos/")) return { titulo: "Evento", subtitulo: "Mural, ranking e o seu andamento" };
+  if (caminho === "/painel/eventos") return { titulo: "Eventos", subtitulo: "Desafios em grupo e encontros presenciais" };
+  if (caminho === "/painel/eventos/novo") return { titulo: "Novo evento", subtitulo: "Desafio em grupo ou encontro presencial" };
+  if (caminho.startsWith("/painel/eventos/")) return { titulo: "Evento", subtitulo: "Mural, ranking e andamento do grupo" };
   if (caminho === "/app/conquistas") return { titulo: "Conquistas", subtitulo: "Metas com prêmio que quem te acompanha criou" };
   if (/^\/painel\/[^/]+\/conquistas$/.test(caminho)) return { titulo: "Conquistas", subtitulo: "Metas com prêmio para o paciente" };
   if (caminho === "/app/semana") return { titulo: "Sua semana", subtitulo: "Os últimos 7 dias" };
@@ -87,4 +97,4 @@ export function rotaDeOutroPaciente(caminho: string, pacienteId: string): string
   return `/painel/${pacienteId}${m?.[1] ?? ""}`;
 }
 
-export const temPaciente = (caminho: string) => /^\/painel\/[^/]+/.test(caminho);
+export const temPaciente = (caminho: string) => /^\/painel\/[^/]+/.test(caminho) && !foraDoPaciente(caminho);

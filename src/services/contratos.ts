@@ -32,6 +32,7 @@ import type {
 import type { CampoDaDivida, CompraParcelada, ModoCompras } from "@/lib/banco/tipos";
 import type { Categoria, DadosDoBanco, LeituraDeDocumento, Necessidade, ResultadoDaSincronizacao } from "./tipos";
 import type { Conquista, IconeDaConquista, TipoDeConquista } from "./tipos";
+import type { DadosDoEvento, RespostaAoEncontro, SalaDoEvento, TipoDePost } from "./tipos";
 
 /** Quem está usando o app neste navegador. */
 export interface Eu {
@@ -136,6 +137,23 @@ export interface ConquistasService {
   apagar(pessoaId: string, conquistaId: string): Promise<void>;
 }
 
+export interface EventosService {
+  /** Do profissional: os que criou. Da pessoa: os de que participa (sem os posts). */
+  listar(): Promise<SalaDoEvento[]>;
+  ver(eventoId: string): Promise<SalaDoEvento>;
+  /** Só profissional; os participantes precisam ser pessoas que ele acompanha. */
+  criar(dados: DadosDoEvento & { participantes: string[] }): Promise<{ id: string }>;
+  adicionar(eventoId: string, pessoaId: string): Promise<void>;
+  remover(eventoId: string, pessoaId: string): Promise<void>;
+  configurar(eventoId: string, mudancas: { mostrarRanking: boolean }): Promise<void>;
+  apagar(eventoId: string): Promise<void>;
+  responder(eventoId: string, resposta: RespostaAoEncontro): Promise<void>;
+  postar(eventoId: string, tipo: Exclude<TipoDePost, "sistema">, texto: string): Promise<{ id: string }>;
+  apoiar(eventoId: string, postId: string): Promise<void>;
+  fixar(eventoId: string, postId: string): Promise<void>;
+  apagarPost(eventoId: string, postId: string): Promise<void>;
+}
+
 export interface RotinaService {
   obter(pessoaId: string): Promise<DadosDaRotina>;
   salvar(
@@ -231,6 +249,7 @@ export interface Servicos {
   orcamentos: OrcamentosService;
   metas: MetasService;
   conquistas: ConquistasService;
+  eventos: EventosService;
   rotina: RotinaService;
   contas: ContasService;
   faturas: FaturasService;

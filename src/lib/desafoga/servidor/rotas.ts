@@ -113,6 +113,22 @@ async function salvarFaturaDaPessoa(p: string, f: Fatura, c: Record<string, Clas
 /** Saldo de investimento é dado de banco: sem as contas compartilhadas, a meta mostra só os depósitos. */
 const metasSemBanco = (metas: Meta[]): Meta[] => metas.map((m) => ({ ...m, investimentos: undefined, guardadoPeloBanco: null }));
 
+/** Quem olha o evento: a pessoa ou o profissional da sessão. */
+function quemNoEvento(sessao: SessaoAtual | null): repo.Quem {
+  const s = exigirSessao(sessao);
+  if (s.pessoa) return { pessoaId: s.pessoa.id };
+  if (s.profissional) return { profissionalId: s.profissional.id };
+  throw new SemPermissao("Entre para ver os eventos.");
+}
+
+function profissionalDaSessao(sessao: SessaoAtual | null): string {
+  const s = exigirSessao(sessao);
+  if (!s.profissional) throw new SemPermissao("Só quem organiza o evento pode fazer isso.");
+  return s.profissional.id;
+}
+
+const diaIso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
 async function escondido(sessao: SessaoAtual | null, pessoaId: string): Promise<boolean> {
   const s = await exigirVer(sessao, pessoaId);
   return s.pessoa?.id !== pessoaId && !(await repo.rotina(pessoaId)).compartilharContas;
@@ -721,6 +737,79 @@ const ACOES = {
   "conquistas.apagar": acao(z.tuple([id, id]), async ([p, c], { sessao }) => {
     await exigirProfissionalDe(sessao, p);
     await repo.apagarConquista(p, c);
+  }),
+
+  // ----- eventos (desafios em grupo e encontros presenciais) -----
+  "eventos.listar": acao(z.tuple([]), async (_, { sessao }) => repo.eventosDe(quemNoEvento(sessao))),
+  "eventos.ver": acao(z.tuple([id]), async ([e], { sessao }) => repo.salaDoEvento(e, quemNoEvento(sessao))),
+  "eventos.criar": acao(
+    z.tuple([
+      z
+        .object({
+          tipo: z.enum(["desafio", "presencial"]),
+          nome: z.string().trim().min(1).max(80),
+          descricao: z.string().max(500),
+          regra: z.enum(["sem-desnecessaria", "sem-categoria", "limite-dia", "nota-boa"]).nullable(),
+          categoria: categoria.nullable(),
+          limite: z.number().int().min(100).max(1e8).nullable(),
+          inicio: diaIso.nullable(),
+          fim: diaIso.nullable(),
+          data: diaIso.nullable(),
+          hora: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable(),
+          local: z.string().trim().max(160).nullable(),
+          premio: z.string().trim().max(80),
+          mostrarRanking: z.boolean(),
+          participantes: z.array(id).max(200),
+        })
+        .refine(
+          (e) =>
+            e.tipo === "desafio"
+              ? Boolean(e.regra && e.inicio && e.fim && e.inicio <= e.fim && (e.regra !== "sem-categoria" || e.categoria) && (e.regra !== "limite-dia" || e.limite))
+              : Boolean(e.data && e.hora && e.local),
+          "Faltam dados do evento.",
+        ),
+    ]),
+    async ([{ participantes, ...dados }], { sessao }) => {
+      const s = exigirSessao(sessao);
+      if (!s.profissional) throw new SemPermissao("Só quem acompanha cria eventos.");
+      // Só entra quem o profissional acompanha.
+      for (const p of participantes) await exigirProfissionalDe(sessao, p);
+      const limpos = dados.tipo === "desafio" ? { ...dados, data: null, hora: null, local: null } : { ...dados, regra: null, categoria: null, limite: null, inicio: null, fim: null };
+      return repo.criarEvento(s.profissional.id, limpos, participantes);
+    },
+    "envio",
+  ),
+  "eventos.adicionar": acao(z.tuple([id, id]), async ([e, p], { sessao }) => {
+    const s = await exigirProfissionalDe(sessao, p);
+    await repo.adicionarAoEvento(e, s.profissional.id, p);
+  }),
+  "eventos.remover": acao(z.tuple([id, id]), async ([e, p], { sessao }) => {
+    await repo.removerDoEvento(e, profissionalDaSessao(sessao), p);
+  }),
+  "eventos.configurar": acao(z.tuple([id, z.object({ mostrarRanking: z.boolean() }).strict()]), async ([e, m], { sessao }) => {
+    await repo.configurarEvento(e, profissionalDaSessao(sessao), m);
+  }),
+  "eventos.apagar": acao(z.tuple([id]), async ([e], { sessao }) => {
+    await repo.apagarEvento(e, profissionalDaSessao(sessao));
+  }),
+  "eventos.responder": acao(z.tuple([id, z.enum(["vou", "talvez", "nao"])]), async ([e, r], { sessao }) => {
+    const s = exigirSessao(sessao);
+    if (!s.pessoa) throw new SemPermissao("Só quem participa responde.");
+    await repo.responderEncontro(e, s.pessoa.id, r);
+  }),
+  "eventos.postar": acao(
+    z.tuple([id, z.enum(["recado", "dica", "conquista", "desabafo", "aviso"]), z.string().trim().min(1).max(1000)]),
+    async ([e, tipo, texto], { sessao }) => repo.postarNoEvento(e, quemNoEvento(sessao), tipo, texto),
+    "envio",
+  ),
+  "eventos.apoiar": acao(z.tuple([id, id]), async ([e, post], { sessao }) => {
+    await repo.apoiarPost(e, quemNoEvento(sessao), post);
+  }),
+  "eventos.fixar": acao(z.tuple([id, id]), async ([e, post], { sessao }) => {
+    await repo.fixarPost(e, profissionalDaSessao(sessao), post);
+  }),
+  "eventos.apagarPost": acao(z.tuple([id, id]), async ([e, post], { sessao }) => {
+    await repo.apagarPost(e, quemNoEvento(sessao), post);
   }),
 
   // ----- avisos -----

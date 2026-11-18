@@ -15,3 +15,4 @@ export * from "./contas";
 export * from "./checkins";
 export * from "./proximos-meses";
 export * from "./conquistas";
+export * from "./eventos";

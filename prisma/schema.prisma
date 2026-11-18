@@ -69,6 +69,8 @@ model Pessoa {
   mensagens          Mensagem[]
   estados            EstadoConversa[]
   conquistas         Conquista[]
+  participacoes      ParticipanteDoEvento[]
+  postsDeEventos     PostDoEvento[]
   acompanhamentos    Acompanhamento[]
   sessoes            Sessao[]
   orcamentos         Orcamento[]
@@ -109,6 +111,8 @@ model Profissional {
   anotacoes       Anotacao[]
   sessoes         Sessao[]
   conquistas      Conquista[]
+  eventos         Evento[]
+  postsDeEventos  PostDoEvento[]
 
   @@unique([espacoId, slug])
   @@map("profissionais")
@@ -640,4 +644,80 @@ model Conquista {
 
   @@index([pessoaId])
   @@map("conquistas")
+}
+
+/// Desafio em grupo ou encontro presencial criado por um profissional.
+model Evento {
+  id             String                 @id @default(uuid())
+  profissionalId String
+  profissional   Profissional           @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  /// desafio, presencial.
+  tipo           String
+  nome           String
+  descricao      String                 @default("")
+  /// Desafio: sem-desnecessaria, sem-categoria, limite-dia, nota-boa.
+  regra          String?
+  categoria      String?
+  /// Centavos, na regra limite-dia.
+  limite         Int?
+  /// "YYYY-MM-DD" (desafio).
+  inicio         String?
+  fim            String?
+  /// "YYYY-MM-DD" e "HH:MM" (presencial).
+  data           String?
+  hora           String?
+  local          String?
+  premio         String                 @default("")
+  mostrarRanking Boolean                @default(true)
+  criadoEm       DateTime               @default(now())
+  participantes  ParticipanteDoEvento[]
+  posts          PostDoEvento[]
+
+  @@index([profissionalId])
+  @@map("eventos")
+}
+
+model ParticipanteDoEvento {
+  eventoId String
+  evento   Evento  @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  pessoaId String
+  pessoa   Pessoa  @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  /// "YYYY-MM-DD": os dias antes disso não contam no desafio.
+  entrouEm String
+  /// Presencial: vou, talvez, nao (null sem resposta).
+  resposta String?
+
+  @@id([eventoId, pessoaId])
+  @@index([pessoaId])
+  @@map("participantes_dos_eventos")
+}
+
+/// Post do mural do evento: de uma pessoa, do profissional ou do sistema (sem autor).
+model PostDoEvento {
+  id             String        @id @default(uuid())
+  eventoId       String
+  evento         Evento        @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  pessoaId       String?
+  pessoa         Pessoa?       @relation(fields: [pessoaId], references: [id], onDelete: Cascade)
+  profissionalId String?
+  profissional   Profissional? @relation(fields: [profissionalId], references: [id], onDelete: Cascade)
+  /// recado, dica, conquista, desabafo, aviso (só profissional), sistema.
+  tipo           String
+  texto          String
+  fixado         Boolean       @default(false)
+  criadoEm       DateTime      @default(now())
+  apoios         ApoioDoPost[]
+
+  @@index([eventoId, criadoEm])
+  @@map("posts_dos_eventos")
+}
+
+/// "Apoiar" um post: quem é o id da pessoa ou do profissional.
+model ApoioDoPost {
+  postId String
+  post   PostDoEvento @relation(fields: [postId], references: [id], onDelete: Cascade)
+  quem   String
+
+  @@id([postId, quem])
+  @@map("apoios_dos_posts")
 }

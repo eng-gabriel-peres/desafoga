@@ -1,5 +1,5 @@
 import { formatarReais } from "@/lib/dinheiro";
-import type { Conquista, ContaFixa, Emocao, IconeDaConquista, Estrategia, Frequencia, Meta, Necessidade, Periodo, SituacaoDaMeta, SituacaoDoOrcamento } from "@/lib/finance";
+import type { Conquista, ContaFixa, Emocao, IconeDaConquista, RegrasDoDesafio, Estrategia, Frequencia, Meta, Necessidade, Periodo, SituacaoDaMeta, SituacaoDoOrcamento } from "@/lib/finance";
 import type { Tom } from "@/services/tipos";
 
 export const reais = formatarReais;
@@ -163,6 +163,34 @@ export function mensagemDeConquistaNova(c: Conquista): string {
 
 export function mensagemDeConquistaAlcancada(c: Conquista): string {
   return `🏆 Conquista desbloqueada!\n${EMOJI_DA_CONQUISTA[c.icone]} ${c.titulo}${c.premio ? `\nSeu prêmio: ${c.premio}` : ""}`;
+}
+
+// ---------- eventos ----------
+
+/** "14 de nov." a partir de "YYYY-MM-DD". */
+export function dataCurtaDaChave(dia: string): string {
+  return new Date(`${dia}T12:00:00Z`).toLocaleDateString("pt-BR", { day: "numeric", month: "short", timeZone: "UTC" });
+}
+
+/** "Sábado, 21 de novembro" a partir de "YYYY-MM-DD". */
+export function dataLongaDaChave(dia: string): string {
+  const t = new Date(`${dia}T12:00:00Z`).toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+export function regraEmTexto(r: RegrasDoDesafio): string {
+  if (r.regra === "sem-categoria") return `Nenhuma compra de ${r.categoria}`;
+  if (r.regra === "limite-dia") return `Gastar no máximo ${reais(r.limite ?? 0)} por dia`;
+  if (r.regra === "nota-boa") return "Comprar só estando bem: nota do dia 3 ou mais";
+  return "Nenhuma compra não necessária";
+}
+
+export function mensagemDeEntradaNoDesafio(e: RegrasDoDesafio & { nome: string; inicio: string; fim: string; premio: string }): string {
+  return `🎯 Você entrou no desafio ${e.nome}!\nRegra: ${regraEmTexto(e)}.\nDe ${dataCurtaDaChave(e.inicio)} a ${dataCurtaDaChave(e.fim)}${e.premio ? `\nPrêmio: ${e.premio}` : ""}\nÉ só registrar suas compras normalmente que eu confiro para você.`;
+}
+
+export function mensagemDeConviteParaEncontro(e: { nome: string; data: string; hora: string; local: string }): string {
+  return `📅 Convite: ${e.nome}\n${dataLongaDaChave(e.data)}, ${e.hora}\n📍 ${e.local}\nMe diga se você vai em Eventos, no app.`;
 }
 
 // ---------- check-ins da rotina ----------
