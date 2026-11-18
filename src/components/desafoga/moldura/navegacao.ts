@@ -1,4 +1,4 @@
-import { AlarmClock, BarChart3, Brain, Receipt, CalendarCheck, CalendarDays, ChartPie, Newspaper, ClipboardList, House, MessageCircle, Plus, Target, Trophy, Users, Wallet, type LucideIcon } from "lucide-react";
+import { AlarmClock, BarChart3, Bell, Brain, Receipt, CalendarCheck, CalendarDays, ChartPie, Newspaper, ClipboardList, House, MessageCircle, Plus, Target, Trophy, Users, Wallet, type LucideIcon } from "lucide-react";
 
 /**
  * O Desafoga tem duas áreas separadas:
@@ -51,6 +51,7 @@ export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
     { href: `${base}/memoria`, rotulo: "Memória", Icone: Brain, ativo: (c) => c.endsWith("/memoria") },
     { href: `${base}/compras`, rotulo: "Compras", Icone: Receipt, ativo: (c) => c.endsWith("/compras") },
     { href: `${base}/conquistas`, rotulo: "Conquistas", Icone: Trophy, ativo: (c) => c.endsWith("/conquistas") },
+    { href: `${base}/avisos`, rotulo: "Avisos", Icone: Bell, ativo: (c) => /^\/painel\/[^/]+\/avisos$/.test(c) },
     { href: "/painel/conteudos", rotulo: "Conteúdos", Icone: Newspaper, ativo: (c) => c.startsWith("/painel/conteudos") },
     { href: "/painel/eventos", rotulo: "Eventos", Icone: CalendarDays, ativo: (c) => c.startsWith("/painel/eventos") },
   ];
@@ -80,6 +81,7 @@ export function tituloDaRota(caminho: string): Titulo {
   if (caminho === "/painel/eventos/novo") return { titulo: "Novo evento", subtitulo: "Desafio em grupo ou encontro presencial" };
   if (caminho.startsWith("/painel/eventos/")) return { titulo: "Evento", subtitulo: "Mural, ranking e andamento do grupo" };
   if (caminho === "/app/conquistas") return { titulo: "Conquistas", subtitulo: "Metas com prêmio que quem te acompanha criou" };
+  if (/^\/painel\/[^/]+\/avisos$/.test(caminho)) return { titulo: "Avisos no WhatsApp", subtitulo: "O que a Luana manda para o paciente e para você" };
   if (/^\/painel\/[^/]+\/compras$/.test(caminho)) return { titulo: "Compras do paciente", subtitulo: "Na sua opinião, cada compra era necessária?" };
   if (/^\/painel\/[^/]+\/conquistas$/.test(caminho)) return { titulo: "Conquistas", subtitulo: "Metas com prêmio para o paciente" };
   if (caminho === "/app/semana") return { titulo: "Sua semana", subtitulo: "Os últimos 7 dias" };

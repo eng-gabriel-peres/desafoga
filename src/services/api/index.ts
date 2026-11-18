@@ -108,6 +108,10 @@ export const servicosDaApi: Servicos = {
     fixar: (eventoId, postId) => chamar("eventos.fixar", [eventoId, postId], true),
     apagarPost: (eventoId, postId) => chamar("eventos.apagarPost", [eventoId, postId], true),
   },
+  configDosAvisos: {
+    ver: (id) => chamar("avisos.config", [id]),
+    salvar: (id, mudancas) => chamar("avisos.configurar", [id, mudancas], true),
+  },
   conquistas: {
     listar: (id) => chamar("conquistas.listar", [id]),
     criar: (id, nova) => chamar("conquistas.criar", [id, nova], true),

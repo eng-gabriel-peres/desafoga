@@ -19,7 +19,7 @@ const DESCRICAO: Record<Periodo, [string, string]> = {
 };
 
 /** Interruptor liga/desliga acessível (role="switch"). */
-function Interruptor({ ligado, mudar, rotulo }: { ligado: boolean; mudar: (v: boolean) => void; rotulo: string }) {
+export function Interruptor({ ligado, mudar, rotulo }: { ligado: boolean; mudar: (v: boolean) => void; rotulo: string }) {
   return (
     <button
       type="button"
@@ -37,7 +37,7 @@ function Interruptor({ ligado, mudar, rotulo }: { ligado: boolean; mudar: (v: bo
   );
 }
 
-function Linha({ titulo, descricao, children, extra }: { titulo: string; descricao: string; children: React.ReactNode; extra?: React.ReactNode }) {
+export function Linha({ titulo, descricao, children, extra }: { titulo: string; descricao: string; children: React.ReactNode; extra?: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3 border-b border-line py-3.5 last:border-0">
       <div className="min-w-0 flex-1">

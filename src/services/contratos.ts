@@ -31,7 +31,7 @@ import type {
 } from "./tipos";
 import type { CampoDaDivida, CompraParcelada, ModoCompras } from "@/lib/banco/tipos";
 import type { Categoria, DadosDoBanco, LeituraDeDocumento, Necessidade, ResultadoDaSincronizacao } from "./tipos";
-import type { Conquista, IconeDaConquista, TipoDeConquista } from "./tipos";
+import type { ConfigDosAvisos, Conquista, IconeDaConquista, TipoDeConquista } from "./tipos";
 import type { DadosDoEvento, RespostaAoEncontro, SalaDoEvento, TipoDePost } from "./tipos";
 import type { DetalheDoConteudo, FeedDeConteudos, NovoConteudo } from "./tipos";
 
@@ -131,6 +131,13 @@ export interface NovaConquista {
   /** Vazio: título automático. */
   titulo: string;
   premio: string;
+}
+
+export interface ConfigDosAvisosService {
+  /** "Avisos no WhatsApp" da pessoa (quem acompanha e a própria pessoa veem). */
+  ver(pessoaId: string): Promise<ConfigDosAvisos>;
+  /** Só quem acompanha. */
+  salvar(pessoaId: string, mudancas: Partial<ConfigDosAvisos>): Promise<ConfigDosAvisos>;
 }
 
 export interface ConquistasService {
@@ -272,6 +279,7 @@ export interface Servicos {
   orcamentos: OrcamentosService;
   metas: MetasService;
   conquistas: ConquistasService;
+  configDosAvisos: ConfigDosAvisosService;
   eventos: EventosService;
   conteudos: ConteudosService;
   rotina: RotinaService;

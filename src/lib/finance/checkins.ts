@@ -1,5 +1,5 @@
 /** Check-ins da rotina: como a pessoa está ao acordar, ao meio-dia e à noite. */
-import type { CheckIn, Periodo, Rotina } from "./tipos";
+import type { CheckIn, Periodo, Rotina, ConfigDosAvisos } from "./tipos";
 
 export const PERIODOS: Periodo[] = ["manha", "tarde", "noite"];
 
@@ -7,6 +7,16 @@ export const NOME_DO_PERIODO: Record<Periodo, string> = {
   manha: "Ao acordar",
   tarde: "Meio-dia",
   noite: "À noite",
+};
+
+/** Como vêm as contas novas; o lembrete diário começa desligado (a pessoa já tem o check-in da noite). */
+export const AVISOS_PADRAO: ConfigDosAvisos = {
+  lembreteDiario: false,
+  horaDoLembrete: "21:00",
+  compraAlta: true,
+  valorDaCompraAlta: 20000,
+  diaDificil: true,
+  resumoDaSemana: true,
 };
 
 export const ROTINA_PADRAO: Rotina = {

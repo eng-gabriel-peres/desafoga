@@ -140,6 +140,18 @@ export async function criarEspacoDemo(db: Transacao, agora = new Date()): Promis
       });
     }
 
+    if (semente.configDosAvisos) {
+      const a = semente.configDosAvisos;
+      const dados = {
+        ...(a.lembreteDiario !== undefined ? { lembreteDiario: a.lembreteDiario } : {}),
+        ...(a.horaDoLembrete !== undefined ? { horaDoLembrete: a.horaDoLembrete } : {}),
+        ...(a.compraAlta !== undefined ? { avisarCompraAlta: a.compraAlta } : {}),
+        ...(a.valorDaCompraAlta !== undefined ? { valorDaCompraAlta: a.valorDaCompraAlta } : {}),
+        ...(a.diaDificil !== undefined ? { avisarDiaDificil: a.diaDificil } : {}),
+        ...(a.resumoDaSemana !== undefined ? { resumoDaSemana: a.resumoDaSemana } : {}),
+      };
+      await db.rotina.upsert({ where: { pessoaId: pessoa.id }, create: { pessoaId: pessoa.id, ...dados }, update: dados });
+    }
     const haDias = (n: number) => new Date(agora.getTime() - n * 86_400_000);
     for (const c of semente.conquistas ?? []) {
       await db.conquista.create({

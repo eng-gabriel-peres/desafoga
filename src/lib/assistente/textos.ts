@@ -1,4 +1,5 @@
 import { formatarReais } from "@/lib/dinheiro";
+import { rotuloDaNota } from "@/lib/finance";
 import type { Conquista, ContaFixa, Emocao, IconeDaConquista, RegrasDoDesafio, Estrategia, Frequencia, Meta, Necessidade, Periodo, SituacaoDaMeta, SituacaoDoOrcamento } from "@/lib/finance";
 import type { Tom } from "@/services/tipos";
 
@@ -141,6 +142,17 @@ export function fatoDaMeta(meta: Meta, s: SituacaoDaMeta): string {
 export function lembreteDeConta(apelido: string, conta: ContaFixa): string {
   const valor = `${conta.variavel ? "cerca de " : ""}${reaisCurto(conta.valor)}`;
   return `📅 Oi, ${apelido}! ${conta.nome} vence amanhã: ${valor}.\nQuando pagar, me responda: paguei ${conta.nome.toLowerCase()} ${Math.round(conta.valor / 100)}`;
+}
+
+// ---------- lembretes do acompanhamento ----------
+
+/** Lembrete diário (como no protótipo): o que a pessoa registrou hoje e a nota do dia. */
+export function mensagemDoLembreteDiario(hora: string, deHoje: { valor: number }[], nota: number | null): string {
+  const inicio = `🔔 Lembrete das ${hora}\n`;
+  if (!deHoje.length) return `${inicio}Hoje você não registrou compras. Comprou algo? É só me contar.`;
+  const total = deHoje.reduce((s, c) => s + c.valor, 0);
+  const n = deHoje.length;
+  return `${inicio}Hoje você registrou ${n} ${n === 1 ? "compra" : "compras"}, total de ${reais(total)}.${nota !== null ? `\nSua nota do dia: ${umaCasa(nota)} (${rotuloDaNota(nota)}).` : ""}\nEsqueceu alguma? É só me mandar.`;
 }
 
 // ---------- conquistas ----------

@@ -412,6 +412,14 @@ model Rotina {
   avisarQuandoTriste Boolean @default(true)
   /// Profissionais podem ver as contas fixas e a renda.
   compartilharContas Boolean @default(true)
+  /// "Avisos no WhatsApp" do painel (como no protótipo), configurados por quem acompanha.
+  lembreteDiario     Boolean @default(false)
+  horaDoLembrete     String  @default("21:00")
+  avisarCompraAlta   Boolean @default(true)
+  /// Centavos.
+  valorDaCompraAlta  Int     @default(20000)
+  avisarDiaDificil   Boolean @default(true)
+  resumoDaSemana     Boolean @default(true)
 
   @@map("rotinas")
 }

@@ -5,7 +5,7 @@
  */
 import type { ContextoAssistente, EstadoConversa } from "@/lib/assistente/conversa";
 import { ESTADO_INICIAL } from "@/lib/assistente/conversa";
-import { chaveDoDia, ROTINA_PADRAO, situacaoDaMeta, type CategoriaDaConta, type CheckIn, type ContaFixa, type Pagamento, type Periodo, type Renda, type Rotina, type Categoria, type Emocao, type Estrategia, type Necessidade, type TipoDivida, type TipoLancamento } from "@/lib/finance";
+import { AVISOS_PADRAO, chaveDoDia, notaMedia, ROTINA_PADRAO, type ConfigDosAvisos, situacaoDaMeta, type CategoriaDaConta, type CheckIn, type ContaFixa, type Pagamento, type Periodo, type Renda, type Rotina, type Categoria, type Emocao, type Estrategia, type Necessidade, type TipoDivida, type TipoLancamento } from "@/lib/finance";
 import { avisoDeMetaConcluida } from "@/lib/assistente/textos";
 import { Prisma } from "@/generated/prisma/client";
 import type {
@@ -28,8 +28,9 @@ import type {
   RespostaRapida,
   Tom,
 } from "@/services/tipos";
-import { avisoDeCompraAlta, avisoDeSugestao, mensagemDeSugestao, nomeDeCompraDaFatura } from "../regras";
+import { avisoDeCompraAlta, avisoDeDiaDificil, avisoDeSugestao, mensagemDeSugestao, nomeDeCompraDaFatura } from "../regras";
 import { hojeEmBrasilia } from "@/lib/luana/lancamentos";
+import { avisarUmaVez } from "./repositorio-banco";
 import { conferirConquistas } from "./repositorio-conquistas";
 import { prisma } from "./prisma";
 
@@ -308,10 +309,50 @@ export async function avisar(pessoaId: string, tipo: Aviso["tipo"], texto: strin
 export async function registrarCompra(pessoaId: string, nova: NovaCompra, quando = new Date()): Promise<Compra> {
   const criada = await prisma().compra.create({ data: { pessoaId, ...nova, quando } });
   const p = await prisma().pessoa.findUniqueOrThrow({ where: { id: pessoaId }, select: { apelido: true } });
-  const aviso = avisoDeCompraAlta(nova, p.apelido);
+  const config = await configDosAvisos(pessoaId);
+  const aviso = avisoDeCompraAlta(nova, p.apelido, config);
   if (aviso) await avisar(pessoaId, "gasto-alto", aviso, quando);
+  await conferirDiaDificil(pessoaId, quando);
   await conferirConquistas(pessoaId, quando);
   return paraCompra(criada);
+}
+
+/** "Avisos no WhatsApp" que quem acompanha configurou (ou o padrão). */
+export async function configDosAvisos(pessoaId: string): Promise<ConfigDosAvisos> {
+  const r = await prisma().rotina.findUnique({ where: { pessoaId } });
+  if (!r) return AVISOS_PADRAO;
+  return {
+    lembreteDiario: r.lembreteDiario,
+    horaDoLembrete: r.horaDoLembrete,
+    compraAlta: r.avisarCompraAlta,
+    valorDaCompraAlta: r.valorDaCompraAlta,
+    diaDificil: r.avisarDiaDificil,
+    resumoDaSemana: r.resumoDaSemana,
+  };
+}
+
+export async function salvarConfigDosAvisos(pessoaId: string, m: Partial<ConfigDosAvisos>): Promise<ConfigDosAvisos> {
+  const dados = {
+    ...(m.lembreteDiario !== undefined ? { lembreteDiario: m.lembreteDiario } : {}),
+    ...(m.horaDoLembrete !== undefined ? { horaDoLembrete: m.horaDoLembrete } : {}),
+    ...(m.compraAlta !== undefined ? { avisarCompraAlta: m.compraAlta } : {}),
+    ...(m.valorDaCompraAlta !== undefined ? { valorDaCompraAlta: m.valorDaCompraAlta } : {}),
+    ...(m.diaDificil !== undefined ? { avisarDiaDificil: m.diaDificil } : {}),
+    ...(m.resumoDaSemana !== undefined ? { resumoDaSemana: m.resumoDaSemana } : {}),
+  };
+  await prisma().rotina.upsert({ where: { pessoaId }, create: { pessoaId, ...dados }, update: dados });
+  return configDosAvisos(pessoaId);
+}
+
+/** Nota do dia (em Brasília) em 2 ou menos: avisa quem acompanha, uma vez por dia. */
+export async function conferirDiaDificil(pessoaId: string, agora = new Date()): Promise<void> {
+  if (!(await configDosAvisos(pessoaId)).diaDificil) return;
+  const dia = hojeEmBrasilia(agora);
+  const deHoje = (await compras(pessoaId)).filter((c) => hojeEmBrasilia(new Date(c.quando)) === dia);
+  const nota = notaMedia(deHoje);
+  if (nota === null || nota > 2) return;
+  const p = await prisma().pessoa.findUniqueOrThrow({ where: { id: pessoaId }, select: { apelido: true } });
+  await avisarUmaVez(pessoaId, `dia-dificil:${dia}`, "nota-baixa", avisoDeDiaDificil(p.apelido, nota), agora);
 }
 
 /** O profissional diz se a compra era necessária (null desfaz). Só compra desta pessoa. */

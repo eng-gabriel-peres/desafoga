@@ -265,3 +265,18 @@ export interface Conquista {
   /** Nome de quem criou. */
   autor: string | null;
 }
+
+/** "Avisos no WhatsApp" que quem acompanha configura para a pessoa (como no protótipo). */
+export interface ConfigDosAvisos {
+  /** Lembrete diário para a pessoa, com o resumo das compras do dia. */
+  lembreteDiario: boolean;
+  /** "HH:MM". */
+  horaDoLembrete: string;
+  /** Avisar quem acompanha de compra a partir de `valorDaCompraAlta` (centavos). */
+  compraAlta: boolean;
+  valorDaCompraAlta: number;
+  /** Avisar quem acompanha quando a nota do dia ficar em 2 ou menos. */
+  diaDificil: boolean;
+  /** Resumo da semana todo domingo, para a pessoa e para quem acompanha. */
+  resumoDaSemana: boolean;
+}

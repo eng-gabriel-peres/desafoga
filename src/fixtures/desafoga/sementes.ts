@@ -23,7 +23,7 @@ import type {
   Plano,
   TipoAviso,
 } from "@/services/tipos";
-import { chaveDoDia, chaveDoMes, compromissosDoMes, type Lancamento } from "@/lib/finance";
+import { chaveDoDia, chaveDoMes, compromissosDoMes, type ConfigDosAvisos, type Lancamento } from "@/lib/finance";
 import type { SementeBanco } from "./banco-da-ana";
 
 interface Quando {
@@ -81,6 +81,8 @@ export interface SementePessoa {
   /** Banco conectado de demonstração (sem Pluggy). */
   banco?: SementeBanco;
   conquistas?: SementeConquista[];
+  /** "Avisos no WhatsApp" diferentes do padrão. */
+  configDosAvisos?: Partial<ConfigDosAvisos>;
 }
 
 export interface DadosDaPessoa {

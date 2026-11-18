@@ -63,6 +63,8 @@ export const ana: SementePessoa = {
     { diasAtras: 1, humores: [3, 3, 2] },
   ],
   checkinsDeHoje: { manha: 2 },
+  // Como no protótipo: o lembrete diário das 21h já vem ligado na demo.
+  configDosAvisos: { lembreteDiario: true },
   // As do protótipo, criadas pela Paula; a primeira já foi alcançada.
   conquistas: [
     { autorId: "paula", icone: "caderno", titulo: "Anotar 5 compras", tipo: "registrar", alvo: 5, premio: "Um sorvete no sábado", criadaHaDias: 10, concluidaHaDias: 5 },

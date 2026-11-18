@@ -714,6 +714,32 @@ const ACOES = {
     return montarContexto({ ...ctx, metas: metasSemBanco(ctx.metas) }, { semContas: true });
   }),
 
+  // ----- avisos no WhatsApp (o profissional configura; a pessoa vê) -----
+  "avisos.config": acao(z.tuple([id]), async ([p], { sessao }) => {
+    await exigirVer(sessao, p);
+    return repo.configDosAvisos(p);
+  }),
+  "avisos.configurar": acao(
+    z.tuple([
+      id,
+      z
+        .object({
+          lembreteDiario: z.boolean(),
+          horaDoLembrete: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+          compraAlta: z.boolean(),
+          valorDaCompraAlta: z.number().int().min(100).max(1e8),
+          diaDificil: z.boolean(),
+          resumoDaSemana: z.boolean(),
+        })
+        .partial()
+        .strict(),
+    ]),
+    async ([p, m], { sessao }) => {
+      await exigirProfissionalDe(sessao, p);
+      return repo.salvarConfigDosAvisos(p, m);
+    },
+  ),
+
   // ----- conquistas (o profissional cria; a pessoa vê) -----
   "conquistas.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
     await exigirVer(sessao, p);
