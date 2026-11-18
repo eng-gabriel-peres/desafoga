@@ -83,9 +83,12 @@ describe.runIf(url)("eventos", { timeout: 30_000 }, () => {
     expect(aceita.participantes.map((p) => p.pessoaId)).toEqual([ana]);
     expect(aceita.ranking?.map((r) => r.pessoaId)).toEqual([ana]);
 
+    await chamar("eventos.postar", [id, "recado", "Oi, grupo"], anaS);
     const carlosS = await entrar("carlos", anaS);
     await chamar("eventos.aceitar", [id], carlosS);
     const daCarlos = await chamar<SalaDoEvento>("eventos.ver", [id], carlosS);
+    // No mural também: dos outros, só o primeiro nome.
+    expect(daCarlos.posts.find((p) => p.texto === "Oi, grupo")?.autor.nome).toBe("Ana");
     // Dos outros, só o primeiro nome e nada de data de entrada.
     expect(daCarlos.participantes.find((p) => p.pessoaId === ana)).toMatchObject({ nome: "Ana", entrouEm: null });
     await chamar("eventos.postar", [id, "recado", "Tô dentro"], carlosS);

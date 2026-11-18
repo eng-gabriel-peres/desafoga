@@ -223,7 +223,7 @@ async function montarSala(e: EventoDoBanco, quem: Quem, agora: Date, comPosts: b
     const lista = await prisma().postDoEvento.findMany({
       where: { eventoId: e.id },
       include: {
-        pessoa: { select: { nome: true, cor: true } },
+        pessoa: { select: { nome: true, apelido: true, cor: true } },
         profissional: { select: { nome: true, cor: true, papel: true } },
         apoios: { select: { quem: true } },
       },
@@ -233,7 +233,8 @@ async function montarSala(e: EventoDoBanco, quem: Quem, agora: Date, comPosts: b
     posts = lista.map((x) => ({
       id: x.id,
       autor: x.pessoa
-        ? { tipo: "pessoa" as const, nome: x.pessoa.nome, cor: x.pessoa.cor, papel: null }
+        ? // Dos outros participantes, só o primeiro nome (o dono vê o nome todo).
+          { tipo: "pessoa" as const, nome: souDono || x.pessoaId === quem.pessoaId ? x.pessoa.nome : x.pessoa.apelido, cor: x.pessoa.cor, papel: null }
         : x.profissional
           ? { tipo: "profissional" as const, nome: x.profissional.nome, cor: x.profissional.cor, papel: x.profissional.papel }
           : { tipo: "sistema" as const, nome: "Desafoga", cor: "", papel: null },
