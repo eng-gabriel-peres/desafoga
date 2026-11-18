@@ -17,6 +17,7 @@ import { BancosConectados } from "../banco/bancos-conectados";
 import { ComprasParceladas } from "../banco/parcelada";
 import { ProximosMeses } from "../banco/proximos-meses";
 import { Assinaturas, SugestaoDeRenda } from "../banco/extras";
+import { dinheiroDoMesDe } from "../mes";
 import { useEu, usePessoaDaSessao } from "../sessao";
 import { Carregando, Painel, Sub, TituloCelular } from "../ui/blocos";
 import { Botao } from "../ui/botao";
@@ -72,7 +73,7 @@ export function TelaContas({ area = "pessoa", pessoaId: doPainel }: { area?: Are
       {!somenteLeitura && <TituloCelular titulo="Contas do mês" subtitulo="O que você paga todo mês e quando vence" />}
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 desk:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] desk:gap-5">
         <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
-          <ResumoDasContas pessoaId={pessoaId} totais={totais} renda={contas.renda} agora={agora} somenteLeitura={somenteLeitura} />
+          <ResumoDasContas pessoaId={pessoaId} totais={totais} renda={contas.renda} agora={agora} somenteLeitura={somenteLeitura} doMes={dinheiroDoMesDe(dados, agora)} />
           <Painel
             titulo={dia === null ? "Vencimentos" : `Dia ${dia}`}
             acao={

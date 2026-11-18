@@ -18,6 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
+import type { DinheiroDoMes } from "@/lib/finance";
 import { useState } from "react";
 import {
   NOME_DA_CATEGORIA_DA_CONTA,
@@ -123,12 +124,15 @@ export function ResumoDasContas({
   renda,
   agora,
   somenteLeitura,
+  doMes,
 }: {
   pessoaId: string;
   totais: TotaisDoMes;
   renda: Renda | null;
   agora: Date;
   somenteLeitura: boolean;
+  /** A conta do mês com as metas e os orçamentos (a mesma de "Seu mês"). */
+  doMes?: DinheiroDoMes;
 }) {
   const [editando, setEditando] = useState(false);
   const nomeDoMes = agora.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
@@ -153,7 +157,7 @@ export function ResumoDasContas({
           <b>{reais(totais.falta)}</b> falta pagar
         </span>
       </div>
-      <dl className="mt-3.5 grid grid-cols-3 gap-2 rounded-2xl bg-surface2 p-3 text-[0.85rem]">
+      <dl className={`mt-3.5 grid gap-2 rounded-2xl bg-surface2 p-3 text-[0.85rem] ${doMes ? "grid-cols-2 desk:grid-cols-4" : "grid-cols-3"}`}>
         <div>
           <dt className="text-muted">Contas fixas</dt>
           <dd className="font-bold">{reais(totais.contas)}</dd>
@@ -162,13 +166,39 @@ export function ResumoDasContas({
           <dt className="text-muted">Parcelas de dívidas</dt>
           <dd className="font-bold">{reais(totais.parcelas)}</dd>
         </div>
+        {doMes && (
+          <div>
+            <dt className="text-muted">Metas</dt>
+            <dd className="font-bold">{reais(doMes.metas)}</dd>
+          </div>
+        )}
         <div>
-          <dt className="text-muted">{totais.renda ? "Sobra da renda" : "Renda"}</dt>
-          <dd className={`font-bold ${totais.sobra === null ? "" : totais.sobra < 0 ? "text-bad" : "text-good"}`}>
-            {totais.sobra === null ? "Não informada" : reais(totais.sobra)}
-          </dd>
+          <dt className="text-muted">{totais.renda ? (doMes ? "Sobra do mês" : "Sobra da renda") : "Renda"}</dt>
+          {(() => {
+            // Com as metas: renda − contas − parcelas − metas (o que fica para o dia a dia).
+            const sobra = doMes ? doMes.paraOrcamentos : totais.sobra;
+            return <dd className={`font-bold ${sobra === null ? "" : sobra < 0 ? "text-bad" : "text-good"}`}>{sobra === null ? "Não informada" : reais(sobra)}</dd>;
+          })()}
         </div>
       </dl>
+      {doMes && doMes.paraOrcamentos !== null && doMes.paraOrcamentos >= 0 && (
+        <p className="mt-2 text-[0.9rem] text-muted">
+          É o que fica para o dia a dia.{" "}
+          {doMes.orcamentos > 0 &&
+            (doMes.sobra !== null && doMes.sobra < 0 ? (
+              <>
+                Os orçamentos somam <b className="text-bad">{reais(doMes.orcamentos)}</b>, passam {reais(-doMes.sobra)} disso.{" "}
+              </>
+            ) : (
+              <>Desse valor, {reais(doMes.orcamentos)} está nos orçamentos. </>
+            ))}
+          {!somenteLeitura && (
+            <Link href="/app/orcamento" className="font-bold text-primary">
+              Ver em Orçamento
+            </Link>
+          )}
+        </p>
+      )}
       {totais.sobra !== null && totais.sobra < 0 && (
         <p className="mt-2.5 rounded-xl bg-bad-soft px-3 py-2 text-[0.92rem] text-bad">
           Os compromissos passam da renda em {reais(-totais.sobra)}. Vale conversar com quem te acompanha sobre o que dá para renegociar.
