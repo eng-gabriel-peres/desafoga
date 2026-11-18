@@ -32,6 +32,7 @@ import { avisoDeCompraAlta, avisoDeDiaDificil, avisoDeSugestao, mensagemDeSugest
 import { hojeEmBrasilia } from "@/lib/luana/lancamentos";
 import { avisarUmaVez } from "./repositorio-banco";
 import { conferirConquistas } from "./repositorio-conquistas";
+import { avisarCompraForaDaRegra } from "./repositorio-eventos";
 import { prisma } from "./prisma";
 
 export type Canal = "app" | "whatsapp";
@@ -320,6 +321,7 @@ export async function registrarCompra(pessoaId: string, nova: NovaCompra, quando
   if (aviso) await avisar(pessoaId, "gasto-alto", aviso, quando);
   await conferirDiaDificil(pessoaId, quando);
   await conferirConquistas(pessoaId, quando);
+  await avisarCompraForaDaRegra(pessoaId, criada.id, quando);
   return paraCompra(criada);
 }
 

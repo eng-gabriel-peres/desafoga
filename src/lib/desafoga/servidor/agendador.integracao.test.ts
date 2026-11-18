@@ -135,6 +135,24 @@ describe.runIf(url)("agendador", () => {
     expect((await avisos([p], { apenas: ["resumo-semana"] })).map((a) => a.texto)).toEqual(["Resumo da semana de Bia: 1 compra, R$ 12,00, nota média 4,0, 0 não necessárias."]);
   });
 
+  it("avisa o início do desafio para quem aceitou o convite (quem não aceitou, nada)", async () => {
+    const p = await pessoa("REAL");
+    const q = await pessoa("REAL");
+    const { espacoId } = await prisma().pessoa.findUniqueOrThrow({ where: { id: p } });
+    const prof = await prisma().profissional.create({ data: { espacoId, nome: "Paula Reis", papel: "Psicóloga", cor: "verde", convite: crypto.randomUUID() } });
+    const { criarEvento, aceitarConvite } = await import("./repositorio");
+    const { id } = await criarEvento(
+      prof.id,
+      { tipo: "desafio", nome: "Semana leve", descricao: "", regra: "sem-desnecessaria", categoria: null, limite: null, inicio: "2026-11-18", fim: "2026-11-24", data: null, hora: null, local: null, premio: "", mostrarRanking: true },
+      [p, q],
+      agora,
+    );
+    await aceitarConvite(id, p, agora);
+    await rodarAgendador({ agora, pessoas: [p, q], whatsapp: null, sincronizarBanco: null });
+    expect((await mensagens(p)).some((m) => m.texto.includes("Hoje começa o desafio Semana leve!"))).toBe(true);
+    expect((await mensagens(q)).some((m) => m.texto.includes("Hoje começa"))).toBe(false);
+  });
+
   it("não manda nada para a demo", async () => {
     const p = await pessoa("DEMO");
     const r = await rodarAgendador({ agora, pessoas: [p], whatsapp: async () => {} });

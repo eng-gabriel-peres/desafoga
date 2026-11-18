@@ -4,7 +4,7 @@
  * do app; o WhatsApp é tentado para quem confirmou o número, mas fora da
  * janela de 24 horas ele só aceita modelos aprovados, então pode recusar.
  */
-import { chaveDoCheckIn, enviosDoMomento } from "@/lib/desafoga/agendador";
+import { chaveDoCheckIn, enviosDoMomento, enviosDosEventos } from "@/lib/desafoga/agendador";
 import type { Periodo } from "@/lib/finance";
 import { hojeEmBrasilia } from "@/lib/luana/lancamentos";
 import { pluggyConfigurado } from "@/lib/banco/pluggy";
@@ -80,7 +80,10 @@ export async function rodarAgendador({ agora = new Date(), pessoas, whatsapp, si
         repo.plano(p.id),
       ]);
       await repo.conferirConquistas(p.id, agora);
-      const envios = enviosDoMomento({ pessoaId: p.id, apelido: p.apelido, rotina, checkins, contas, pagamentos, metas, config, compras, dividas, plano }, agora);
+      const envios = [
+        ...enviosDoMomento({ pessoaId: p.id, apelido: p.apelido, rotina, checkins, contas, pagamentos, metas, config, compras, dividas, plano }, agora),
+        ...enviosDosEventos(p.id, await repo.eventosDe({ pessoaId: p.id }, agora), agora),
+      ];
       for (const [i, e] of envios.entries()) {
         // Reserva a chave antes: duas chamadas ao mesmo tempo não mandam duas vezes.
         if (!(await registros().criarSeNaoExiste(chaveDoEnvio(e.chave), { quando: agora.toISOString() }))) continue;

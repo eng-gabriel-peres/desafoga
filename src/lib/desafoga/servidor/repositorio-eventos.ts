@@ -4,10 +4,11 @@
  * participa. Dos outros participantes a pessoa vê só nome e pontos, nunca as
  * compras nem os dias. Reexportado por `repositorio.ts`.
  */
-import { mensagemDeConviteParaDesafio, mensagemDeConviteParaEncontro } from "@/lib/assistente/textos";
+import { mensagemDeConviteParaDesafio, mensagemDeConviteParaEncontro, regraEmTexto } from "@/lib/assistente/textos";
 import {
   andamentoNoDesafio,
   classificar,
+  diaDentroDaRegra,
   situacaoDoEvento,
   type AndamentoNoDesafio,
   type Categoria,
@@ -376,4 +377,36 @@ export async function apagarPost(id: string, quem: Quem, postId: string): Promis
   const dono = quem.profissionalId === e.profissionalId;
   if (!dono && p.pessoaId !== quem.pessoaId) throw new NaoEncontrado("Post não encontrado.");
   await prisma().postDoEvento.delete({ where: { id: postId } });
+}
+
+/**
+ * A compra nova tirou o dia da regra de algum desafio de que a pessoa
+ * participa? A Luana avisa (como no protótipo), só na compra que virou o dia.
+ */
+export async function avisarCompraForaDaRegra(pessoaId: string, compraId: string, agora = new Date()): Promise<void> {
+  const nova = await prisma().compra.findUnique({ where: { id: compraId } });
+  if (!nova || nova.pessoaId !== pessoaId) return;
+  const dia = hojeEmBrasilia(nova.quando);
+  const desafios = await prisma().participanteDoEvento.findMany({
+    where: { pessoaId, aceito: true, entrouEm: { lte: dia }, evento: { tipo: "desafio", inicio: { lte: dia }, fim: { gte: dia } } },
+    include: { evento: true },
+  });
+  if (!desafios.length) return;
+  const desde = new Date(`${somarDias(dia, -1)}T00:00:00Z`);
+  const doDia: CompraNoDia[] = [];
+  let estaNova: CompraNoDia | null = null;
+  for (const c of await prisma().compra.findMany({ where: { pessoaId, quando: { gte: desde } } })) {
+    if (hojeEmBrasilia(c.quando) !== dia) continue;
+    const x = { dia, categoria: c.categoria as Categoria, valor: c.valor, emocao: c.emocao as Emocao | null, necessidade: c.necessidade as Necessidade | null };
+    if (c.id === compraId) estaNova = x;
+    else doDia.push(x);
+  }
+  if (!estaNova) return;
+  for (const { evento: e } of desafios) {
+    if (!e.regra) continue;
+    const regras = { regra: e.regra as RegraDoDesafio, categoria: e.categoria as Categoria | null, limite: e.limite };
+    if (diaDentroDaRegra(regras, doDia) && !diaDentroDaRegra(regras, [...doDia, estaNova])) {
+      await mensagemDaLuana(pessoaId, `🎯 Essa compra ficou fora da regra do desafio ${e.nome} hoje (${regraEmTexto(regras)}).\nTudo bem: amanhã é um novo dia.`, agora);
+    }
+  }
 }

@@ -188,6 +188,21 @@ describe.runIf(url)("eventos", { timeout: 30_000 }, () => {
     await expect(chamar("eventos.ver", [id], paula2)).rejects.toThrow();
   });
 
+  it("compra que tira o dia da regra do desafio: a Luana avisa uma vez (as próximas do dia, não)", async () => {
+    const { paula, ana } = await demo();
+    const { id } = await chamar<{ id: string }>("eventos.criar", [desafio([ana], { inicio: hoje(), nome: "Sem delivery" })], paula);
+    const anaS = await entrar("ana", paula);
+    await chamar("eventos.aceitar", [id], anaS);
+    const repo = await import("./repositorio");
+    const daLuana = async () => (await prisma().mensagem.findMany({ where: { pessoaId: ana, de: "assistente" } })).map((m) => m.texto).filter((t) => t.includes("desafio Sem delivery hoje"));
+    await repo.registrarCompra(ana, { item: "Pão", categoria: "Mercado", valor: 800, emocao: 4, necessidade: "sim", via: "app" });
+    expect(await daLuana()).toEqual([]);
+    await repo.registrarCompra(ana, { item: "Pizza", categoria: "Comida pronta", valor: 5000, emocao: 2, necessidade: "nao", via: "app" });
+    expect(await daLuana()).toEqual([expect.stringMatching(/Essa compra ficou fora da regra do desafio Sem delivery hoje \(Nenhuma compra de Comida pronta\)\.\nTudo bem: amanhã é um novo dia\./)]);
+    await repo.registrarCompra(ana, { item: "Lanche", categoria: "Comida pronta", valor: 3000, emocao: 2, necessidade: "nao", via: "app" });
+    expect(await daLuana()).toHaveLength(1);
+  });
+
   it("a demo já vem com os três eventos do protótipo", async () => {
     const { paula } = await demo();
     const lista = await chamar<{ nome: string }[]>("eventos.listar", [], paula);

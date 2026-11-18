@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AVISOS_PADRAO, type CheckIn, type Compra, type ContaFixa, type Divida, type Meta, type Pagamento, type Rotina } from "@/lib/finance";
-import { autorizadoNoAgendador, enviosDoMomento, type DadosDoAgendador } from "./agendador";
+import { autorizadoNoAgendador, enviosDoMomento, enviosDosEventos, type DadosDoAgendador } from "./agendador";
 
 /** 18/11/2026 em Brasília, na hora pedida. */
 const em = (hora: string) => new Date(`2026-11-18T${hora}:00-03:00`);
@@ -167,5 +167,48 @@ describe("parcela da dívida pelo plano", () => {
     expect(e.texto).toMatch(/Amanhã vence Cartão Nubank\.\nPelo seu plano, pague R\$ 500,00/);
     const paga: Pagamento = { tipo: "divida", alvoId: "d1", mes: "2026-11", valor: 50000, quando: "2026-11-17T10:00:00-03:00" };
     expect(tipos(em("09:30"), { ...d, pagamentos: [paga] })).toEqual([]);
+  });
+});
+
+describe("eventos", () => {
+  const base = {
+    id: "ev",
+    nome: "7 dias sem delivery",
+    descricao: "",
+    regra: "sem-categoria",
+    categoria: "Comida pronta",
+    limite: null,
+    premio: "",
+    mostrarRanking: true,
+    convitePendente: false,
+    data: null,
+    hora: null,
+    local: null,
+    inicio: "2026-11-18",
+    fim: "2026-11-24",
+    tipo: "desafio",
+    participantes: [{ pessoaId: "p", resposta: null }],
+    andamento: [] as unknown[],
+  };
+  const desafio = (extra: Record<string, unknown> = {}) => ({ ...base, ...extra }) as unknown as import("./agendador").EventoParaAgendar;
+
+  it("desafio: no primeiro dia, o aviso de início; depois, o andamento; pendente ou fora do horário, nada", () => {
+    const [e] = enviosDosEventos("p", [desafio()], em("09:10"));
+    expect(e.chave).toBe("evento:ev:p:2026-11-18");
+    expect(e.texto).toMatch(/Hoje começa o desafio 7 dias sem delivery!\nRegra: Nenhuma compra de Comida pronta/);
+    const meio = desafio({ inicio: "2026-11-16", andamento: [{ pessoaId: "p", dias: [{ dia: "2026-11-16", estado: "ok" }, { dia: "2026-11-17", estado: "fora" }, { dia: "2026-11-18", estado: "ok" }], ok: 2, contados: 3, sequencia: 1, pontos: 20 }] });
+    expect(enviosDosEventos("p", [meio], em("09:10"))[0].texto).toMatch(/7 dias sem delivery, dia 3 de 9\.\nOntem ficou fora da regra\. Hoje é um novo dia\.\nVocê tem 20 pontos\./);
+    expect(enviosDosEventos("p", [desafio({ convitePendente: true })], em("09:10"))).toEqual([]);
+    expect(enviosDosEventos("p", [desafio()], em("08:30"))).toEqual([]);
+  });
+
+  it("encontro: na véspera e uma hora antes; quem disse que não vai não recebe", () => {
+    const encontro = (resposta: string | null) =>
+      desafio({ tipo: "presencial", inicio: null, fim: null, data: "2026-11-19", hora: "19:00", local: "Sala 2", participantes: [{ pessoaId: "p", resposta }] });
+    expect(enviosDosEventos("p", [encontro("vou")], em("10:00"))[0]).toMatchObject({ chave: "encontro:ev:p:vespera", texto: expect.stringMatching(/Amanhã: 7 dias sem delivery\n19:00, Sala 2/) });
+    const hoje = (resposta: string | null) => ({ ...encontro(resposta), data: "2026-11-18" }) as import("./agendador").EventoParaAgendar;
+    expect(enviosDosEventos("p", [hoje(null)], em("18:10"))[0]).toMatchObject({ chave: "encontro:ev:p:hora", texto: expect.stringMatching(/Daqui a pouco: 7 dias sem delivery, às 19:00\.\n📍 Sala 2/) });
+    expect(enviosDosEventos("p", [hoje(null)], em("17:30"))).toEqual([]);
+    expect(enviosDosEventos("p", [encontro("nao")], em("10:00"))).toEqual([]);
   });
 });

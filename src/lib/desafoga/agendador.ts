@@ -4,9 +4,11 @@
  * quem envia (e garante que cada chave sai uma vez só) é o servidor.
  */
 import { timingSafeEqual } from "node:crypto";
-import { lembreteDeConta, lembreteDeParcela, mensagemDeLembrete, mensagemDoLembreteDiario, perguntaDoCheckIn, reais, umaCasa } from "@/lib/assistente/textos";
+import { dataCurtaDaChave, lembreteDeConta, lembreteDeParcela, regraEmTexto, mensagemDeLembrete, mensagemDoLembreteDiario, perguntaDoCheckIn, reais, umaCasa } from "@/lib/assistente/textos";
+import type { SalaDoEvento } from "@/lib/desafoga/servidor/repositorio-eventos";
 import {
   compromissosDoMes,
+  diasEntreChaves,
   notaMedia,
   situacaoDaMeta,
   type CheckIn,
@@ -39,7 +41,7 @@ export interface DadosDoAgendador {
 export interface Envio {
   /** Única por envio: o servidor manda cada chave uma vez só. */
   chave: string;
-  tipo: "checkin" | "conta" | "meta" | "diario" | "semana" | "parcela";
+  tipo: "checkin" | "conta" | "meta" | "diario" | "semana" | "parcela" | "evento";
   texto: string;
   /** Aviso para quem acompanha (no sino do painel), junto com a mensagem. */
   paraQuemAcompanha?: string;
@@ -157,6 +159,53 @@ function parcelas(d: DadosDoAgendador, b: Date): Envio[] {
 export function enviosDoMomento(d: DadosDoAgendador, agora: Date): Envio[] {
   const b = emBrasilia(agora);
   return [...checkins(d, b), ...contas(d, b), ...parcelas(d, b), ...metas(d, b, agora), ...diario(d, b), ...semana(d, b)];
+}
+
+/** O que o agendador precisa de cada evento (vem de `eventosDe` da pessoa). */
+export type EventoParaAgendar = Pick<
+  SalaDoEvento,
+  "id" | "nome" | "tipo" | "regra" | "categoria" | "limite" | "inicio" | "fim" | "data" | "hora" | "local" | "convitePendente" | "participantes" | "andamento"
+>;
+
+/**
+ * Avisos dos eventos (só para quem aceitou o convite), de manhã:
+ * desafio: o início no primeiro dia e o andamento nos outros;
+ * encontro: na véspera e uma hora antes, para quem não disse que não vai.
+ */
+export function enviosDosEventos(pessoaId: string, eventos: EventoParaAgendar[], agora: Date): Envio[] {
+  const b = emBrasilia(agora);
+  const hoje = chaveDoDia(b);
+  const amanha = chaveDoDia(new Date(b.getTime() + 86_400_000));
+  const deDia = b.getUTCHours() >= HORA_DA_CONTA && b.getUTCHours() < ULTIMA_HORA;
+  const envios: Envio[] = [];
+  for (const e of eventos.filter((x) => !x.convitePendente)) {
+    if (e.tipo === "desafio" && e.inicio && e.fim && e.regra && deDia && hoje >= e.inicio && hoje <= e.fim) {
+      const regra = regraEmTexto({ regra: e.regra, categoria: e.categoria, limite: e.limite });
+      const dias = diasEntreChaves(e.inicio, e.fim);
+      const meu = e.andamento.find((a) => a.pessoaId === pessoaId);
+      const ontem = meu?.dias[meu.dias.findIndex((d) => d.dia === hoje) - 1]?.estado;
+      const texto =
+        hoje === e.inicio
+          ? `🎯 Hoje começa o desafio ${e.nome}!\nRegra: ${regra}.\nVai até ${dataCurtaDaChave(e.fim)}. É só registrar suas compras que eu confiro para você.`
+          : `🎯 ${e.nome}, dia ${dias.indexOf(hoje) + 1} de ${dias.length}.\n${
+              ontem === "fora" ? "Ontem ficou fora da regra. Hoje é um novo dia." : `Você está há ${meu?.sequencia ?? 0} ${meu?.sequencia === 1 ? "dia" : "dias"} seguidos dentro da regra.`
+            }\nVocê tem ${meu?.pontos ?? 0} pontos.`;
+      envios.push({ chave: `evento:${e.id}:${pessoaId}:${hoje}`, tipo: "evento", texto });
+    }
+    if (e.tipo === "presencial" && e.data && e.hora) {
+      const eu = e.participantes.find((p) => p.pessoaId === pessoaId);
+      if (!eu || eu.resposta === "nao") continue;
+      if (e.data === amanha && deDia) {
+        envios.push({ chave: `encontro:${e.id}:${pessoaId}:vespera`, tipo: "evento", texto: `📅 Amanhã: ${e.nome}\n${e.hora}, ${e.local ?? ""}.` });
+      }
+      const [h, m] = e.hora.split(":").map(Number);
+      const falta = h * 60 + m - minutosDoDia(b);
+      if (e.data === hoje && falta > 0 && falta <= 60) {
+        envios.push({ chave: `encontro:${e.id}:${pessoaId}:hora`, tipo: "evento", texto: `📅 Daqui a pouco: ${e.nome}, às ${e.hora}.\n📍 ${e.local ?? ""}` });
+      }
+    }
+  }
+  return envios;
 }
 
 /**
