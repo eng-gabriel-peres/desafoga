@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { montarContexto } from "@/lib/assistente/contexto";
 import { avisoDeCheckInTriste, mensagemDeIncentivo, mensagemDeLembrete, NOME_DA_EMOCAO, perguntaDoCheckIn, respostaDoCheckIn } from "@/lib/assistente/textos";
-import { situacaoDaMeta } from "@/lib/finance";
+import { situacaoDaMeta, type Meta } from "@/lib/finance";
 import type { Classificacao, Fatura } from "@/services/tipos";
 import { exigirAPropriaPessoa, exigirProfissionalDe, exigirSessao, exigirVer, SemPermissao } from "./acesso";
 import { responderTexto, testarResposta } from "./acoes";
@@ -110,6 +110,9 @@ async function salvarFaturaDaPessoa(p: string, f: Fatura, c: Record<string, Clas
  * Contas, renda, faturas, dívidas, plano e banco: quem acompanha só vê se a pessoa
  * deixou (Rotina e privacidade). Confere o acesso e diz se é para esconder.
  */
+/** Saldo de investimento é dado de banco: sem as contas compartilhadas, a meta mostra só os depósitos. */
+const metasSemBanco = (metas: Meta[]): Meta[] => metas.map((m) => ({ ...m, investimentos: undefined, guardadoPeloBanco: null }));
+
 async function escondido(sessao: SessaoAtual | null, pessoaId: string): Promise<boolean> {
   const s = await exigirVer(sessao, pessoaId);
   return s.pessoa?.id !== pessoaId && !(await repo.rotina(pessoaId)).compartilharContas;
@@ -433,8 +436,7 @@ const ACOES = {
   "metas.listar": acao(z.tuple([id]), async ([p], { sessao }) => {
     const s = await exigirVer(sessao, p);
     const metas = await repo.metas(p);
-    // Saldo de investimento é dado de banco: só com as contas compartilhadas (sem ele, a meta mostra os depósitos).
-    if (s.pessoa?.id !== p && !(await repo.rotina(p)).compartilharContas) return metas.map((m) => ({ ...m, investimentos: undefined, guardadoPeloBanco: null }));
+    if (s.pessoa?.id !== p && !(await repo.rotina(p)).compartilharContas) return metasSemBanco(metas);
     return metas;
   }),
   "metas.salvar": acao(
@@ -684,7 +686,9 @@ const ACOES = {
   "assistente.contexto": acao(z.tuple([id]), async ([p], { sessao }) => {
     await exigirProfissionalDe(sessao, p);
     // Quem lê é o profissional: respeita o "compartilhar contas" da pessoa.
-    return montarContexto(await repo.contextoDoAssistente(p, "app"), { semContas: await escondido(sessao, p) });
+    const ctx = await repo.contextoDoAssistente(p, "app");
+    if (!(await escondido(sessao, p))) return montarContexto(ctx);
+    return montarContexto({ ...ctx, metas: metasSemBanco(ctx.metas) }, { semContas: true });
   }),
 
   // ----- avisos -----

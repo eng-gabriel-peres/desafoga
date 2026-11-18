@@ -265,6 +265,9 @@ describe.runIf(url)("ações dos bancos conectados", () => {
     const contexto = (await chamar("assistente.contexto", [p], paula)) as string;
     expect(contexto).not.toMatch(/Dívidas:|Contas fixas do mês|Renda informada|faturas lidas/);
     expect(contexto).toMatch(/não compartilha as contas/);
+    // A meta ligada ao CDB (R$ 420 no banco) aparece pelos depósitos, sem o saldo do banco.
+    expect(contexto).toMatch(/Viagem para a praia: meta/);
+    expect(contexto).not.toMatch(/Viagem para a praia: meta [^\n]*guardado R\$\s420,00/);
     // A própria pessoa continua vendo tudo.
     const ana3 = await entrar("ana", paula);
     expect(((await chamar("dividas.listar", [p], ana3)) as unknown[]).length).toBeGreaterThan(0);
