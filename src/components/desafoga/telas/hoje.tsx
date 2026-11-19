@@ -26,6 +26,7 @@ import { DivisaoDoDinheiro, FaixaDaSemana, HorariosDeCompra, LinhaDeCompra, List
 import { MetasEmMiniatura } from "../metas/miniaturas";
 import { andamento, CartaoDaConquista } from "../conquistas/cartao";
 import { servicos } from "@/services";
+import { recursoLigado } from "@/lib/recursos";
 import { ListaDoOrcamento } from "../orcamento";
 import { ProximasContas } from "../contas";
 import { ResumoDoDinheiro } from "../dinheiro";
@@ -41,7 +42,8 @@ export function TelaHoje() {
   const abrirRegistro = useAbrirRegistro();
   const pessoaId = useMinhaPessoaId();
   const dados = usePessoa(pessoaId);
-  const conquistas = useConsulta(`conquistas:${pessoaId}`, () => servicos.conquistas.listar(pessoaId));
+  // Conquistas desligadas (apresentação): nem busca.
+  const conquistas = useConsulta(`conquistas:${pessoaId}`, () => (recursoLigado("conquistas") ? servicos.conquistas.listar(pessoaId) : Promise.resolve([])));
   const dinheiro = useConsulta(`dinheiro:${pessoaId}`, () => servicos.dinheiro.ver(pessoaId));
   const agora = useAgora();
   if (!dados || !agora) return <Carregando />;

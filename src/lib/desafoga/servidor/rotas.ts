@@ -7,6 +7,7 @@ import { z } from "zod";
 import { montarContexto } from "@/lib/assistente/contexto";
 import { avisoDeCheckInTriste, mensagemDeIncentivo, mensagemDeLembrete, NOME_DA_EMOCAO, perguntaDoCheckIn, respostaDoCheckIn, reais, NOME_DA_FREQUENCIA } from "@/lib/assistente/textos";
 import { TEMAS } from "@/lib/desafoga/conteudos";
+import { recursoLigado, type Recurso as RecursoDoApp } from "@/lib/recursos";
 import { situacaoDaMeta, VEZES_POR_MES, type Meta } from "@/lib/finance";
 import type { Classificacao, Fatura } from "@/services/tipos";
 import { exigirAPropriaPessoa, exigirProfissionalDe, exigirSessao, exigirVer, SemPermissao } from "./acesso";
@@ -1062,7 +1063,16 @@ export function recursoDa(nome: NomeDaAcao): Recurso | undefined {
 }
 
 /** Valida os argumentos e executa a ação. */
+/** Ações de um recurso que pode estar desligado (apresentação do hackathon). */
+const RECURSO_DA_ACAO: [string, RecursoDoApp][] = [
+  ["eventos.", "eventos"],
+  ["conteudos.", "conteudos"],
+  ["conquistas.", "conquistas"],
+];
+
 export async function executar(nome: NomeDaAcao, args: unknown, contexto: Contexto): Promise<unknown> {
+  const recurso = RECURSO_DA_ACAO.find(([prefixo]) => nome.startsWith(prefixo))?.[1];
+  if (recurso && !recursoLigado(recurso)) throw new ErroDeEntrada("Esse recurso não está disponível agora.");
   const a = ACOES[nome];
   const lidos = a.argumentos.safeParse(Array.isArray(args) ? args : []);
   if (!lidos.success) throw new ErroDeEntrada("Argumentos inválidos.");

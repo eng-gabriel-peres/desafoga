@@ -15,5 +15,7 @@ export default defineConfig({
   },
   test: {
     globalSetup: ["./vitest.banco.ts"],
+    // Os testes rodam com todos os recursos ligados (os escondidos na apresentação também são testados).
+    env: { NEXT_PUBLIC_RECURSOS_DESLIGADOS: "" },
   },
 });

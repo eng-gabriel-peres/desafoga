@@ -179,6 +179,16 @@ O Desafoga lê o banco de dois jeitos, que alimentam as mesmas telas (compras pa
   - **Investimentos:** podem ser ligados a uma meta; o valor guardado passa a acompanhar o saldo do banco.
 - **Demonstração:** a Ana já vem com um banco fictício ("Itaú · demonstração"), 3 compras para revisar, uma compra parcelada e duas dívidas encontradas. O botão "Simular compra do banco" (em Contas) faz chegar uma compra nova na hora, e "Enviar Registrato › Usar exemplo" (em Dívidas) mostra a junção com o consignado do extrato.
 
+## Recursos escondidos
+
+Para a apresentação, **Conteúdos, Eventos e Conquistas** ficam escondidos. O código continua lá, mas o menu não mostra esses itens, os endereços voltam para a Hoje ou para o Painel e o servidor recusa as ações deles. Também não saem avisos de eventos nem conquistas novas. A lista fica em `src/lib/recursos.ts`, e a variável `NEXT_PUBLIC_RECURSOS_DESLIGADOS` muda isso:
+
+- **sem a variável:** esconde os três (o padrão da apresentação);
+- **`NEXT_PUBLIC_RECURSOS_DESLIGADOS=`** (vazia): mostra tudo;
+- **`NEXT_PUBLIC_RECURSOS_DESLIGADOS=eventos`:** esconde só os da lista (separe por vírgula).
+
+Como começa com `NEXT_PUBLIC_`, a variável entra no build: na Vercel, mude e faça um novo deploy.
+
 ## O que ainda é simulado ou falta
 
 - **Demonstração:** Ana, Carlos, Lúcia, Rafael, Paula e Marcos são fictícios (`src/fixtures/desafoga`), com datas relativas ao dia em que a demo é criada. Contas reais começam vazias.

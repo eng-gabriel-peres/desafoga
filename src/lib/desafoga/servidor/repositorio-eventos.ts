@@ -20,6 +20,7 @@ import {
   type SituacaoDoEvento,
 } from "@/lib/finance";
 import { hojeEmBrasilia } from "@/lib/luana/lancamentos";
+import { recursoLigado } from "@/lib/recursos";
 import { prisma } from "./prisma";
 import { mensagemDaLuana, NaoEncontrado } from "./repositorio";
 
@@ -396,6 +397,7 @@ export async function apagarPost(id: string, quem: Quem, postId: string): Promis
  * participa? A Luana avisa (como no protótipo), só na compra que virou o dia.
  */
 export async function avisarCompraForaDaRegra(pessoaId: string, compraId: string, agora = new Date()): Promise<void> {
+  if (!recursoLigado("eventos")) return;
   const nova = await prisma().compra.findUnique({ where: { id: compraId } });
   if (!nova || nova.pessoaId !== pessoaId) return;
   const dia = hojeEmBrasilia(nova.quando);

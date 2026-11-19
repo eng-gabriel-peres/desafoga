@@ -8,7 +8,7 @@ import { useFecharFora } from "@/hooks/use-fechar-fora";
 import { servicos } from "@/services";
 import { useEu } from "../sessao";
 import { Avatar } from "../ui/blocos";
-import type { Area } from "./navegacao";
+import { enderecoVisivel, type Area } from "./navegacao";
 
 const ITEM =
   "flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 text-left text-[0.95rem] font-bold text-ink no-underline hover:bg-surface2 focus-visible:bg-surface2 [&_svg]:size-5 [&_svg]:shrink-0 [&_svg]:text-muted";
@@ -111,15 +111,15 @@ export function MenuDoPerfil({
                 <ItemLink href="/app/perfil" Icone={UserRound} aoEscolher={() => setAberto(false)}>
                   Meu perfil
                 </ItemLink>
-                <ItemLink href="/app/conteudos" Icone={Newspaper} aoEscolher={() => setAberto(false)}>
+                {enderecoVisivel("/app/conteudos") && (<ItemLink href="/app/conteudos" Icone={Newspaper} aoEscolher={() => setAberto(false)}>
                   Conteúdos
-                </ItemLink>
-                <ItemLink href="/app/eventos" Icone={CalendarDays} aoEscolher={() => setAberto(false)}>
+                </ItemLink>)}
+                {enderecoVisivel("/app/eventos") && (<ItemLink href="/app/eventos" Icone={CalendarDays} aoEscolher={() => setAberto(false)}>
                   Eventos
-                </ItemLink>
-                <ItemLink href="/app/conquistas" Icone={Trophy} aoEscolher={() => setAberto(false)}>
+                </ItemLink>)}
+                {enderecoVisivel("/app/conquistas") && (<ItemLink href="/app/conquistas" Icone={Trophy} aoEscolher={() => setAberto(false)}>
                   Conquistas
-                </ItemLink>
+                </ItemLink>)}
                 <ItemLink href="/app/rotina" Icone={AlarmClock} aoEscolher={() => setAberto(false)}>
                   Rotina e privacidade
                 </ItemLink>
@@ -132,12 +132,12 @@ export function MenuDoPerfil({
                 <ItemLink href="/painel" Icone={Users} aoEscolher={() => setAberto(false)}>
                   Pacientes e convite
                 </ItemLink>
-                <ItemLink href="/painel/conteudos" Icone={Newspaper} aoEscolher={() => setAberto(false)}>
+                {enderecoVisivel("/painel/conteudos") && (<ItemLink href="/painel/conteudos" Icone={Newspaper} aoEscolher={() => setAberto(false)}>
                   Conteúdos
-                </ItemLink>
-                <ItemLink href="/painel/eventos" Icone={CalendarDays} aoEscolher={() => setAberto(false)}>
+                </ItemLink>)}
+                {enderecoVisivel("/painel/eventos") && (<ItemLink href="/painel/eventos" Icone={CalendarDays} aoEscolher={() => setAberto(false)}>
                   Eventos
-                </ItemLink>
+                </ItemLink>)}
               </>
             )}
             {eu.demo && (

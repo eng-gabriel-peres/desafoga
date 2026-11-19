@@ -1,3 +1,4 @@
+import { recursoLigado, type Recurso } from "@/lib/recursos";
 import { AlarmClock, Bell, Brain, Receipt, CalendarCheck, CalendarDays, ChartPie, Newspaper, ClipboardList, House, MessageCircle, Plus, Target, Trophy, Users, Wallet, type LucideIcon } from "lucide-react";
 
 /**
@@ -24,7 +25,25 @@ export interface ItemDoMenu {
 /** Telas do painel que não são de um paciente (eventos com várias pessoas). */
 const foraDoPaciente = (c: string) => /^\/painel\/(eventos|conteudos)(\/|$)/.test(c);
 
+/** O recurso de um endereço que pode estar desligado (apresentação do hackathon). */
+export function recursoDoEndereco(href: string): Recurso | null {
+  if (/\/conteudos(\/|$)/.test(href)) return "conteudos";
+  if (/\/eventos(\/|$)|^\/convite\//.test(href)) return "eventos";
+  if (/\/conquistas(\/|$)/.test(href)) return "conquistas";
+  return null;
+}
+
+/** O endereço aparece? (o recurso dele está ligado, ou não tem recurso) */
+export const enderecoVisivel = (href: string) => {
+  const r = recursoDoEndereco(href);
+  return r === null || recursoLigado(r);
+};
+
 export function itensDoMenu(area: Area, pacienteId: string): ItemDoMenu[] {
+  return todosOsItens(area, pacienteId).filter((i) => enderecoVisivel(i.href));
+}
+
+function todosOsItens(area: Area, pacienteId: string): ItemDoMenu[] {
   if (area === "pessoa") {
     return [
       { href: "/app/hoje", rotulo: "Hoje", Icone: House, ativo: (c) => c === "/app/hoje" },

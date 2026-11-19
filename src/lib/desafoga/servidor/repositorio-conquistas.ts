@@ -4,6 +4,7 @@
  */
 import { mensagemDeConquistaAlcancada, mensagemDeConquistaNova } from "@/lib/assistente/textos";
 import { conquistada, tituloAutomatico, type Conquista, type IconeDaConquista, type TipoDeConquista } from "@/lib/finance";
+import { recursoLigado } from "@/lib/recursos";
 import { prisma } from "./prisma";
 import { avisar, compras, mensagemDaLuana, NaoEncontrado } from "./repositorio";
 
@@ -70,6 +71,8 @@ export async function apagarConquista(pessoaId: string, id: string): Promise<voi
  * recebe um aviso, uma vez só (a marcação é condicional). Devolve as novas.
  */
 export async function conferirConquistas(pessoaId: string, agora = new Date()): Promise<Conquista[]> {
+  // Conquistas desligadas (apresentação): nada desbloqueia nem avisa.
+  if (!recursoLigado("conquistas")) return [];
   const abertas = (await prisma().conquista.findMany({ where: { pessoaId, concluidaEm: null }, include: COM_AUTOR })).map(paraConquista);
   if (!abertas.length) return [];
   const lista = await compras(pessoaId);

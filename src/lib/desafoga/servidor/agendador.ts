@@ -10,6 +10,7 @@ import { hojeEmBrasilia } from "@/lib/luana/lancamentos";
 import { pluggyConfigurado } from "@/lib/banco/pluggy";
 import { sincronizar } from "@/lib/banco/sincronizar";
 import { enviarPeloWhatsapp, whatsappConfigurado } from "./enviar";
+import { recursoLigado } from "@/lib/recursos";
 import { prisma } from "./prisma";
 import { registros } from "./registros";
 import * as repo from "./repositorio";
@@ -82,7 +83,7 @@ export async function rodarAgendador({ agora = new Date(), pessoas, whatsapp, si
       await repo.conferirConquistas(p.id, agora);
       const envios = [
         ...enviosDoMomento({ pessoaId: p.id, apelido: p.apelido, rotina, checkins, contas, pagamentos, metas, config, compras, dividas, plano }, agora),
-        ...enviosDosEventos(p.id, await repo.eventosDe({ pessoaId: p.id }, agora), agora),
+        ...(recursoLigado("eventos") ? enviosDosEventos(p.id, await repo.eventosDe({ pessoaId: p.id }, agora), agora) : []),
       ];
       for (const [i, e] of envios.entries()) {
         // Reserva a chave antes: duas chamadas ao mesmo tempo não mandam duas vezes.
