@@ -5,6 +5,7 @@ import { formatarReais } from "@/lib/dinheiro";
 import { montarContexto } from "./contexto";
 import { ESTADO_INICIAL, iniciarRegistro, responder, type ContextoAssistente, type EstadoConversa } from "./conversa";
 import { adivinharCategoria, entender, indicaSofrimentoIntenso, lerEmocao, lerNecessidade, nomeDaCompra } from "./entender";
+import { NOME_DA_EMOCAO } from "./textos";
 
 const AGORA = new Date(2026, 10, 16, 15, 0);
 const ana = materializar(SEMENTES[0], AGORA);
@@ -67,6 +68,24 @@ describe("entender a mensagem", () => {
     expect(nomeDaCompra("comprei 50")).toBe("Compra");
     expect(adivinharCategoria("Pão")).toBe("Mercado");
     expect(adivinharCategoria("Fone")).toBe("Outro");
+  });
+
+  it("lê cada carinha da conversa pelo rótulo do botão", () => {
+    expect(NOME_DA_EMOCAO).toEqual({ 1: "Muito triste", 2: "Triste", 3: "Normal", 4: "Feliz", 5: "Muito feliz" });
+    for (const [valor, rotulo] of Object.entries(NOME_DA_EMOCAO)) {
+      expect(lerEmocao(rotulo)).toBe(Number(valor));
+      expect(lerEmocao(rotulo.toLowerCase())).toBe(Number(valor));
+    }
+  });
+
+  it("não confunde palavra inteira com pedaço de outra", () => {
+    // "normal" termina em "mal" e "também" termina em "bem".
+    expect(lerEmocao("normal")).toBe(3);
+    expect(lerEmocao("tudo normal")).toBe(3);
+    expect(lerEmocao("também")).toBeNull();
+    // E as palavras soltas continuam valendo.
+    expect(lerEmocao("estava mal")).toBe(2);
+    expect(lerEmocao("estava bem")).toBe(4);
   });
 });
 

@@ -138,8 +138,10 @@ export function lerEmocao(texto: string): Emocao | null {
   if (n) return Number(n[0]) as Emocao;
   if (/muito triste/.test(t)) return 1;
   if (/muito feliz/.test(t)) return 5;
-  if (/triste|mal\b/.test(t)) return 2;
-  if (/feliz|bem\b/.test(t)) return 4;
+  // "mal" e "bem" valem como palavra inteira: sem o \b na frente, "normal"
+  // caía em triste e "também" caía em feliz.
+  if (/triste|\bmal\b/.test(t)) return 2;
+  if (/feliz|\bbem\b/.test(t)) return 4;
   if (/normal|neutr/.test(t)) return 3;
   return null;
 }
