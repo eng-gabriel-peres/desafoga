@@ -49,7 +49,7 @@ export function TelaAssistente() {
   }
 
   return (
-    <div className="h-[calc(100dvh-9.75rem-env(safe-area-inset-bottom)-env(safe-area-inset-top))] desk:h-dvh">
+    <div className="h-dvh">
       <h1 className="sr-only">Assistente</h1>
       <Chat
         mensagens={[...salvas, ...visiveis]}
@@ -60,7 +60,8 @@ export function TelaAssistente() {
         }
         enviarAudio={(audio) => comEspera("ouvindo", local("pessoa", "Mensagem de voz"), () => servicos.assistente.enviarAudio(pessoaId, audio))}
         aviso={(texto) => setPendentes({ base: total, mensagens: [local("assistente", texto)] })}
-        cabecalho={<BotaoWhatsapp pessoaId={pessoaId} />}
+        voltarPara="/app/hoje"
+        cabecalho={<BotaoWhatsapp pessoaId={pessoaId} discreto />}
       />
     </div>
   );

@@ -60,8 +60,8 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
         Pular para o conteúdo
       </a>
 
-      {/* Celular: topo */}
-      <header className="sticky top-0 z-20 border-b border-line bg-surface pt-[env(safe-area-inset-top)] desk:hidden">
+      {/* Celular: topo. No chat some, como uma conversa do WhatsApp: ele tem o próprio topo, com o voltar. */}
+      <header className={`sticky top-0 z-20 border-b border-line bg-surface pt-[env(safe-area-inset-top)] desk:hidden ${telaCheia ? "hidden" : ""}`}>
         <div className="mx-auto flex h-16 max-w-[620px] items-center gap-1 px-3">
           <div className="mr-auto flex min-w-0 items-center gap-2">
             <Marca />
@@ -124,7 +124,7 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
           tabIndex={-1}
           className={`mx-auto w-full outline-none ${
             telaCheia
-              ? "pb-[calc(5.5rem+env(safe-area-inset-bottom))] desk:pb-0"
+              ? ""
               : "max-w-[620px] px-4 pt-4.5 pb-32 desk:max-w-[1280px] desk:px-9 desk:pt-7 desk:pb-14"
           }`}
         >
@@ -137,7 +137,7 @@ export function Moldura({ area, children }: { area: Area; children: ReactNode })
         </main>
       </div>
 
-      <MenuInferior itens={itens} caminho={caminho} />
+      {!telaCheia && <MenuInferior itens={itens} caminho={caminho} />}
     </div>
     </ComRegistro>
   );
