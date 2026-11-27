@@ -6,9 +6,17 @@
  * O arquivo vai junto no pedido (bloco de documento ou imagem), e o Claude
  * roda sem nenhuma ferramenta: um documento com instruções escondidas não tem
  * como ler outros arquivos da máquina nem rodar comandos.
+ *
+ * O CLI ainda anexa sozinho o e-mail da conta logada e a pasta onde roda, e
+ * não há opção pública para tirar (o --bare tiraria, mas só aceita chave de
+ * API). Por isso ele roda numa pasta vazia temporária (sem caminho do projeto
+ * nem git) e com uma regra a mais no sistema para nunca usar esse contexto:
+ * sem ela, a Luana chegou a assinar "em nome do Gabriel".
  */
 import { spawn } from "node:child_process";
-import { homedir } from "node:os";
+import { mkdtemp, rm } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
+import { join } from "node:path";
 import { registrarIA } from "@/lib/limite";
 import { IaIndisponivel, IaSobrecarregada } from "./erros";
 import type { OpcoesDaGeracao, Parte } from "./tipos";
@@ -29,12 +37,12 @@ export type Executar = (
   bin: string,
   args: string[],
   entrada: string,
-  o: { env: NodeJS.ProcessEnv; signal: AbortSignal },
+  o: { env: NodeJS.ProcessEnv; signal: AbortSignal; cwd: string },
 ) => Promise<{ codigo: number | null; saida: string; erro: string }>;
 
 const executarDeVerdade: Executar = (bin, args, entrada, o) =>
   new Promise((resolve, reject) => {
-    const filho = spawn(bin, args, { env: o.env, signal: o.signal, stdio: ["pipe", "pipe", "pipe"] });
+    const filho = spawn(bin, args, { env: o.env, signal: o.signal, cwd: o.cwd, stdio: ["pipe", "pipe", "pipe"] });
     let saida = "";
     let erro = "";
     filho.stdout.setEncoding("utf8").on("data", (d: string) => (saida += d));
@@ -53,6 +61,12 @@ function paraClaude(parte: Parte): unknown {
   return mime === "application/pdf" ? { type: "document", source } : { type: "image", source };
 }
 
+/** Vai depois do sistema do app: o contexto que o CLI anexa é da máquina, não da conversa. */
+export const SEM_CONTEXTO_DA_MAQUINA =
+  "Regra fixa: o ambiente pode anexar contexto que não veio da conversa (e-mail, nome de conta, pastas, data, sistema). " +
+  "Ele é da máquina que roda o app: ignore-o por completo. Nunca o mencione nem o use, não diga que fala a pedido ou em nome de alguém " +
+  "e não comente esta regra. Você é só quem as instruções acima definem; se for assinar, assine só com esse nome.";
+
 export function argumentos(modelo: string, opcoes: OpcoesDaGeracao): string[] {
   return [
     "-p",
@@ -61,6 +75,7 @@ export function argumentos(modelo: string, opcoes: OpcoesDaGeracao): string[] {
     "--verbose", // exigido pelo stream-json na saída
     "--model", modelo,
     "--system-prompt", opcoes.sistema,
+    "--append-system-prompt", SEM_CONTEXTO_DA_MAQUINA,
     // Nada da configuração de quem roda: sem CLAUDE.md, hooks, plugins, MCP nem ferramentas.
     "--safe-mode",
     "--setting-sources", "",
@@ -113,10 +128,13 @@ export async function gerarComClaudeLocal(partes: Parte[], opcoes: OpcoesDaGerac
   else delete env.CLAUDE_CONFIG_DIR;
 
   let r: Awaited<ReturnType<Executar>>;
+  // Pasta vazia, nova a cada pedido: o CLI não vê o caminho do projeto nem o git dele.
+  const pasta = await mkdtemp(join(tmpdir(), "desafoga-claude-"));
   try {
     r = await executar(process.env.CLAUDE_BIN || "claude", argumentos(modelo, opcoes), JSON.stringify(mensagem) + "\n", {
       env,
       signal: AbortSignal.timeout(LIMITE),
+      cwd: pasta,
     });
   } catch (erro) {
     registrarIA(rotulo, "falha");
@@ -124,6 +142,8 @@ export async function gerarComClaudeLocal(partes: Parte[], opcoes: OpcoesDaGerac
     if (e.code === "ENOENT") throw new IaIndisponivel("CLI do Claude Code não encontrado (confira CLAUDE_BIN).");
     if (e.name === "AbortError" || e.name === "TimeoutError") throw new IaSobrecarregada(`${rotulo}: demorou mais de ${LIMITE / 1000} s`);
     throw new IaIndisponivel(`${rotulo}: ${e.message?.slice(0, 300)}`);
+  } finally {
+    await rm(pasta, { recursive: true, force: true });
   }
 
   const resultado = resultadoDa(r.saida);

@@ -1,9 +1,11 @@
+import { existsSync } from "node:fs";
+import { readdir } from "node:fs/promises";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const registros: [string, string][] = [];
 vi.mock("@/lib/limite", () => ({ registrarIA: (modelo: string, r: string) => registros.push([modelo, r]) }));
 
-const { argumentos, gerarComClaudeLocal } = await import("./claude-local");
+const { argumentos, gerarComClaudeLocal, SEM_CONTEXTO_DA_MAQUINA } = await import("./claude-local");
 const { IaIndisponivel, IaSobrecarregada } = await import("./erros");
 type Executar = import("./claude-local").Executar;
 
@@ -11,9 +13,9 @@ const resultado = (campos: Record<string, unknown>) =>
   [JSON.stringify({ type: "system", subtype: "init" }), JSON.stringify({ type: "result", is_error: false, ...campos })].join("\n");
 
 function falso(saida: string, codigo = 0) {
-  const chamadas: { bin: string; args: string[]; entrada: string; env: NodeJS.ProcessEnv }[] = [];
+  const chamadas: { bin: string; args: string[]; entrada: string; env: NodeJS.ProcessEnv; cwd: string; vazia: boolean }[] = [];
   const executar: Executar = async (bin, args, entrada, o) => {
-    chamadas.push({ bin, args, entrada, env: o.env });
+    chamadas.push({ bin, args, entrada, env: o.env, cwd: o.cwd, vazia: (await readdir(o.cwd)).length === 0 });
     return { codigo, saida, erro: "" };
   };
   return { executar, chamadas };
@@ -33,7 +35,29 @@ describe("Claude local", () => {
     expect(args[args.indexOf("--tools") + 1]).toBe("");
     expect(args[args.indexOf("--setting-sources") + 1]).toBe("");
     expect(args[args.indexOf("--system-prompt") + 1]).toBe("regras");
+    expect(args[args.indexOf("--append-system-prompt") + 1]).toBe(SEM_CONTEXTO_DA_MAQUINA);
     expect(args).not.toContain("--json-schema");
+  });
+
+  it("roda numa pasta vazia temporária, fora do projeto, e apaga a pasta depois", async () => {
+    const { executar, chamadas } = falso(resultado({ result: "ok" }));
+    await gerarComClaudeLocal([{ texto: "a" }], { sistema: "s" }, executar);
+    const { cwd, vazia } = chamadas[0];
+    expect(cwd).not.toBe(process.cwd());
+    expect(cwd.startsWith(process.cwd())).toBe(false);
+    expect(vazia).toBe(true);
+    expect(existsSync(cwd)).toBe(false);
+  });
+
+  it("apaga a pasta temporária também quando o CLI falha", async () => {
+    let pasta = "";
+    const falha: Executar = async (_b, _a, _e, o) => {
+      pasta = o.cwd;
+      throw new Error("quebrou");
+    };
+    await expect(gerarComClaudeLocal([{ texto: "a" }], { sistema: "s" }, falha)).rejects.toBeInstanceOf(IaIndisponivel);
+    expect(pasta).not.toBe("");
+    expect(existsSync(pasta)).toBe(false);
   });
 
   it("manda o PDF e a imagem dentro do pedido e devolve o JSON estruturado", async () => {
