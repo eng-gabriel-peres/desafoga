@@ -55,15 +55,15 @@ export function CamposParaConferir({
   return (
     <div className="mt-2 grid gap-2 rounded-[12px] border-2 border-dashed border-maybe/60 p-2.5">
       <p className="text-[0.85rem] font-bold text-maybe">{titulo}</p>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-2">
         {campos.map((c) => (
-          <label key={c} className="grid gap-1 text-[0.85rem]">
+          <label key={c} className="grid min-w-0 content-start gap-1 text-[0.85rem]">
             <span>{ROTULO[c]}</span>
             <input
               value={valores[c] ?? ""}
               onChange={(e) => mudar(c, e.target.value)}
               inputMode="decimal"
-              className="campo min-h-11 rounded-[10px] border-2 border-line bg-surface px-2.5 outline-none focus:border-primary"
+              className="campo min-h-11 w-full min-w-0 rounded-[10px] border-2 border-line bg-surface px-2.5 outline-none focus:border-primary"
             />
           </label>
         ))}
@@ -146,7 +146,7 @@ function CartaoDaSugestao({ pessoaId, s, parecida }: { pessoaId: string; s: Suge
           <dt className="text-muted">Parcela</dt>
           <dd className="font-bold">
             {d.parcelaMinima ? reais(d.parcelaMinima) : "a conferir"}
-            {d.parcelasRestantes ? ` · faltam ${d.parcelasRestantes}` : ""}
+            {d.parcelasRestantes ? <span className="block text-[0.85rem] font-normal text-muted">faltam {d.parcelasRestantes}</span> : null}
           </dd>
         </div>
         )}

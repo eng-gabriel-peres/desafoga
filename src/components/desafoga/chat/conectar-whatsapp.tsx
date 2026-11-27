@@ -12,7 +12,8 @@ const NUMERO_DA_LUANA = process.env.NEXT_PUBLIC_WHATSAPP_NUMERO ?? "";
 const CODIGO_DE_ENTRADA = process.env.NEXT_PUBLIC_WHATSAPP_CODIGO ?? "";
 
 /** Botão do cabeçalho do chat que mostra se o WhatsApp está conectado. */
-export function BotaoWhatsapp({ pessoaId }: { pessoaId: string }) {
+/** `discreto`: menor e sem destaque, para o topo do app no chat do celular. */
+export function BotaoWhatsapp({ pessoaId, discreto = false }: { pessoaId: string; discreto?: boolean }) {
   const [aberto, setAberto] = useState(false);
   const numero = useConsulta(`whatsapp:${pessoaId}`, () => servicos.pessoas.whatsapp(pessoaId));
   return (
@@ -22,10 +23,20 @@ export function BotaoWhatsapp({ pessoaId }: { pessoaId: string }) {
         onClick={() => setAberto(true)}
         aria-haspopup="dialog"
         aria-label={numero ? "WhatsApp conectado. Trocar número" : "Conectar WhatsApp"}
-        className="ml-auto inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface2 px-3 text-[0.85rem] font-bold hover:border-primary"
+        className={`inline-flex items-center rounded-full border border-line font-bold hover:border-primary ${
+          discreto
+            ? "min-h-10 shrink-0 gap-1.5 bg-surface2 px-3 text-[0.8rem] text-muted hover:text-ink desk:min-h-11 desk:text-[0.85rem] desk:text-ink"
+            : "min-h-11 gap-2 bg-surface2 px-3 text-[0.85rem]"
+        }`}
       >
         <MessageCircle aria-hidden="true" className="size-4" />
-        {numero ? "WhatsApp" : "Conectar WhatsApp"}
+        {numero || discreto ? (
+          <span>
+            {!numero && <span className="hidden desk:inline">Conectar </span>}WhatsApp
+          </span>
+        ) : (
+          "Conectar WhatsApp"
+        )}
         {numero && <Check aria-hidden="true" className="size-4 text-good" />}
       </button>
       {aberto && <DialogoWhatsapp pessoaId={pessoaId} atual={numero ?? null} fechar={() => setAberto(false)} />}

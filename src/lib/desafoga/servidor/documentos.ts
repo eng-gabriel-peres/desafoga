@@ -6,7 +6,9 @@
  */
 import { CONTRATO_DE_EXEMPLO, REGISTRATO_DE_EXEMPLO } from "@/fixtures/desafoga/documentos-de-exemplo";
 import { FATURA_DE_EXEMPLO, materializarFatura } from "@/fixtures/desafoga";
+import { chaveDaDescricao } from "@/lib/banco/classificar";
 import { chaveDaInstituicao } from "@/lib/banco/instituicoes";
+import { descricaoLegivel } from "@/lib/formatar";
 import { compraManualCorrespondente, novaParcelada } from "@/lib/banco/relacionar";
 import type { CandidataParcelada, SugestaoDeDivida } from "@/lib/banco/tipos";
 import { fundirFaturas, type Fatura } from "@/lib/finance";
@@ -88,14 +90,16 @@ const mesmaFatura = (a: Fatura, b: Fatura) =>
 /**
  * Grava a fatura ou o extrato enviado: compras parceladas (uma compra para a
  * parcelada inteira), sugestões de dívida (parcela de empréstimo no extrato,
- * rotativo na fatura) e a fusão com a fatura do banco do mesmo cartão.
+ * rotativo na fatura), a fusão com a fatura do banco do mesmo cartão e as
+ * assinaturas que a pessoa disse que são mensais (`assinaturas`: ids dos lançamentos).
  */
 export async function salvarDocumento(
   pessoaId: string,
   enviada: Fatura,
   classificacoes: Record<string, Classificacao>,
   contaId: string | null,
-): Promise<{ parceladas: number; sugestoes: number }> {
+  assinaturas: string[] = [],
+): Promise<{ parceladas: number; sugestoes: number; assinaturas: number }> {
   // Sem cartão escolhido (chat, WhatsApp, ou a pessoa pulou): se o banco da fatura tem um único cartão conectado, é dele.
   if (!contaId && enviada.tipo === "fatura") {
     const banco = chaveDaInstituicao(enviada.origem);
@@ -185,5 +189,35 @@ export async function salvarDocumento(
   const rotativo = sugestaoDeRotativoDaFatura(salva);
   if (rotativo) novas.push(rotativo);
   for (const s of novas) if ((await repo.receberSugestaoDeDivida(pessoaId, s)) === "nova") sugestoes++;
-  return { parceladas, sugestoes };
+  return { parceladas, sugestoes, assinaturas: await assinaturasMensais(pessoaId, fatura, assinaturas, origem) };
+}
+
+/**
+ * Assinaturas da fatura que a pessoa marcou como mensais viram contas fixas.
+ * Na fatura do cartão, a conta fica ligada a ele (`cartao`) para não contar
+ * duas vezes. A que já é conta fixa (mesmo nome e valor) não se repete.
+ */
+async function assinaturasMensais(pessoaId: string, fatura: Fatura, ids: string[], origem: string): Promise<number> {
+  const escolhidas = fatura.lancamentos.filter((l) => l.tipo === "assinatura" && ids.includes(l.id));
+  if (!escolhidas.length) return 0;
+  const chave = (nome: string, valor: number) => `${chaveDaDescricao(nome)}:${valor}`;
+  const existentes = new Set((await repo.contasFixas(pessoaId)).map((c) => chave(c.nome, c.valor)));
+  let criadas = 0;
+  for (const l of escolhidas) {
+    const nome = descricaoLegivel(l.descricao).slice(0, 60);
+    if (existentes.has(chave(nome, l.valor))) continue;
+    existentes.add(chave(nome, l.valor));
+    await repo.salvarConta(pessoaId, {
+      nome,
+      categoria: "assinatura",
+      valor: l.valor,
+      vencimento: Number(l.data.slice(8, 10)) || 1,
+      variavel: false,
+      debitoAutomatico: true,
+      lembrete: false,
+      cartao: fatura.tipo === "fatura" ? origem : null,
+    });
+    criadas++;
+  }
+  return criadas;
 }

@@ -176,7 +176,7 @@ function Uso({ uso }: { uso: UsoDeHoje }) {
         ))}
       </ul>
 
-      <h3 className="mt-4 text-sm font-semibold">Cota gratuita da IA (Gemini)</h3>
+      <h3 className="mt-4 text-sm font-semibold">Uso da IA hoje</h3>
       {uso.ia.length === 0 ? (
         <p className="text-sm text-muted">Nenhuma leitura feita hoje.</p>
       ) : (
@@ -194,8 +194,8 @@ function Uso({ uso }: { uso: UsoDeHoje }) {
         </ul>
       )}
       <p className="mt-2 text-xs text-muted">
-        O Google não informa quanto resta da cota gratuita. Aqui aparece o que aconteceu hoje: quando um
-        modelo responde &quot;sem cota&quot;, a Luana passa para o seguinte.
+        O serviço de IA não informa quanto resta da cota. Aqui aparece o que aconteceu hoje: no Gemini,
+        quando um modelo responde &quot;sem cota&quot;, a Luana passa para o seguinte.
       </p>
     </section>
   );

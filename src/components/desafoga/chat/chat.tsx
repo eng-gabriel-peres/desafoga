@@ -1,7 +1,8 @@
 "use client";
 
-import { Mic, Paperclip, Send, Sparkles, Square, Trash2 } from "lucide-react";
-import { Fragment, useEffect, useId, useRef, useState } from "react";
+import { ArrowLeft, Mic, Plus, Send, Square, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { useAgora } from "@/hooks/use-agora";
 import { chaveDoDia } from "@/lib/finance";
 import { hora, nomeDoDia } from "@/lib/formatar";
@@ -90,14 +91,16 @@ interface ChatProps {
   enviarAudio: (audio: Blob) => void;
   aviso: (texto: string) => void;
   cabecalho?: React.ReactNode;
+  /** No celular a conversa ocupa a tela toda, sem o menu do app: este é o caminho de volta. */
+  voltarPara?: string;
 }
 
 /** Conversa no estilo do WhatsApp, ocupando a tela: bolhas, comandos, anexo e áudio. */
-export function Chat({ mensagens, ocupada, enviar, enviarArquivo, enviarAudio, aviso, cabecalho }: ChatProps) {
+export function Chat({ mensagens, ocupada, enviar, enviarArquivo, enviarAudio, aviso, cabecalho, voltarPara }: ChatProps) {
   const [rascunho, setRascunho] = useState("");
   const [comandos, setComandos] = useState(false);
   const lista = useRef<HTMLOListElement>(null);
-  const campo = useRef<HTMLInputElement>(null);
+  const campo = useRef<HTMLTextAreaElement>(null);
   const seletor = useRef<HTMLInputElement>(null);
   const idDoMenu = useId();
   const agora = useAgora();
@@ -109,6 +112,21 @@ export function Chat({ mensagens, ocupada, enviar, enviarArquivo, enviarAudio, a
     const el = lista.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [mensagens.length, ocupada]);
+
+  // A caixa cresce para baixo com o texto, como no WhatsApp; depois de umas linhas ela rola por dentro.
+  useLayoutEffect(() => {
+    const el = campo.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [rascunho]);
+
+  /** Enter envia; Shift+Enter quebra a linha. */
+  function aoTeclar(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key !== "Enter" || e.shiftKey || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    e.currentTarget.form?.requestSubmit();
+  }
 
   function aoEnviar(e: React.FormEvent) {
     e.preventDefault();
@@ -132,16 +150,25 @@ export function Chat({ mensagens, ocupada, enviar, enviarArquivo, enviarAudio, a
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-chat-bg">
-      <div className="flex flex-wrap items-center gap-3 border-b border-line bg-surface px-3.5 py-2.5">
+      <div className="flex items-center gap-2.5 border-b border-line bg-surface py-2 pr-3 pl-1.5 pt-[calc(0.5rem+env(safe-area-inset-top))] desk:gap-3 desk:px-3.5 desk:py-2.5">
+        {voltarPara && (
+          <Link
+            href={voltarPara}
+            aria-label="Voltar para o início"
+            className="grid size-11 shrink-0 place-items-center rounded-full text-ink no-underline hover:bg-surface2 desk:hidden"
+          >
+            <ArrowLeft aria-hidden="true" className="size-6" />
+          </Link>
+        )}
         <AvatarLuana />
         <div className="min-w-0">
           <b className="block leading-tight">Luana</b>
           <span className={`text-[0.85rem] ${ocupada ? "text-primary" : "text-muted"}`}>{status}</span>
         </div>
-        {cabecalho}
+        {cabecalho && <div className="ml-auto">{cabecalho}</div>}
       </div>
 
-      <ol ref={lista} aria-label="Conversa com a Luana" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-4 desk:px-6">
+      <ol ref={lista} aria-label="Conversa com a Luana" className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-4 desk:px-6">
         {mensagens.map((m, i) => {
           const dia = chaveDoDia(new Date(m.quando));
           const novoDia = i === 0 || chaveDoDia(new Date(mensagens[i - 1].quando)) !== dia;
@@ -166,18 +193,18 @@ export function Chat({ mensagens, ocupada, enviar, enviarArquivo, enviarAudio, a
         {!ocupada && ultimaDaLuana ? `Luana: ${ultimaDaLuana.texto}` : ""}
       </p>
 
-      <form onSubmit={aoEnviar} className="relative flex items-end gap-2 px-2.5 pt-1 pb-2.5 desk:px-4 desk:pb-4">
+      <form onSubmit={aoEnviar} className="relative flex items-end gap-2 px-2.5 pt-1 pb-[calc(0.625rem+env(safe-area-inset-bottom))] desk:px-4 desk:pb-4">
         {comandos && <MenuDeComandos id={idDoMenu} fechar={() => setComandos(false)} escolher={escolherComando} />}
         <button
           type="button"
           data-abre-comandos
           onClick={() => setComandos((a) => !a)}
-          aria-label="Comandos da Luana"
+          aria-label="Enviar arquivo ou ver atalhos"
           aria-expanded={comandos}
           aria-controls={idDoMenu}
-          className="grid size-12 shrink-0 place-items-center rounded-full bg-surface text-primary shadow-[0_1px_2px_rgb(0_0_0/0.12)] hover:bg-primary-soft aria-expanded:bg-primary aria-expanded:text-primary-ink"
+          className="group grid size-12 shrink-0 place-items-center rounded-full bg-surface text-primary shadow-[0_1px_2px_rgb(0_0_0/0.12)] hover:bg-primary-soft aria-expanded:bg-primary aria-expanded:text-primary-ink"
         >
-          <Sparkles aria-hidden="true" className="size-5" />
+          <Plus aria-hidden="true" className="size-6 transition-transform group-aria-expanded:rotate-45" />
         </button>
 
         {segundos !== null ? (
@@ -189,28 +216,21 @@ export function Chat({ mensagens, ocupada, enviar, enviarArquivo, enviarAudio, a
             </button>
           </div>
         ) : (
-          <div className="flex min-h-12 min-w-0 flex-1 items-center caixa-de-campo rounded-full border-2 border-transparent bg-surface pl-4 shadow-[0_1px_2px_rgb(0_0_0/0.12)] focus-within:border-primary">
+          <div className="flex min-h-12 min-w-0 flex-1 items-end caixa-de-campo rounded-3xl border-2 border-transparent bg-surface px-4 shadow-[0_1px_2px_rgb(0_0_0/0.12)] focus-within:border-primary">
             <label className="min-w-0 flex-1">
               <span className="sr-only">Mensagem</span>
-              <input
+              <textarea
                 ref={campo}
+                rows={1}
                 value={rascunho}
                 onChange={(e) => setRascunho(e.target.value)}
+                onKeyDown={aoTeclar}
                 placeholder="Mensagem"
                 autoComplete="off"
                 enterKeyHint="send"
-                className="min-h-12 w-full border-0 bg-transparent outline-none"
+                className="block max-h-36 w-full resize-none border-0 bg-transparent py-[11px] leading-snug break-words outline-none"
               />
             </label>
-            <button
-              type="button"
-              onClick={() => seletor.current?.click()}
-              disabled={!!ocupada}
-              aria-label="Anexar fatura, extrato ou print"
-              className="grid size-11 shrink-0 place-items-center rounded-full text-muted hover:text-primary disabled:opacity-50"
-            >
-              <Paperclip aria-hidden="true" className="size-5" />
-            </button>
           </div>
         )}
         <input

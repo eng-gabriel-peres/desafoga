@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { gerarJson, gerarTexto, parteDeArquivo } from "@/lib/ia/gemini";
+import { gerarJson, gerarTexto, parteDeArquivo } from "@/lib/ia";
 import { CATEGORIAS, NATUREZAS } from "./lancamentos";
 
 /** O que o modelo de IA faz: ler, classificar e redigir. Nunca calcular. */
@@ -118,7 +118,7 @@ export async function lerDocumento(bytes: Uint8Array, mime: string, hoje: string
   return gerarJson(
     DocumentoLido,
     `Você lê documentos financeiros brasileiros: faturas de cartão, extratos, prints de compras do app do banco, notificações de compra, comprovantes, o Registrato do Banco Central (Relatório de Empréstimos e Financiamentos do SCR, com uma linha por instituição e modalidade e valores a vencer e vencidos) e contratos ou prints da tela de um empréstimo. Transcreva cada lançamento e classifique a natureza e a categoria. No Registrato e no contrato, preencha "contratos" e deixe "lancamentos" vazio. Em extrato de conta, cada linha de movimentação é um lançamento: crédito na conta é entrada, débito é compra, salvo os casos de pagamento_de_fatura e transferencia_propria. Não transcreva linhas de saldo do dia. O valor vai sempre sem sinal.\n\n${REGRAS_DE_LEITURA.replace("{HOJE}", hoje)}`,
-    [parteDeArquivo(bytes, mime), { text: "Leia este documento." }],
+    [parteDeArquivo(bytes, mime), { texto: "Leia este documento." }],
   );
 }
 
@@ -133,7 +133,7 @@ export async function lerMensagem(texto: string, hoje: string, pergunta: string 
   return gerarJson(
     MensagemLida,
     `Você interpreta mensagens de WhatsApp enviadas a uma assistente de finanças pessoais. Identifique a intenção e transcreva gastos, renda ou saldo citados. "ontem" e "hoje" viram datas.\n\n${REGRAS_DE_LEITURA.replace("{HOJE}", hoje)}${comContexto(pergunta)}`,
-    [{ text: texto }],
+    [{ texto: texto }],
   );
 }
 
@@ -147,7 +147,7 @@ export async function lerAudio(
   return gerarJson(
     MensagemLida,
     `Você interpreta mensagens de voz enviadas a uma assistente de finanças pessoais. Transcreva o áudio em "transcricao", identifique a intenção e transcreva gastos, renda, saldo ou compra citados. Valores falados por extenso viram números ("oito mil" = 8000). "ontem" e "hoje" viram datas. Se não houver fala compreensível, devolva transcricao vazia e intenção "outro".\n\n${REGRAS_DE_LEITURA.replace("{HOJE}", hoje)}${comContexto(pergunta)}`,
-    [parteDeArquivo(bytes, mime), { text: "Ouça esta mensagem de voz." }],
+    [parteDeArquivo(bytes, mime), { texto: "Ouça esta mensagem de voz." }],
   );
 }
 

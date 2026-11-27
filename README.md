@@ -30,6 +30,8 @@ pnpm dev
 
 No `.env.local`, use `DATABASE_URL=postgresql://desafoga:desafoga@localhost:5440/desafoga` e `TEST_DATABASE_URL=postgresql://desafoga:desafoga@localhost:5440/desafoga_teste`. `GEMINI_API_KEY` liga a IA; sem ela, a Luana responde por regras.
 
+**IA local com o Claude Code (opcional, só no desenvolvimento).** Com `IA_PROVEDOR=claude-local`, a leitura de mensagens, faturas, extratos e prints e as respostas da Luana passam pelo `claude -p` instalado na máquina, com o login dele (sem chave de API). O áudio continua no Gemini: sem `GEMINI_API_KEY`, a Luana pede para a pessoa escrever. O arquivo vai junto no pedido e o Claude roda sem ferramentas e sem a sua configuração (CLAUDE.md, hooks, MCP), então um documento não consegue fazê-lo ler outros arquivos da máquina. O CLI ainda anexa por conta própria o e-mail da conta logada e a pasta onde roda (não há opção para tirar sem trocar o login por chave de API); por isso cada pedido roda numa pasta vazia temporária, fora do projeto, e leva uma regra para o modelo nunca usar esse contexto nas respostas. Variáveis: `CLAUDE_BIN` (caminho do CLI, padrão `claude`), `CLAUDE_MODEL` (padrão `sonnet`) e `CLAUDE_CONFIG_DIR` (outra conta do Claude Code, ex.: `~/.claude-trabalho`). Funciona com o `pnpm dev` na máquina; não funciona no container do `docker-compose` nem na Vercel (lá a IA fica desligada se esse modo estiver ligado).
+
 Abra http://localhost:3000. Para testar sem cadastro, toque em **Entrar como Ana** (app da pessoa) ou **Entrar como Paula Reis** (painel de quem acompanha). Para usar de verdade, **Criar minha conta**.
 
 Tudo em containers (banco, migrações e app em http://localhost:3000): `docker compose --profile completo up --build`.

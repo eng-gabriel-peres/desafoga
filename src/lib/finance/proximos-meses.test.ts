@@ -88,6 +88,16 @@ describe("proximosMeses", () => {
     expect(r[0].itens.find((i) => i.tipo === "fatura")?.valor).toBe(123000);
   });
 
+  it("assinatura no cartão não conta de novo no mês da fatura conhecida dele; nos outros meses, conta", () => {
+    const claude: ContaFixa = { id: "s", nome: "Claude", categoria: "assinatura", valor: 11478, vencimento: 5, variavel: false, debitoAutomatico: true, lembrete: false, cartao: "doc:nubank" };
+    const r = proximosMeses({ contas: [aluguel, claude], dividas: [], plano, parceladas: [], cartoes: [cartao("doc:nubank")], renda: null }, AGORA);
+    expect(r[0].itens.map((i) => i.nome)).not.toContain("Claude");
+    expect(r[1].itens.find((i) => i.nome === "Claude")?.valor).toBe(11478);
+    // Outro cartão: a fatura conhecida não é a dela.
+    const outro = proximosMeses({ contas: [{ ...claude, cartao: "doc:itau" }], dividas: [], plano, parceladas: [], cartoes: [cartao("doc:nubank")], renda: null }, AGORA);
+    expect(outro[0].itens.map((i) => i.nome)).toContain("Claude");
+  });
+
   it("renda e sobra", () => {
     const r = proximosMeses({ contas: [aluguel], dividas: [], plano, parceladas: [], cartoes: [], renda: { valor: 280000, dia: 5 } }, AGORA);
     expect(r[0]).toMatchObject({ renda: 280000, sobra: 160000 });

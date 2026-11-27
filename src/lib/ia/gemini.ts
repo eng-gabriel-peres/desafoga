@@ -1,10 +1,10 @@
-import { type GenerateContentConfig, GoogleGenAI, type Part } from "@google/genai";
-import { z } from "zod";
+import { GoogleGenAI, type Part } from "@google/genai";
 import { registrarIA } from "@/lib/limite";
+import { IaIndisponivel, IaSobrecarregada } from "./erros";
+import type { OpcoesDaGeracao, Parte } from "./tipos";
 
-export class IaIndisponivel extends Error {}
-/** O serviço do modelo está sobrecarregado ou lento; vale tentar de novo depois. */
-export class IaSobrecarregada extends IaIndisponivel {}
+/** Provedor padrão: a API do Gemini, com a chave do AI Studio. */
+export const geminiConfigurado = (): boolean => Boolean(process.env.GEMINI_API_KEY);
 
 /**
  * Modelos tentados em ordem, em até duas rodadas. Quando um está
@@ -35,7 +35,17 @@ const semCotaAte = new Map<string, number>();
 /** Erros que não adianta repetir: pedido inválido ou chave recusada. */
 const SEM_NOVA_TENTATIVA = [400, 401, 403];
 
-async function gerar(partes: Part[], config: GenerateContentConfig): Promise<string> {
+function paraGemini(parte: Parte): Part {
+  return "texto" in parte
+    ? { text: parte.texto }
+    : { inlineData: { mimeType: parte.arquivo.mime, data: Buffer.from(parte.arquivo.bytes).toString("base64") } };
+}
+
+export async function gerarComGemini(partes: Parte[], opcoes: OpcoesDaGeracao): Promise<string> {
+  const config = {
+    systemInstruction: opcoes.sistema,
+    ...(opcoes.schemaJson ? { responseMimeType: "application/json", responseJsonSchema: opcoes.schemaJson } : {}),
+  };
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new IaIndisponivel("GEMINI_API_KEY não configurada.");
   const ia = new GoogleGenAI({ apiKey, httpOptions: { timeout: LIMITE_POR_TENTATIVA } });
@@ -53,7 +63,7 @@ async function gerar(partes: Part[], config: GenerateContentConfig): Promise<str
       try {
         const resposta = await ia.models.generateContent({
           model,
-          contents: [{ role: "user", parts: partes }],
+          contents: [{ role: "user", parts: partes.map(paraGemini) }],
           // Cada tentativa cabe no que sobra do tempo total.
           config: { ...config, abortSignal: AbortSignal.timeout(Math.min(LIMITE_POR_TENTATIVA, restante)) },
         });
@@ -78,36 +88,4 @@ async function gerar(partes: Part[], config: GenerateContentConfig): Promise<str
     }
   }
   throw new IaSobrecarregada(`Todas as tentativas falharam; última: ${ultimoErro}`);
-}
-
-export function parteDeArquivo(bytes: Uint8Array, mime: string): Part {
-  return { inlineData: { mimeType: mime, data: Buffer.from(bytes).toString("base64") } };
-}
-
-/** Pede ao modelo uma resposta no formato do schema e valida o que voltou. */
-export async function gerarJson<T extends z.ZodType>(
-  schema: T,
-  instrucoes: string,
-  partes: Part[],
-): Promise<z.infer<T>> {
-  const texto = await gerar(partes, {
-    systemInstruction: instrucoes,
-    responseMimeType: "application/json",
-    responseJsonSchema: z.toJSONSchema(schema),
-  });
-
-  let bruto: unknown;
-  try {
-    bruto = JSON.parse(texto);
-  } catch {
-    throw new IaIndisponivel("O modelo devolveu um JSON inválido (talvez cortado).");
-  }
-  const validado = schema.safeParse(bruto);
-  if (!validado.success) throw new IaIndisponivel("O modelo devolveu dados fora do formato.");
-  return validado.data;
-}
-
-/** Pede ao modelo um texto livre. */
-export async function gerarTexto(instrucoes: string, conteudo: string): Promise<string> {
-  return gerar([{ text: conteudo }], { systemInstruction: instrucoes });
 }

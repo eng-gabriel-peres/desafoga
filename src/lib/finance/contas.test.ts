@@ -49,6 +49,12 @@ describe("contas do mês", () => {
     expect(por.celular).toMatchObject({ pago: false, vencida: false, emBreve: false });
   });
 
+  it("assinatura no cartão vem paga pela fatura, sem vencer nem pedir pagamento, e ainda soma no mês", () => {
+    const c = compromissosDoMes([conta({ id: "claude", vencimento: 25, valor: 11478, debitoAutomatico: true, cartao: "doc:picpay" })], [], SEM_PLANO, [], agora);
+    expect(c[0]).toMatchObject({ pago: true, automatico: true, noCartao: true, vencida: false, emBreve: false });
+    expect(totaisDoMes(c, null)).toMatchObject({ contas: 11478, falta: 0 });
+  });
+
   it("conta vencida quando passou do dia sem pagar", () => {
     const [c] = compromissosDoMes([conta({ id: "bus", vencimento: 5, valor: 18000 })], [], SEM_PLANO, [], agora);
     expect(c).toMatchObject({ vencida: true, pago: false });

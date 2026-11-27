@@ -110,7 +110,11 @@ export function proximosMeses(
     const itens: ItemDoMes[] = [];
     const terminam: string[] = [];
 
-    for (const c of e.contas) itens.push({ tipo: "conta", nome: c.nome, valor: c.valor, previsto: c.variavel });
+    for (const c of e.contas) {
+      // A assinatura do cartão já está no total da fatura conhecida desse mês.
+      if (c.cartao && cartoes.some((x) => x.origem === c.cartao && x.faturaAberta?.mes === mes)) continue;
+      itens.push({ tipo: "conta", nome: c.nome, valor: c.valor, previsto: c.variavel });
+    }
 
     for (const c of cartoes) {
       const ativas = e.parceladas.filter((p) => p.origem === c.origem && ativaNoMes(p, mes));

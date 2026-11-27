@@ -229,14 +229,23 @@ export interface FaturasService {
   listar(pessoaId: string): Promise<Fatura[]>;
   /** Lê o arquivo enviado com a IA. Sem IA ou sem arquivo, lê um documento de exemplo. */
   ler(pessoaId: string, arquivo: File | null): Promise<{ fatura: Fatura; deExemplo: boolean }>;
-  /** Guarda a fatura lida e registra as compras novas classificadas. `contaId`: cartão conectado a que a fatura pertence. */
-  salvar(pessoaId: string, fatura: Fatura, classificacoes: Record<string, Classificacao>, contaId?: string | null): Promise<void>;
+  /**
+   * Guarda a fatura lida e registra as compras novas classificadas. `contaId`: cartão conectado a que a fatura pertence.
+   * `assinaturas`: ids dos lançamentos de assinatura que viram conta fixa mensal.
+   */
+  salvar(pessoaId: string, fatura: Fatura, classificacoes: Record<string, Classificacao>, contaId?: string | null, assinaturas?: string[]): Promise<void>;
 }
 
 export interface DocumentosService {
   /** Lê fatura, extrato, print, Registrato ou contrato. `exemplo` só na demonstração. */
   ler(pessoaId: string, arquivo: File | null, exemplo?: "fatura" | "registrato" | "contrato"): Promise<LeituraDeDocumento>;
-  salvar(pessoaId: string, fatura: Fatura, classificacoes: Record<string, Classificacao>, contaId: string | null): Promise<{ parceladas: number; sugestoes: number }>;
+  salvar(
+    pessoaId: string,
+    fatura: Fatura,
+    classificacoes: Record<string, Classificacao>,
+    contaId: string | null,
+    assinaturas?: string[],
+  ): Promise<{ parceladas: number; sugestoes: number; assinaturas: number }>;
 }
 
 export interface BancoService {

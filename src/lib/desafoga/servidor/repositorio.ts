@@ -705,6 +705,7 @@ function paraConta(c: Prisma.ContaFixaModel): ContaFixa {
     variavel: c.variavel,
     debitoAutomatico: c.debitoAutomatico,
     lembrete: c.lembrete,
+    cartao: c.cartao,
   };
 }
 
@@ -738,6 +739,8 @@ export async function salvarConta(pessoaId: string, c: ContaEditada): Promise<Co
     variavel: c.variavel,
     debitoAutomatico: c.debitoAutomatico,
     lembrete: c.lembrete,
+    // Editar a conta pela tela de Contas não mexe no cartão dela.
+    ...(c.cartao !== undefined && { cartao: c.cartao }),
   };
   if (c.id) {
     const r = await prisma().contaFixa.updateMany({ where: { id: c.id, pessoaId }, data: dados });

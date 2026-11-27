@@ -1,9 +1,10 @@
 "use client";
 
-import { Check, ChevronLeft, FileText, LoaderCircle, Lock, ScanLine, Upload } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, FileText, LoaderCircle, Lock, ScanLine, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useLayoutEffect, useState } from "react";
-import { separarFatura, type Emocao, type Fatura, type Necessidade } from "@/lib/finance";
+import { chaveDaDescricao } from "@/lib/banco/classificar";
+import { separarFatura, type Emocao, type Fatura, type Lancamento, type Necessidade } from "@/lib/finance";
 import { NOME_DA_EMOCAO, NOME_DA_NECESSIDADE } from "@/lib/assistente/textos";
 import { descricaoLegivel, reais } from "@/lib/formatar";
 import { servicos, type Classificacao } from "@/services";
@@ -32,13 +33,18 @@ export function TelaFatura() {
   const [arrastando, setArrastando] = useState(false);
   /** Cartão conectado a que a fatura pertence ("" = nenhum). */
   const [cartao, setCartao] = useState("");
-  const cartoes = (usePessoa(pessoaId)?.banco.conexoes ?? []).flatMap((c) => c.contas.filter((x) => x.tipo === "cartao").map((x) => ({ id: x.id, nome: `${x.nome} · ${c.banco}` })));
+  /** Ids das assinaturas que a pessoa quer como conta fixa mensal. */
+  const [mensais, setMensais] = useState<string[]>([]);
+  const dados = usePessoa(pessoaId);
+  const cartoes = (dados?.banco.conexoes ?? []).flatMap((c) => c.contas.filter((x) => x.tipo === "cartao").map((x) => ({ id: x.id, nome: `${x.nome} · ${c.banco}` })));
+  const contasFixas = new Set((dados?.contas.contas ?? []).map((c) => chaveDaConta(c.nome, c.valor)));
 
   // Ao sair da tela, o fluxo volta ao começo.
   useLayoutEffect(
     () => () => {
       setEstado({ etapa: "envio" });
       setClassificacoes({});
+      setMensais([]);
     },
     [],
   );
@@ -64,7 +70,7 @@ export function TelaFatura() {
 
   async function salvar(fatura: Fatura) {
     setSalvando(true);
-    await servicos.faturas.salvar(pessoaId, fatura, classificacoes, cartao || null);
+    await servicos.faturas.salvar(pessoaId, fatura, classificacoes, cartao || null, mensais);
     setSalvando(false);
     router.push("/app/dividas");
   }
@@ -161,7 +167,7 @@ export function TelaFatura() {
   return (
     <div className="mx-auto max-w-[720px]">
       {voltar}
-      <div className="mt-2 grid gap-4">
+      <div className="mt-2 grid grid-cols-1 gap-4">
         <section
           aria-label="Resultado da leitura"
           className="rounded-[var(--radius-card)] border-2 border-bad/40 p-[1.1rem]"
@@ -185,66 +191,17 @@ export function TelaFatura() {
               {fatura.taxaRotativoMensal ? <Numero rotulo="Juros do rotativo" valor={`${(fatura.taxaRotativoMensal * 100).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% ao mês`} /> : null}
             </dl>
           )}
-          <ul className="mt-3 flex flex-wrap gap-2 text-[0.9rem]">
-            {s.encargos.map((l) => (
-              <li key={l.id} className="rounded-full border border-line bg-surface px-3 py-1">
-                {descricaoLegivel(l.descricao)}: {reais(l.valor)}
-              </li>
-            ))}
-          </ul>
+          <Encargos lista={s.encargos} />
         </section>
 
-        {s.novas.length > 0 && (
-          <Painel titulo={`Compras novas (${s.novas.length})`}>
-            <Sub className="mb-1.5">Lembra como estava na hora? Se não lembrar, pode pular.</Sub>
-            <ul>
-              {s.novas.map((l) => (
-                <li key={l.id} className="border-b border-line py-3 last:border-0">
-                  <div className="flex justify-between gap-3">
-                    <b>{descricaoLegivel(l.descricao)}</b>
-                    <b>{reais(l.valor)}</b>
-                  </div>
-                  {l.parcela && l.totalParcelas && (
-                    <p className="text-[0.85rem] text-muted">
-                      Parcela {l.parcela} de {l.totalParcelas} · o que você responder vale para a compra inteira ({reais(l.valor * l.totalParcelas)})
-                    </p>
-                  )}
-                  <ClassificarCompra
-                    nome={descricaoLegivel(l.descricao)}
-                    valor={classificacoes[l.id] ?? {}}
-                    aoMudar={(m) => classificar(l.id, m)}
-                  />
-                </li>
-              ))}
-            </ul>
-          </Painel>
-        )}
-
-        {s.jaRegistradas.length > 0 && (
-          <Painel titulo={`Já registradas por você (${s.jaRegistradas.length})`}>
-            <ul>
-              {s.jaRegistradas.map((l) => (
-                <li key={l.id} className="flex items-center gap-3 border-b border-line py-2.5 last:border-0">
-                  <span className="flex-1">{descricaoLegivel(l.descricao)}</span>
-                  <b>{reais(l.valor)}</b>
-                  <Check aria-label="Já registrada" className="size-5 text-good" />
-                </li>
-              ))}
-            </ul>
-          </Painel>
-        )}
-
         {s.assinaturas.length > 0 && (
-          <Painel titulo="Assinaturas encontradas">
-            <ul>
-              {s.assinaturas.map((l) => (
-                <li key={l.id} className="flex items-center gap-3 border-b border-line py-2.5 last:border-0">
-                  <span className="flex-1">{descricaoLegivel(l.descricao)}</span>
-                  <b>{reais(l.valor)} por mês</b>
-                </li>
-              ))}
-            </ul>
-          </Painel>
+          <Assinaturas
+            lista={s.assinaturas}
+            noCartao={fatura.tipo === "fatura"}
+            jaFixas={contasFixas}
+            marcadas={mensais}
+            aoMudar={(id, sim) => setMensais((m) => (sim ? [...m, id] : m.filter((x) => x !== id)))}
+          />
         )}
 
         {fatura.tipo === "fatura" && cartoes.length > 0 && (
@@ -266,11 +223,239 @@ export function TelaFatura() {
           </Painel>
         )}
 
-        <Botao tamanho="grande" bloco onClick={() => salvar(fatura)} disabled={salvando}>
-          {salvando ? "Salvando…" : "Salvar e atualizar meu raio-x"}
-        </Botao>
+        {s.novas.length > 0 && <ComprasNovas lista={s.novas} classificacoes={classificacoes} aoClassificar={classificar} />}
+
+        {s.jaRegistradas.length > 0 && (
+          <Painel>
+            <details className="group">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 font-bold [&::-webkit-details-marker]:hidden">
+                <Check aria-hidden="true" className="size-5 text-good" />
+                <span className="flex-1">
+                  {s.jaRegistradas.length === 1 ? "1 compra já registrada por você" : `${s.jaRegistradas.length} compras já registradas por você`}
+                </span>
+                <ChevronDown aria-hidden="true" className="size-5 text-muted transition-transform group-open:rotate-180" />
+              </summary>
+              <ul className="mt-1">
+                {s.jaRegistradas.map((l) => (
+                  <li key={l.id} className="flex items-center gap-3 border-b border-line py-2.5 last:border-0">
+                    <span className="flex-1">{descricaoLegivel(l.descricao)}</span>
+                    <b>{reais(l.valor)}</b>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </Painel>
+        )}
+
+        {/* Fica sempre à vista: ninguém precisa descer a lista inteira para salvar. Acima da barra de abas no celular. */}
+        <div className="sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-10 desk:bottom-4">
+          <Botao tamanho="grande" bloco className="text-[1.05rem]! whitespace-nowrap shadow-[0_8px_24px_rgb(0_0_0/0.28)]" onClick={() => salvar(fatura)} disabled={salvando}>
+            {salvando ? "Salvando…" : "Salvar e atualizar meu raio-x"}
+          </Botao>
+        </div>
       </div>
     </div>
+  );
+}
+
+/** Juros, IOF e tarifas somados por tipo: "IOF diário parcelado · 5×  R$ 2,29". */
+function Encargos({ lista }: { lista: Lancamento[] }) {
+  const [todos, setTodos] = useState(false);
+  const grupos = new Map<string, { nome: string; valor: number; vezes: number }>();
+  for (const l of lista) {
+    const chave = chaveDaDescricao(l.descricao);
+    const g = grupos.get(chave) ?? { nome: descricaoLegivel(l.descricao), valor: 0, vezes: 0 };
+    g.valor += l.valor;
+    g.vezes++;
+    grupos.set(chave, g);
+  }
+  const ordenados = [...grupos.values()].sort((a, b) => b.valor - a.valor);
+  if (!ordenados.length) return null;
+  const visiveis = todos ? ordenados : ordenados.slice(0, MAXIMO_DE_ENCARGOS);
+  return (
+    <>
+      <ul className="mt-3 grid gap-1.5 text-[0.92rem]">
+        {visiveis.map((g) => (
+          <li key={g.nome} className="flex items-center justify-between gap-3 rounded-[12px] bg-surface px-3 py-2">
+            <span className="min-w-0">
+              {g.nome}
+              {g.vezes > 1 && <span className="text-muted"> · {g.vezes}×</span>}
+            </span>
+            <b className="shrink-0">{reais(g.valor)}</b>
+          </li>
+        ))}
+      </ul>
+      {ordenados.length > visiveis.length && (
+        <Botao variante="link" className="mt-1" onClick={() => setTodos(true)}>
+          Ver os outros {ordenados.length - visiveis.length}
+        </Botao>
+      )}
+    </>
+  );
+}
+
+const MAXIMO_DE_ENCARGOS = 4;
+
+/** Cada assinatura pode virar conta fixa mensal; nenhuma vira sem a pessoa marcar. */
+function Assinaturas({
+  lista,
+  noCartao,
+  jaFixas,
+  marcadas,
+  aoMudar,
+}: {
+  lista: Lancamento[];
+  noCartao: boolean;
+  jaFixas: Set<string>;
+  marcadas: string[];
+  aoMudar: (id: string, mensal: boolean) => void;
+}) {
+  const total = lista.reduce((t, l) => t + l.valor, 0);
+  return (
+    <Painel titulo={`Assinaturas encontradas · ${reais(total)}`}>
+      <Sub className="mb-1">
+        Marque as que você paga todo mês. Elas entram em Contas como assinatura
+        {noCartao ? " e, como já vêm na fatura do cartão, não contam duas vezes." : "."}
+      </Sub>
+      <ul>
+        {lista.map((l) => {
+          const nome = descricaoLegivel(l.descricao);
+          const jaE = jaFixas.has(chaveDaConta(nome, l.valor));
+          return (
+            <li key={l.id} className="border-b border-line last:border-0">
+              <label className={`flex min-h-12 items-center gap-3 py-2 ${jaE ? "" : "cursor-pointer"}`}>
+                {jaE ? (
+                  <Check aria-hidden="true" className="size-5 shrink-0 text-good" />
+                ) : (
+                  <input
+                    type="checkbox"
+                    checked={marcadas.includes(l.id)}
+                    onChange={(e) => aoMudar(l.id, e.target.checked)}
+                    className="size-5 shrink-0 accent-[var(--primary)]"
+                  />
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{nome}</span>
+                  {jaE && <span className="text-[0.82rem] text-muted">já está em Contas</span>}
+                </span>
+                <b className="shrink-0">{reais(l.valor)}</b>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+    </Painel>
+  );
+}
+
+/** Mesmo nome e valor: a assinatura já é conta fixa. Igual ao que o servidor confere. */
+const chaveDaConta = (nome: string, valor: number) => `${chaveDaDescricao(nome)}:${valor}`;
+
+const POR_VEZ = 10;
+
+/**
+ * Compras novas: um resumo e, se a pessoa quiser, uma lista curta (maiores
+ * primeiro, uma linha por compra). Tocar abre as carinhas daquela compra.
+ * Tudo opcional: dá para salvar sem responder nenhuma.
+ */
+function ComprasNovas({
+  lista,
+  classificacoes,
+  aoClassificar,
+}: {
+  lista: Lancamento[];
+  classificacoes: Record<string, Classificacao>;
+  aoClassificar: (id: string, m: Classificacao) => void;
+}) {
+  const [aberta, setAberta] = useState(false);
+  const [quantas, setQuantas] = useState(POR_VEZ);
+  const [atual, setAtual] = useState<string | null>(null);
+  const ordenadas = [...lista].sort((a, b) => b.valor - a.valor);
+  const visiveis = ordenadas.slice(0, quantas);
+  const total = lista.reduce((t, l) => t + l.valor, 0);
+  const respondidas = lista.filter((l) => classificacoes[l.id]?.emocao || classificacoes[l.id]?.necessidade).length;
+
+  function responder(id: string, m: Classificacao) {
+    aoClassificar(id, m);
+    const junta = { ...classificacoes[id], ...m };
+    if (!junta.emocao || !junta.necessidade) return;
+    // Respondeu as duas: abre a próxima ainda sem resposta.
+    const i = visiveis.findIndex((l) => l.id === id);
+    const proxima = visiveis.slice(i + 1).find((l) => !classificacoes[l.id]?.emocao && !classificacoes[l.id]?.necessidade);
+    setAtual(proxima?.id ?? null);
+  }
+
+  return (
+    <Painel titulo={`Compras novas (${lista.length})`}>
+      <p>
+        Somam <b>{reais(total)}</b>
+        {respondidas > 0 && <span className="text-muted"> · {respondidas} com resposta</span>}
+      </p>
+      <Sub className="mt-0.5">Lembra como estava em alguma? É opcional: dá para salvar sem responder.</Sub>
+      {!aberta ? (
+        <Botao variante="secundario" bloco className="mt-3" onClick={() => setAberta(true)}>
+          Contar como eu estava
+          <ChevronDown aria-hidden="true" />
+        </Botao>
+      ) : (
+        <>
+          <ul className="mt-2">
+            {visiveis.map((l) => {
+              const nome = descricaoLegivel(l.descricao);
+              const c = classificacoes[l.id] ?? {};
+              const expandida = atual === l.id;
+              return (
+                <li key={l.id} className="border-b border-line last:border-0">
+                  <button
+                    type="button"
+                    aria-expanded={expandida}
+                    onClick={() => setAtual(expandida ? null : l.id)}
+                    className="flex min-h-12 w-full items-center gap-3 py-2 text-left"
+                  >
+                    {c.emocao ? (
+                      <span
+                        aria-label={NOME_DA_EMOCAO[c.emocao]}
+                        className="grid size-7 shrink-0 place-items-center rounded-full border-2 text-ink [&_svg]:size-4"
+                        style={{ borderColor: COR_DA_EMOCAO[c.emocao], background: `color-mix(in srgb, ${COR_DA_EMOCAO[c.emocao]} 28%, var(--surface))` }}
+                      >
+                        <RostoSvg emocao={c.emocao} />
+                      </span>
+                    ) : (
+                      <span aria-hidden="true" className="size-7 shrink-0 rounded-full border-2 border-dashed border-line" />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-bold">{nome}</span>
+                      {(l.parcela && l.totalParcelas) || c.necessidade ? (
+                        <span className="block text-[0.82rem] text-muted">
+                          {[l.parcela && l.totalParcelas ? `Parcela ${l.parcela} de ${l.totalParcelas}` : null, c.necessidade ? NOME_DA_NECESSIDADE[c.necessidade] : null]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      ) : null}
+                    </span>
+                    <b className="shrink-0">{reais(l.valor)}</b>
+                    <ChevronDown aria-hidden="true" className={`size-5 shrink-0 text-muted transition-transform ${expandida ? "rotate-180" : ""}`} />
+                  </button>
+                  {expandida && (
+                    <div className="pb-3">
+                      {l.parcela && l.totalParcelas && (
+                        <p className="text-[0.85rem] text-muted">O que você responder vale para a compra inteira ({reais(l.valor * l.totalParcelas)}).</p>
+                      )}
+                      <ClassificarCompra nome={nome} valor={c} aoMudar={(m) => responder(l.id, m)} />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {ordenadas.length > quantas && (
+            <Botao variante="secundario" bloco className="mt-2" onClick={() => setQuantas((q) => q + POR_VEZ)}>
+              Ver mais {Math.min(POR_VEZ, ordenadas.length - quantas)} (faltam {ordenadas.length - quantas})
+            </Botao>
+          )}
+        </>
+      )}
+    </Painel>
   );
 }
 

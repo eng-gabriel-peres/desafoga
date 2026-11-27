@@ -155,12 +155,12 @@ export const servicosDaApi: Servicos = {
   faturas: {
     listar: (id) => chamar("faturas.listar", [id]),
     ler: (id, arquivo) => enviarArquivo("faturas.ler", id, arquivo),
-    salvar: (id, fatura, c, contaId) => chamar("faturas.salvar", [id, fatura, c, contaId ?? null], true),
+    salvar: (id, fatura, c, contaId, assinaturas) => chamar("faturas.salvar", [id, fatura, c, contaId ?? null, assinaturas ?? []], true),
   },
   documentos: {
     // Registrato e contrato já gravam as sugestões: as telas recarregam.
     ler: (id, arquivo, exemplo) => enviarArquivo<LeituraDeDocumento>("documentos.ler", id, arquivo, "arquivo", exemplo).finally(avisarMudanca),
-    salvar: (id, fatura, c, contaId) => chamar("documentos.salvar", [id, fatura, c, contaId], true),
+    salvar: (id, fatura, c, contaId, assinaturas) => chamar("documentos.salvar", [id, fatura, c, contaId, assinaturas ?? []], true),
   },
   banco: {
     listar: (id) => chamar("banco.listar", [id]),

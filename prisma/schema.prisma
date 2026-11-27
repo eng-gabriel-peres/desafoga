@@ -475,6 +475,9 @@ model ContaFixa {
   variavel         Boolean  @default(false)
   debitoAutomatico Boolean  @default(false)
   lembrete         Boolean  @default(true)
+  /// Assinatura cobrada num cartão: a origem do cartão (id da conta conectada ou
+  /// "doc:<instituição>" da fatura enviada). Ela já vem dentro da fatura dele.
+  cartao           String?
   criadaEm         DateTime @default(now())
 
   @@index([pessoaId])
