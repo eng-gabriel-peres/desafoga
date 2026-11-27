@@ -2,7 +2,7 @@
  * A Luana no servidor: texto, arquivo e áudio, no app e no WhatsApp, com os
  * dados no banco. Quem chama já conferiu a permissão (acesso.ts).
  */
-import { gerarTexto } from "@/lib/ia/gemini";
+import { gerarTexto, iaConfigurada, iaOuve } from "@/lib/ia";
 import { ESTADO_INICIAL } from "@/lib/assistente/conversa";
 import { lerAudio, lerMensagem } from "@/lib/luana/ler";
 import { TIPOS_DE_AUDIO, TAMANHO_MAXIMO } from "@/lib/luana/luana";
@@ -14,9 +14,9 @@ import * as repo from "./repositorio";
 
 const hoje = () => new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
 
-/** Gemini, quando há chave; sem chave, a Luana responde só por regras. */
+/** A IA configurada (Gemini ou Claude local); sem ela, a Luana responde só por regras. */
 export function iaDisponivel(): IaDaConversa | null {
-  if (!process.env.GEMINI_API_KEY) return null;
+  if (!iaConfigurada()) return null;
   return { lerMensagem, redigir: (sistema, conteudo) => gerarTexto(sistema, conteudo) };
 }
 
@@ -119,7 +119,7 @@ export async function receberAudioNoChat(
     ]),
   });
   if (!TIPOS_DE_AUDIO.includes(tipo) || audio.bytes.byteLength > TAMANHO_MAXIMO) return falha("Não consegui abrir esse áudio. Grave de novo, mais curto, ou escreva.");
-  if (!ia) return falha("Nesta demonstração estou sem a IA que transcreve áudio. Pode escrever a mensagem?");
+  if (!ia || !iaOuve(tipo)) return falha("Nesta demonstração estou sem a IA que transcreve áudio. Pode escrever a mensagem?");
 
   let lida;
   try {

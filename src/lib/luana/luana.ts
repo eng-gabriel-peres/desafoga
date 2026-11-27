@@ -1,5 +1,5 @@
 import { formatarReais, lerPercentual, lerValorEmReais } from "@/lib/dinheiro";
-import { IaIndisponivel, IaSobrecarregada } from "@/lib/ia/gemini";
+import { IaIndisponivel, IaSobrecarregada } from "@/lib/ia";
 import { analisarCompra, blocoDeCompra } from "./compra";
 import { PERGUNTA, proximaPergunta, pular, registrarResposta } from "./entrevista";
 import { acrescentar, anotar, converter, hojeEmBrasilia } from "./lancamentos";
