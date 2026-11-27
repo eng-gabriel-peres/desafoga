@@ -173,6 +173,38 @@ describe.runIf(url)("documentos enviados no Postgres", () => {
     expect(await repo.faturas(pessoaId)).toHaveLength(1);
   });
 
+  it("só a assinatura marcada vira conta fixa, ligada ao cartão, e salvar de novo não repete", async () => {
+    const r = await ler(
+      documento({
+        lancamentos: [
+          { data: "2026-11-05", descricao: "ANTHROPIC* CLAUDE SUB", valor: "114,78", natureza: "compra", categoria: "assinaturas", parcela: null },
+          { data: "2026-11-07", descricao: "DIGITALOCEAN.COM", valor: "291,73", natureza: "compra", categoria: "assinaturas", parcela: null },
+        ],
+      }),
+    );
+    if (r.tipo !== "fatura") throw new Error();
+    const [claude] = r.fatura.lancamentos;
+    expect(await docs.salvarDocumento(pessoaId, r.fatura, {}, null, [claude.id])).toMatchObject({ assinaturas: 1 });
+    const contas = await repo.contasFixas(pessoaId);
+    expect(contas).toEqual([expect.objectContaining({ nome: "Anthropic* claude sub", categoria: "assinatura", valor: 11478, vencimento: 5, lembrete: false, cartao: "doc:nubank" })]);
+
+    expect(await docs.salvarDocumento(pessoaId, r.fatura, {}, null, [claude.id])).toMatchObject({ assinaturas: 0 });
+    expect(await repo.contasFixas(pessoaId)).toHaveLength(1);
+  });
+
+  it("assinatura de extrato vira conta fixa sem cartão", async () => {
+    const r = await ler(
+      documento({
+        tipo: "extrato_conta",
+        emissor: "Itaú",
+        lancamentos: [{ data: "2026-11-09", descricao: "NETFLIX", valor: "39,90", natureza: "compra", categoria: "assinaturas", parcela: null }],
+      }),
+    );
+    if (r.tipo !== "fatura") throw new Error();
+    await docs.salvarDocumento(pessoaId, r.fatura, {}, null, [r.fatura.lancamentos[0].id]);
+    expect((await repo.contasFixas(pessoaId))[0]).toMatchObject({ nome: "Netflix", cartao: null });
+  });
+
   it("PDF ligado a um cartão que já tem a fatura do banco fica fora dos cálculos", async () => {
     const conexao = await repo.criarConexao(pessoaId, { pluggyItemId: `item-${pessoaId}`, banco: "Nubank", logo: null });
     const [cartao] = await repo.salvarContas(conexao.id, [

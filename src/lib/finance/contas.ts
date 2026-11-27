@@ -34,6 +34,8 @@ export interface Compromisso {
   pago: boolean;
   /** Pago por débito automático (sem a pessoa marcar). */
   automatico: boolean;
+  /** Assinatura no cartão: vem na fatura dele, nada a pagar à parte. */
+  noCartao: boolean;
   vencida: boolean;
   emBreve: boolean;
   /** Valor estimado (conta que muda todo mês e ainda não foi paga). */
@@ -81,7 +83,8 @@ export function compromissosDoMes(
   const daConta = contas.map((c): Compromisso => {
     const dia = diaDoVencimento(c.vencimento, agora);
     const registro = pagamentoDe(pagamentos, "conta", c.id, mes);
-    const automatico = !registro && c.debitoAutomatico && dia <= hoje;
+    const noCartao = Boolean(c.cartao);
+    const automatico = !registro && (noCartao || (c.debitoAutomatico && dia <= hoje));
     const pago = Boolean(registro) || automatico;
     return {
       tipo: "conta",
@@ -92,6 +95,7 @@ export function compromissosDoMes(
       valor: registro?.valor ?? c.valor,
       pago,
       automatico,
+      noCartao,
       estimado: c.variavel && !registro,
       ...estado(dia, pago),
     };
@@ -116,6 +120,7 @@ export function compromissosDoMes(
         valor: registro?.valor ?? doPlano[d.id],
         pago,
         automatico: false,
+        noCartao: false,
         estimado: false,
         ...estado(dia, pago),
       };

@@ -209,6 +209,11 @@ export interface ContaFixa {
   debitoAutomatico: boolean;
   /** Lembrar no WhatsApp um dia antes. */
   lembrete: boolean;
+  /**
+   * Assinatura cobrada num cartão: a origem dele (id da conta conectada ou
+   * "doc:<instituição>", como em `CartaoNoMes`). É paga pela fatura do cartão.
+   */
+  cartao?: string | null;
 }
 
 /** Pagamento do mês de uma conta fixa ou da parcela de uma dívida. */

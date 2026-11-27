@@ -224,10 +224,12 @@ export async function dinheiroDaPessoa(pessoaId: string, agora = new Date()): Pr
     const mes = hoje.slice(0, 7);
     const doMes = pagamentos.filter((p) => p.mes === mes).map((p) => ({ tipo: p.tipo as "conta" | "divida", alvoId: p.alvoId, mes: p.mes, valor: p.valor, quando: p.quando.toISOString() }));
     const planoDoMes = { valorMensal: planoDaPessoa.valorMensal, estrategia: planoDaPessoa.estrategia as Estrategia };
-    const aPagarEsteMes = compromissosDoMes(contas, dividasDaPessoa, planoDoMes, doMes, agora)
+    // Assinatura no cartão sai do dinheiro pela fatura, que já está em `faturas`.
+    const daConta = contas.filter((c) => !c.cartao);
+    const aPagarEsteMes = compromissosDoMes(daConta, dividasDaPessoa, planoDoMes, doMes, agora)
       .filter((c) => !c.pago)
       .reduce((s, c) => s + c.valor, 0);
-    const compromissosDoMesQueVem = compromissosDoMes(contas, dividasDaPessoa, planoDoMes, [], proximoMes(agora)).reduce((s, c) => s + c.valor, 0);
+    const compromissosDoMesQueVem = compromissosDoMes(daConta, dividasDaPessoa, planoDoMes, [], proximoMes(agora)).reduce((s, c) => s + c.valor, 0);
     previsao = previsaoDoDinheiro({ hoje, saldo, renda: rendaDaPessoa, aPagarEsteMes, compromissosDoMesQueVem, faturas });
   }
 

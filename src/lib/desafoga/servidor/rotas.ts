@@ -102,11 +102,14 @@ function acao<A extends z.ZodTypeAny, R>(argumentos: A, executar: (args: z.infer
 }
 
 /** Fatura ou extrato enviado; o cartão conectado escolhido tem que ser desta pessoa. */
-async function salvarFaturaDaPessoa(p: string, f: Fatura, c: Record<string, Classificacao>, contaId: string | null) {
+async function salvarFaturaDaPessoa(p: string, f: Fatura, c: Record<string, Classificacao>, contaId: string | null, assinaturas: string[] = []) {
   const conta = contaId ? (await repo.conexoes(p)).flatMap((x) => x.contas).find((x) => x.id === contaId && x.tipo === "cartao") : null;
   if (contaId && !conta) throw new ErroDeEntrada("Cartão não encontrado.");
-  return salvarDocumento(p, f, c, conta?.id ?? null);
+  return salvarDocumento(p, f, c, conta?.id ?? null, assinaturas);
 }
+
+/** Ids dos lançamentos de assinatura que a pessoa quer como conta fixa mensal. */
+const assinaturasMensais = z.array(z.string().max(80)).max(200).optional();
 
 /**
  * Contas, renda, faturas, dívidas, plano e banco: quem acompanha só vê se a pessoa
@@ -594,18 +597,18 @@ const ACOES = {
     return repo.faturas(p);
   }),
   "faturas.salvar": acao(
-    z.tuple([id, fatura, z.record(z.string(), z.object({ emocao: emocao.optional(), necessidade: necessidade.optional() })), id.nullable().optional()]),
-    async ([p, f, c, contaId], { sessao }) => {
+    z.tuple([id, fatura, z.record(z.string(), z.object({ emocao: emocao.optional(), necessidade: necessidade.optional() })), id.nullable().optional(), assinaturasMensais]),
+    async ([p, f, c, contaId, assinaturas], { sessao }) => {
       exigirAPropriaPessoa(sessao, p);
-      return salvarFaturaDaPessoa(p, f as Fatura, c, contaId ?? null);
+      return salvarFaturaDaPessoa(p, f as Fatura, c, contaId ?? null, assinaturas);
     },
   ),
 
   "documentos.salvar": acao(
-    z.tuple([id, fatura, z.record(z.string(), z.object({ emocao: emocao.optional(), necessidade: necessidade.optional() })), id.nullable()]),
-    async ([p, f, c, contaId], { sessao }) => {
+    z.tuple([id, fatura, z.record(z.string(), z.object({ emocao: emocao.optional(), necessidade: necessidade.optional() })), id.nullable(), assinaturasMensais]),
+    async ([p, f, c, contaId, assinaturas], { sessao }) => {
       exigirAPropriaPessoa(sessao, p);
-      return salvarFaturaDaPessoa(p, f as Fatura, c, contaId);
+      return salvarFaturaDaPessoa(p, f as Fatura, c, contaId, assinaturas);
     },
   ),
 

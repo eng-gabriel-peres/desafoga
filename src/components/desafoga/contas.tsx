@@ -56,6 +56,7 @@ const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um :
 
 /** Situação da conta em palavras: "Vence em 2 dias", "Venceu há 3 dias"… */
 export function situacaoDaConta(c: Compromisso, hoje: number): string {
+  if (c.noCartao) return "No cartão";
   if (c.pago) return c.automatico ? "Débito automático" : "Pago";
   if (c.vencida) return `Venceu há ${plural(hoje - c.dia, "dia", "dias")}`;
   if (c.dia === hoje) return "Vence hoje";
